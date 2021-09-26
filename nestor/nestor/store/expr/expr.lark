@@ -1,0 +1,77 @@
+// Expression language used for definining measures and dimensions
+
+// Literals. Only numbers are supported for now. String operations are expected to be
+// performed when preparing the data.
+%import common.SIGNED_NUMBER  -> NUMBER
+%import common._STRING_ESC_INNER
+STRING: "'" _STRING_ESC_INNER "'"
+?literal: NUMBER | STRING
+
+// Identifier: field (column, measure or dimension on another table), table, function name
+IDENTIFIER: /[a-z_]\w*/i
+
+// Column, measure or dimension access. For the same table, just a bare IDENTIFIER,
+// for tables available via a foreign key join: table.field
+// e.g. sum(amount) on orders table is the same as sum(orders.amount)
+// or avg(users.age) on orders with user_id fk -> users.id
+?field: IDENTIFIER
+?table: IDENTIFIER
+anchor: field
+related: table "." field
+
+?access: anchor | related
+
+// Function call
+call: IDENTIFIER "(" [ op ("," op)* ] ")"
+
+?paren: "(" op ")"  // just parentheses
+
+// precedence
+?atom: literal | access | call | paren
+
+// Operator precedence follows SQL
+// highest precedence is exponentiation
+?exp_: atom | exp
+exp: exp_ "**" atom
+
+// bitwise not and unary plus don't make sense here, so not supported
+?unary_: exp_ | neg
+neg: "-" exp_
+
+// stuff with multiplication
+?mul_: unary_ | fdiv | div | mul | mod
+fdiv: mul_ "//" unary_  // floor division
+div: mul_ "/" unary_
+mul: mul_ "*" unary_
+mod: mul_ "%" unary_  // modulo or remainder
+
+// addition and subtraction
+?add_: mul_ | add | sub
+add: add_ "+" mul_
+sub: add_ "-" mul_
+
+// comparison
+?comp: add_ | gt | gte | lt | lte | eq | neq
+gt: comp ">" add_
+gte: comp ">=" add_
+lt: comp "<" add_
+lte: comp "<=" add_
+eq: comp "==" add_
+neq: comp ("!=" | "<>") add_
+
+// Spaces are required as part of the grammar.
+
+// booleans
+?not_: comp | not
+not: "not" comp
+
+?and_: not_ | and
+and: and_ "and" not_
+
+?or_: and_ | or
+or: or_ "or" and_
+
+?op: or_
+expr: op
+
+%ignore /\s/

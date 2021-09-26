@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "nestor"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^1.8.2"
+lark = "^0.11.3"
+PyYAML = "^5.4.1"
+pytest-cov = {extras = ["toml"], version = "^2.12.1"}
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^21.9b0"
+flake8 = "^3.9.2"
+isort = "^5.9.3"
+
+[tool.pytest.ini_options]
+addopts = "--cov-report xml --cov-report html --cov=nestor"
+
+[tool.isort]
+profile = "black"
+known_first_party = ["nestor"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

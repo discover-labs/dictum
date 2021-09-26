@@ -1,0 +1,96 @@
+tables:
+
+  users:
+    source: users
+    primary_key: id
+    foreign_keys:
+      - column: created_by
+        to: users
+      - column: referred_by
+        to: users
+      - column: attribution_id
+        to: attributions
+    measures:
+      n_users:
+        expr: count()
+        name: Number of Users
+        description: |
+          Number of registered users. Use this with registration date to count new user
+          registrations.
+      avg_user_age:
+        name: Average User Age
+        expr: avg(age)
+      n_referred_users:
+        name: Number of Users Referred by Other Users
+        expr: count(referred_by)
+    dimensions:
+      user_reg_date:
+        name: User Registration Date
+        type: time
+        expr: created_at
+        description: Date and time at which the user was created.
+      user_age:
+        name: User's Age in Years
+        type: continuous
+        expr: age
+      user_age_10:
+        name: User's Age Bracket (10 years)
+        type: discrete
+        expr: age // 10 * 10
+      user_channel:
+        name: User Attribution Channel
+        type: discrete
+        expr: attributions.channel
+      is_user_referred:
+        expr: if(isnull(referred_by), 'No', 'Yes')
+        type: discrete
+        name: Is User Referred by Other User
+
+  orders:
+    source: users
+    primary_key: id
+    foreign_keys:
+      - column: user_id
+        to: users
+        alias: user
+      - column: attribution_id
+        to: attributions
+    measures:
+      pu:
+        name: Number of Paying Users (PU)
+        expr: distinct(user_id)
+        description: Unique number of users who made an order
+      revenue:
+        name: Revenue
+        expr: sum(amount)
+        description: Total sum of orders
+      arppu:
+        name: Average Revenue per Paying User
+        expr: revenue / pu
+        shorthand: ARPPU
+        description: Total sum of orders divided by number of unique users who made them
+    dimensions:
+      order_user_channel:
+        expr: users.user_channel
+        type: discrete
+        name: Order's User Attribution Channel
+      order_time:
+        name: Order Time
+        expr: created_at
+        type: time
+      order_amount:
+        name: Order Amount
+        type: continuous
+        expr: amount
+      order_amount_bin_100:
+        name: Order Amount ($100 bins)
+        type: discrete
+        expr: amount // 100 * 100
+      order_channel:
+        name: Order Attribution Channel
+        type: discrete
+        expr: attributions.channel
+
+  attributions:
+    source: attributions
+    primary_key: id
