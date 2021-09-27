@@ -1,15 +1,21 @@
+# a full imaginary config
+# designed to showcase all of the features present in the current version
+# used for tests
+
 tables:
 
   users:
     source: users
     primary_key: id
-    foreign_keys:
-      - column: created_by
-        to: users
-      - column: referred_by
-        to: users
-      - column: attribution_id
-        to: attributions
+    related:
+      - table: users
+        alias: creator
+        foreign_key: created_by
+      - table: users
+        alias: referrer
+        foreign_key: referred_by
+      - table: attributions
+        foreign_key: attribution_id
     measures:
       n_users:
         expr: count()
@@ -45,16 +51,23 @@ tables:
         expr: if(isnull(referred_by), 'No', 'Yes')
         type: discrete
         name: Is User Referred by Other User
+      user_creator_channel:
+        expr: creator.channel
+        type: discrete
+        name: User Creator's Channel
+      user_referrer_channel:
+        expr: referrer.channel
+        type: discrete
+        name: User Referrer's Channel
 
   orders:
-    source: users
+    source: orders
     primary_key: id
-    foreign_keys:
-      - column: user_id
-        to: users
-        alias: user
-      - column: attribution_id
-        to: attributions
+    related:
+      - table: users
+        foreign_key: user-id
+      - table: attributions
+        foreign_key: attribution_id
     measures:
       pu:
         name: Number of Paying Users (PU)
@@ -71,9 +84,9 @@ tables:
         description: Total sum of orders divided by number of unique users who made them
     dimensions:
       order_user_channel:
+        name: order_user_channel
         expr: users.user_channel
         type: discrete
-        name: Order's User Attribution Channel
       order_time:
         name: Order Time
         expr: created_at

@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, root_validator, validator
 
 from nestor.store.schema.types import DimensionType, Expression, Identifier
 
@@ -11,9 +11,14 @@ class Base(BaseModel):
     pass
 
 
-class ForeignKey(Base):
-    column: Identifier
-    to: Expression
+class RelatedTable(Base):
+    table: Identifier
+    alias: Optional[Identifier]
+    foreign_key: str
+
+    @property
+    def ref(self):
+        return self.alias if self.alias is not None else self.table
 
 
 class Measure(Base):
@@ -31,14 +36,26 @@ class Dimension(Base):
 
 
 class Table(Base):
-    source: str
     description: Optional[str]
+    source: str
     primary_key: Optional[Identifier] = Field(
         ..., description="If not set, this table can't be a target of a foreign key."
     )
-    foreign_keys: List[ForeignKey] = []
+    related: List[RelatedTable] = []
     measures: Dict[Identifier, Measure] = {}
     dimensions: Dict[Identifier, Dimension] = {}
+
+    @validator("related")
+    def check_related_refs_unique(cls, related: List[RelatedTable], values):
+        refs = set()
+        for rel in related:
+            if rel.ref in refs:
+                table = values.get("source")
+                raise ValueError(
+                    f"Duplicate related table refs for table {table}: {rel.ref}"
+                )
+            refs.add(rel.ref)
+        return related
 
 
 class Config(Base):
@@ -53,6 +70,7 @@ class Config(Base):
     def validate_unique_ids(cls, values: dict):
         """Check that measure and dimension IDs are unique across all tables."""
         ids = set()
+        breakpoint()
         for table_id, table in values["tables"].items():
             for id in table.measures:
                 if id in ids:

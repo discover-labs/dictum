@@ -10,16 +10,11 @@ STRING: "'" _STRING_ESC_INNER "'"
 // Identifier: field (column, measure or dimension on another table), table, function name
 IDENTIFIER: /[a-z_]\w*/i
 
-// Column, measure or dimension access. For the same table, just a bare IDENTIFIER,
+// Column, measure or dimension reference. For the same table, just a bare IDENTIFIER,
 // for tables available via a foreign key join: table.field
 // e.g. sum(amount) on orders table is the same as sum(orders.amount)
 // or avg(users.age) on orders with user_id fk -> users.id
-?field: IDENTIFIER
-?table: IDENTIFIER
-anchor: field
-related: table "." field
-
-?access: anchor | related
+ref: IDENTIFIER | IDENTIFIER "." IDENTIFIER
 
 // Function call
 call: IDENTIFIER "(" [ op ("," op)* ] ")"
@@ -27,7 +22,7 @@ call: IDENTIFIER "(" [ op ("," op)* ] ")"
 ?paren: "(" op ")"  // just parentheses
 
 // precedence
-?atom: literal | access | call | paren
+?atom: literal | ref | call | paren
 
 // Operator precedence follows SQL
 // highest precedence is exponentiation

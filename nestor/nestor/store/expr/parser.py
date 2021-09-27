@@ -10,6 +10,9 @@ class Preprocessor(Transformer):
         """Unquotes string values (by default they are captured with ")"""
         return Token("STRING", token.value[1:-1])
 
+    def IDENTIFIER(self, token: Token):
+        return token.value
+
     def fdiv(self, children):
         """Replaces floor division operator (//) with
         normal division and a function call

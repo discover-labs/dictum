@@ -17,14 +17,10 @@ def test_and_whitespace():
 
 
 def test_fields():
-    """Field access syntax. Either a field on an anchor table (just an identifier)
-    or on a related table (related.field).
-    """
-    assert parser.parse("field").children[0] == Tree(
-        "anchor", [Token("IDENTIFIER", "field")]
-    )
+    """Field access syntax."""
+    assert parse_expr("field").children[0] == Tree("ref", ["field"])
     assert parser.parse("related.field").children[0] == Tree(
-        "related", [Token("IDENTIFIER", "related"), Token("IDENTIFIER", "field")]
+        "ref", ["related", "field"]
     )
 
 

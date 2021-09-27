@@ -1,138 +1,95 @@
-from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import ClassVar, Dict, List, Optional
 
-from lark import Token, Transformer, Tree, Visitor
+from lark import Transformer, Tree, Visitor
 
 from nestor.store import schema
 from nestor.store.computation import Computation
 from nestor.store.expr.parser import parse_expr
 
 
-class AnchorResolver(Transformer):
-    """Replaces implicit access to an anchor table field with an explicit one,
-    e.g. `sum(field) / 10` -> `sum(anchor.field) / 10`
-
-    Figures out which references are to columns and which are to other calculations.
+class ExpressionResolver(Transformer):
+    """Replaces references to other expression with the actual expression, so that
+    there are only references to tables left in all expressions.
     """
 
-    def __init__(
-        self,
-        anchor: str,
-        visit_tokens: bool = True,
-    ) -> None:
-        self._anchor = anchor
+    def __init__(self, calculation: "Calculation", visit_tokens: bool = True):
+        self._calc = calculation
         super().__init__(visit_tokens=visit_tokens)
 
-    def anchor(self, children):
-        return Tree("anchor", [Token("IDENTIFIER", self._anchor), children[0]])
-
-
-class DependencyBuilder(Visitor):
-    """Inspects the AST and returns a list of measures and dimensions that this one
-    references. Makes sure that measures and dimensions don't reference each other.
-    Makes sure that there's exactly one foreign key to the target table if it's related.
-    """
-
-    def __init__(self, calculation: "Calculation") -> None:
-        self._calc = calculation
-        self._deps = []
-        super().__init__()
-
-    def build(self):
-        self.visit(self._calc.expr)
-        return self._deps
-
-    def _table(self, tree: Tree):
-        table, field = tree.children
-        table: Table = self._calc.store.tables[table]
-        obj = table._all.get(field.value)
-        if obj is not None:
-            if obj.id == self._calc.id:
-                raise ValueError(f"{self.calc} references itself")
-            if obj.__class__ != self._calc.__class__:
-                raise ValueError(f"{self._calc} is not " f"allowed to reference {obj}")
-        if (obj := getattr(table, self._calc.type).get(field.value)) is not None:
-            self._deps.append(obj)
-
-    anchor = _table
-
-    def related(self, tree: Tree):
-        """First, check that there's a foreign key to the table, then call _table."""
-        table: Table = self._calc.store.tables[tree.children[0].value]
-        try:
-            self._calc.table._check_foreign_key(table)
-        except ValueError as e:  # TODO: better error types
-            raise ValueError(
-                f"Error processing table dependencies for {self._calc}: {e}"
-            )
-        return self._table(tree)
-
-
-class ColumnBuilder(Visitor):
-    """Traverses the AST and returns a list of columns in related tables that this
-    calculation references as a tuple (table_id, column).
-    Only run after all dependencies have been resolved.
-    """
-
-    def __init__(self, calculation: "Calculation"):
-        self._calc = calculation
-        self._cols = []
-        super().__init__()
-
-    def related(self, tree: Tree):
-        self._cols.append(tuple(c.value for c in tree.children))
-
-    def build(self):
-        self.visit(self._calc.expr)
-        return self._cols
-
-
-class RelatedTableResolver(Transformer):
-    """Prepends references to a related table field with table id."""
-
-    def __init__(self, related_id: str, visit_tokens: bool = True):
-        self._ref = related_id
-        super().__init__(visit_tokens=visit_tokens)
-
-    def related(self, children):
+    def ref(self, children):
         *tables, field = children
-        return Tree("related", [Token("IDENTIFIER", self._ref), *tables, field])
+        dep = self._calc.store._all.get(field)
+
+        # check that there's a foreign key if needed
+        # prefix = tables[0] if tables else self._calc.table.id
+        if len(tables) > 0:
+            try:
+                self._calc.table._check_foreign_key(tables[0])
+            except ValueError as e:  # TODO: better errors
+                raise ValueError(f"Error processing dependencies for {self._calc}: {e}")
+
+        # dependency wasn't found in the registry, means it's a column
+        if dep is None:
+            # always prepend with calc table name
+            return Tree("column", [self._calc.table.id, *children])
+
+        # check that a measure doesn't reference dimension and vice versa
+        if not isinstance(dep, self._calc.__class__):
+            raise ValueError(
+                f"{self._calc} references {dep}. Only calculations of the "
+                "same type can reference each other"
+            )
+
+        resolver = ExpressionResolver(dep)
+        return resolver.transform().children[0]
+
+    def transform(self):
+        return super().transform(self._calc.expr)
 
 
-class DependencyResolver(Transformer):
-    """Replaces references to other measures and dimensions with their
-    actual expression. Prepends references to a related table with that table's id.
+class RelatedPathsBuilder(Visitor):
+    """Given a calculation, and an anchor returns a list of relevant required join paths."""
+
+    def __init__(self, anchor: "Table", calculation: "Calculation"):
+        self._calc = calculation
+        self._anchor = anchor
+        self._paths: List[List[str]] = []
+        super().__init__()
+
+    def column(self, tree: Tree):
+        *tables, _ = tree.children
+        if tables[0] != self._anchor.id:  # if the same table, no join
+            self._paths.append(tables)
+
+    def build(self) -> List[List["Table"]]:
+        self.visit(self._calc.expr)
+        return self._paths
+
+
+class ColumnExpressionBuilder(Transformer):
+    """Given a calculation, replaces references to columns with table identity as is
+    specified in JoinTree.
     """
 
-    def __init__(self, dependencies: List["Calculation"], visit_tokens: bool = True):
-        self.dependencies = {(d.table.id, d.id): d for d in dependencies}
+    def __init__(self, calculation: "Calculation", visit_tokens: bool = True) -> None:
+        self._calc = calculation
         super().__init__(visit_tokens=visit_tokens)
 
-    def anchor(self, children):
-        table, field = children
-        key = (table.value, field.value)
-        if key not in self.dependencies:  # a column, TODO: force to declare columns
-            return Tree("anchor", children)
-        dep = self.dependencies[key]
-        return dep.get_resolved_expr()
+    def column(self, children):
+        *tables, field = children
+        return Tree("column", [".".join(tables), field])
 
-    def related(self, children):
-        table, field = children
-        key = (table.value, field.value)
-        if key not in self.dependencies:
-            return Tree("related", children)
-        dep = self.dependencies[key]
-        expr = dep.get_resolved_expr()
-        resolver = RelatedTableResolver(dep.table.id)
-        return resolver.transform(expr)
+    def build(self):
+        return self.transform(self._calc.expr)
 
 
 @dataclass
-class ForeignKey:
-    column: str
-    to: "Table"
+class RelatedTable:
+    table: "Table"
+    alias: str
+    foreign_key: str
 
 
 @dataclass(repr=False)
@@ -141,7 +98,7 @@ class Table:
     source: str
     description: Optional[str]
     primary_key: str
-    foreign_keys: List[ForeignKey] = field(default_factory=list)
+    related: Dict[str, RelatedTable] = field(default_factory=dict)
     measures: Dict[str, "Measure"] = field(default_factory=dict)
     dimensions: Dict[str, "Dimension"] = field(default_factory=dict)
 
@@ -149,19 +106,34 @@ class Table:
     def _all(self):
         return {**self.measures, **self.dimensions}
 
-    def _check_foreign_key(self, table: "Table"):
+    def _check_foreign_key(self, table: str):
         """Checks that there's exactly one foreign key to the supplied table."""
-        fks = {}
-        for fk in self.foreign_keys:
-            if fk.to is table:
-                fks[fk.column] = table
-        if len(fks) > 1:
+        if table not in self.related:
             raise ValueError(
-                f"{self} has multiple foreign keys to {table}, "
-                f"please declare your dimensions or measures directly on {self}"
+                f"No primary key for table {table} in the config, "
+                "other tables can't reference it in calculations."
             )
-        if len(fks) == 0:
-            raise ValueError(f"{self} has no foreign key to {table}")
+
+    @cached_property
+    def allowed_dimensions(self) -> Dict[str, "Dimension"]:
+        """Which dimensions are allowed to use with this table as anchor.
+        Only those declared on tables to which the anchor table has foreign keys.
+        """
+        dims = {}
+        dims.update(self.dimensions)
+        for _, rel in self.related.items():
+            dims.update(rel.table.dimensions)
+        return dims
+
+    def get_foreign_key(self, table_or_alias: str):
+        """Return foreign key for a related table."""
+        return self.related[table_or_alias].foreign_key
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
     def __repr__(self):
         return str(self)
@@ -181,36 +153,6 @@ class Calculation:
     description: Optional[str]
     expr: Tree
     table: Table
-    _resolved: bool = False
-
-    def __post_init__(self):
-        self.resolve_anchor()
-
-    def resolve_anchor(self):
-        resolver = AnchorResolver(self.table.id)
-        self.expr = resolver.transform(self.expr)
-        return self
-
-    def get_resolved_expr(self):
-        if self._resolved:
-            return self.expr.children[0]
-        resolver = DependencyResolver(self.dependencies)
-        self.expr = resolver.transform(self.expr)
-        self._resolved = True
-        return self.expr.children[0]
-
-    def resolve_dependencies(self):
-        self.get_resolved_expr()
-
-    @cached_property
-    def dependencies(self) -> List["Calculation"]:
-        builder = DependencyBuilder(self)
-        return builder.build()
-
-    @cached_property
-    def columns(self) -> List["Calculation"]:
-        builder = ColumnBuilder(self)
-        return builder.build()
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.id})"
@@ -218,25 +160,86 @@ class Calculation:
     def __repr__(self):
         return str(self)
 
+    def resolve_dependencies(self):
+        resolver = ExpressionResolver(self)
+        self.expr = resolver.transform()
+
 
 @dataclass(repr=False)
 class Dimension(Calculation):
-    type: ClassVar[str] = "dimensions"
+    pass
 
 
 @dataclass(repr=False)
 class Measure(Calculation):
-    type: ClassVar[str] = "measures"
+    pass
 
-    @cached_property
-    def dimensions(self) -> Dict[str, Dimension]:
-        """Which dimensions are allowed for this measure.
-        Only those declared on tables to which the anchor table has foreign keys.
+
+@dataclass
+class Join:
+    """A single join"""
+
+    foreign_key: str
+    related_key: str  # primary key of the related table
+    to: "JoinTree"
+
+    def __eq__(self, other: "Join"):
+        return (
+            self.foreign_key == other.foreign_key
+            and self.related_key == other.related_key
+            and self.to == other.to
+        )
+
+
+@dataclass
+class JoinTree:
+    """A table and an optional tree of joins. Which tables need to be joined
+    to which. Keeps track of joins, so that no join is performed twice.
+
+    Each table is supplied with an identity to be used in the select list to signify
+    on which column to perform a calculation. To be used as e.g. SQL aliases or prefixes
+    for pandas column names.
+    """
+
+    table: Table
+    identity: str  # table identity (see the docstring)
+    joins: List[Join] = field(default_factory=list)
+
+    def add_path(self, tables: List[str]):
+        """Add a single path to the existing join tree. Tables will be joined on the
+        relevant foreign key.
         """
-        dims = {}
-        for fk in self.table.foreign_keys:
-            dims.update(fk.to.dimensions)
-        return dims
+        if len(tables) == 0:
+            return
+        table_or_alias, *tables = tables
+        fk = self.table.get_foreign_key(table_or_alias)
+        table = self.table.related[table_or_alias].table
+        identity = f"{self.identity}.{table_or_alias}"
+        join = Join(
+            foreign_key=fk,
+            related_key=table.primary_key,
+            to=JoinTree(table=table, identity=identity),
+        )
+        for existing_join in self.joins:
+            if join == existing_join:  # if this join already exists, go down a level
+                existing_join.to.add_path(tables)
+                return  # and terminate
+        # if this join doesn't exist
+        self.joins.append(join)
+        join.to.add_path(tables)  # add and go further down
+
+    def _print(self):
+        print("\n".join(self._paths()))
+
+    def _paths(self) -> List[str]:
+        result = []
+        result.append(self.identity)
+        for join in self.joins:
+            result += join.to._paths()
+        return result
+
+    def __eq__(self, other: "JoinTree"):
+        return self.identity == other.identity
 
 
 class Store:
@@ -283,17 +286,17 @@ class Store:
         self.dimensions = {}
         for table_id, config_table in config.tables.items():
             table = self.ensure_table(config_table, table_id)
-            for fk in config_table.foreign_keys:
-                if fk.to not in config.tables:
+            for related in config_table.related:
+                if related.table not in config.tables:
                     raise KeyError(
-                        f"Table {fk.to} is referenced as a foreign key target for "
-                        "table {alias}, but it's not defined in the config."
+                        f"Table {related.table} is referenced as a foreign key target "
+                        f"for table {table_id}, but it's not defined in the config."
                     )
-                table.foreign_keys.append(
-                    ForeignKey(
-                        column=fk.column,
-                        to=self.ensure_table(config.tables[fk.to], fk.to),
-                    )
+                table.related[related.ref] = RelatedTable(
+                    table=self.ensure_table(
+                        config.tables[related.table], related.table
+                    ),
+                    **related.dict(include={"foreign_key", "alias"}),
                 )
             for measure_id, measure in config_table.measures.items():
                 _measure = Measure(
@@ -320,6 +323,15 @@ class Store:
         for _, dimension in self.dimensions.items():
             dimension.resolve_dependencies()
 
+    @classmethod
+    def from_yaml(cls, path: str):
+        config = schema.Config.from_yaml(path)
+        return cls(config)
+
+    @cached_property
+    def _all(self):
+        return {**self.measures, **self.dimensions}
+
     def ensure_table(self, table: schema.Table, table_id: str) -> Table:
         if table_id not in self.tables:
             self.tables[table_id] = Table(
@@ -328,5 +340,64 @@ class Store:
             )
         return self.tables[table_id]
 
+    def get_anchor(self, query: schema.Query) -> Table:
+        """Decide which table for this query is the anchor.
+
+        Check that the query is valid in terms of measures
+        - All measures exist
+        - All measures are declared on the same table (anchor)
+
+        Returns the anchor table.
+        """
+        anchor = None
+        for measure_id in query.measures:
+            measure = self.measures.get(measure_id)
+            if measure is None:
+                raise ValueError(f"Measure {measure_id} does not exist")
+            if anchor is not None and measure.table != anchor:
+                raise ValueError(
+                    f"Anchor table is {anchor}, but measure {measure}'s anchor "
+                    "is {measure.table}. "
+                    "Only measures declared on the same table are allowed."
+                )
+            anchor = measure.table
+        return anchor
+
+    def get_dimension(self, anchor: Table, dimension_id: str) -> Dimension:
+        """Check that the dimension exists and is allowed for the given anchor.
+
+        Returns the dimension.
+        """
+        dimension = self.dimensions.get(dimension_id)
+        if dimension is None:
+            raise ValueError(f"Dimension {dimension_id} does not exist")
+        if dimension_id not in anchor.allowed_dimensions:
+            raise ValueError(
+                f"Dimension {dimension_id} can't be used in this query. "
+                f"Only dimensions declared directly on table {anchor} and "
+                "it's related tables are allowed."
+            )
+        return dimension
+
     def execute_query(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
+        anchor = self.get_anchor(query)
+        measures = {}
+        dimensions = {}
+
+        # build the join tree
+        tree = JoinTree(table=anchor, identity=anchor.id)
+        for measure_id in query.measures:
+            measure = self.measures.get(measure_id)
+            builder = RelatedPathsBuilder(anchor, measure)
+            for path in builder.build():
+                tree.add_path(path)
+            measures[measure_id] = measure
+        for dimension_id in query.dimensions:
+            dimension = self.get_dimension(anchor, dimension_id)
+            builder = RelatedPathsBuilder(anchor, dimension)
+            for path in builder.build():
+                tree.add_path(path)
+            dimensions[dimension_id] = dimension
+        breakpoint()
+        # prepare expressions
