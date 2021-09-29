@@ -1,21 +1,34 @@
+import itertools
+from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import cached_property
-from typing import ClassVar, Dict, List, Optional
+from functools import cache, cached_property, reduce
+from typing import ClassVar, Dict, Generator, List, Optional, Tuple
 
 from lark import Transformer, Tree, Visitor
 
 from nestor.store import schema
-from nestor.store.computation import Computation
 from nestor.store.expr.parser import parse_expr
 
 
 class ExpressionResolver(Transformer):
-    """Replaces references to other expression with the actual expression, so that
-    there are only references to tables left in all expressions.
+    """Replaces references to other expressions with the actual expression, so that
+    there are only references to table columns left in all expressions.
     """
 
-    def __init__(self, calculation: "Calculation", visit_tokens: bool = True):
+    def __init__(
+        self,
+        calculation: "Calculation",
+        parents: List[str] = None,
+        visit_tokens: bool = True,
+    ):
         self._calc = calculation
+        if parents is None:
+            parents = []
+        if calculation.id in parents:
+            parents.append(calculation.id)
+            path = " <- ".join(parents)
+            raise RecursionError(f"{calculation.id} references itself: {path}")
+        self._parents = parents + [calculation.id]
         super().__init__(visit_tokens=visit_tokens)
 
     def ref(self, children):
@@ -32,8 +45,7 @@ class ExpressionResolver(Transformer):
 
         # dependency wasn't found in the registry, means it's a column
         if dep is None:
-            # always prepend with calc table name
-            return Tree("column", [self._calc.table.id, *children])
+            return Tree("column", children)
 
         # check that a measure doesn't reference dimension and vice versa
         if not isinstance(dep, self._calc.__class__):
@@ -42,54 +54,65 @@ class ExpressionResolver(Transformer):
                 "same type can reference each other"
             )
 
-        resolver = ExpressionResolver(dep)
+        resolver = ExpressionResolver(dep, parents=self._parents)
         return resolver.transform().children[0]
 
     def transform(self):
         return super().transform(self._calc.expr)
 
 
-class RelatedPathsBuilder(Visitor):
-    """Given a calculation, and an anchor returns a list of relevant required join paths."""
+class RelatedPathsBuilder(Transformer):
+    """Given a calculation and an anchor, returns a list of required join paths."""
 
     def __init__(self, anchor: "Table", calculation: "Calculation"):
         self._calc = calculation
         self._anchor = anchor
+        # remove last part of the join path because all fields in the
+        # target table are already prepended with table name
+        self._base_path = anchor.get_join_path(calculation.table.id)
         self._paths: List[List[str]] = []
         super().__init__()
 
-    def column(self, tree: Tree):
-        *tables, _ = tree.children
-        if tables[0] != self._anchor.id:  # if the same table, no join
-            self._paths.append(tables)
-
-    def build(self) -> List[List["Table"]]:
-        self.visit(self._calc.expr)
-        return self._paths
-
-
-class ColumnExpressionBuilder(Transformer):
-    """Given a calculation, replaces references to columns with table identity as is
-    specified in JoinTree.
-    """
-
-    def __init__(self, calculation: "Calculation", visit_tokens: bool = True) -> None:
-        self._calc = calculation
-        super().__init__(visit_tokens=visit_tokens)
-
-    def column(self, children):
+    def column(self, children: list):
         *tables, field = children
-        return Tree("column", [".".join(tables), field])
+        self._paths.append(self._base_path + tables)
+        return Tree("column", [".".join(self._paths[-1]), field])
 
-    def build(self):
-        return self.transform(self._calc.expr)
+    def build(self) -> Tuple[Tree, List[str]]:
+        expr = self.transform(self._calc.expr)
+        return expr, self._paths
 
 
 @dataclass
 class RelatedTable:
     table: "Table"
-    alias: str
     foreign_key: str
+
+
+@dataclass(repr=False)
+class JoinPathItem:
+    table: "Table"
+    alias: str
+
+    def __eq__(self, other):
+        return self.table == other.table
+
+    def __hash__(self):
+        return hash(self.table)
+
+    def __str__(self):
+        return f"{self.alias}:{self.table}"
+
+    def __repr__(self):
+        return str(self)
+
+
+JoinPath = Tuple[JoinPathItem, ...]
+
+
+def _acc_paths(acc: dict, path: JoinPath):
+    acc[path[-1]].append(path)
+    return acc
 
 
 @dataclass(repr=False)
@@ -107,7 +130,7 @@ class Table:
         return {**self.measures, **self.dimensions}
 
     def _check_foreign_key(self, table: str):
-        """Checks that there's exactly one foreign key to the supplied table."""
+        """Checks that a foreign key to the table exists."""
         if table not in self.related:
             raise ValueError(
                 f"No primary key for table {table} in the config, "
@@ -115,19 +138,62 @@ class Table:
             )
 
     @cached_property
+    def allowed_join_paths(self) -> Dict[str, JoinPath]:
+        """A dict of table id -> tuple of JoinPathItem"""
+        paths = reduce(_acc_paths, self.find_all_paths(), defaultdict(lambda: []))
+        return {k.table.id: v[0] for k, v in paths.items() if len(v) == 1}
+
+    @cached_property
     def allowed_dimensions(self) -> Dict[str, "Dimension"]:
-        """Which dimensions are allowed to use with this table as anchor.
-        Only those declared on tables to which the anchor table has foreign keys.
+        """Which dimensions are allowed to be used with this table as anchor.
+        Only those to which there's a single direct join path. If there isn't,
+        dimensions must be declared directly on a table that's available for join.
         """
         dims = {}
         dims.update(self.dimensions)
-        for _, rel in self.related.items():
-            dims.update(rel.table.dimensions)
+        for _, (*_, target) in self.allowed_join_paths.items():
+            dims.update(target.table.dimensions)
         return dims
 
-    def get_foreign_key(self, table_or_alias: str):
-        """Return foreign key for a related table."""
-        return self.related[table_or_alias].foreign_key
+    def get_join_path(self, target: str) -> List[str]:
+        """Get an aliased join path from this table to target table. Includes current
+        table."""
+        if target == self.id:  # same table
+            return [self.id]
+        result = self.allowed_join_paths.get(target)
+        if result is None:
+            raise ValueError(
+                f"There's no unambiguous join path from {self} to Table({target})"
+            )
+        return [self.id] + [i.alias for i in result]
+
+    @cache
+    def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
+        """Find all join paths from this table to other tables."""
+        result = []
+        if path:
+            result.append(path)
+        for alias, rel in self.related.items():
+            item = JoinPathItem(rel.table, alias)
+            if item in path:
+                continue  # skip on cycle
+            result.extend(rel.table.find_all_paths(path + (item,)))
+        return result
+
+    @cached_property
+    def dimension_tables(self) -> Dict[str, str]:
+        """A mapping of allowed dimension IDs to table IDs."""
+        return {k: v.table.id for k, v in self.allowed_dimensions.items}
+
+    def get_dimension(self, dimension_id: str) -> Tuple[Tree, List[str]]:
+        """Request a dimension relative to this table. Returns an expression with
+        embedded table identity and a join path.
+        """
+        dimension = self.allowed_dimensions.get(dimension_id)
+        if dimension is None:
+            raise ValueError(f"Dimension {dimension_id} can't be used with {self}")
+        builder = RelatedPathsBuilder(self, dimension)
+        return builder.build()
 
     def __eq__(self, other):
         return self.id == other.id
@@ -167,7 +233,13 @@ class Calculation:
 
 @dataclass(repr=False)
 class Dimension(Calculation):
-    pass
+    @cached_property
+    def join_paths(self) -> List[List[str]]:
+        builder = RelatedPathsBuilder(self.table, self)
+        result = []
+        for path in builder.build():
+            result.append(path)
+        return result
 
 
 @dataclass(repr=False)
@@ -177,7 +249,7 @@ class Measure(Calculation):
 
 @dataclass
 class Join:
-    """A single join"""
+    """A single join in the join tree"""
 
     foreign_key: str
     related_key: str  # primary key of the related table
@@ -189,6 +261,18 @@ class Join:
             and self.related_key == other.related_key
             and self.to == other.to
         )
+
+
+@dataclass
+class UnnestedJoin:
+    """A flat join"""
+
+    left_identity: str
+    left_key: str
+
+    right_source: str
+    right_identity: str
+    right_key: str
 
 
 @dataclass
@@ -212,7 +296,7 @@ class JoinTree:
         if len(tables) == 0:
             return
         table_or_alias, *tables = tables
-        fk = self.table.get_foreign_key(table_or_alias)
+        fk = self.table.related[table_or_alias].foreign_key
         table = self.table.related[table_or_alias].table
         identity = f"{self.identity}.{table_or_alias}"
         join = Join(
@@ -228,6 +312,19 @@ class JoinTree:
         self.joins.append(join)
         join.to.add_path(tables)  # add and go further down
 
+    @property
+    def unnested_joins(self):
+        """Unnested joins in the correct orders."""
+        for join in self.joins:
+            yield UnnestedJoin(
+                left_identity=self.identity,
+                left_key=join.foreign_key,
+                right_source=join.to.table.source,
+                right_identity=join.to.identity,
+                right_key=join.related_key,
+            )
+            yield from join.to.unnested_joins
+
     def _print(self):
         print("\n".join(self._paths()))
 
@@ -240,6 +337,15 @@ class JoinTree:
 
     def __eq__(self, other: "JoinTree"):
         return self.identity == other.identity
+
+
+@dataclass
+class Computation:
+    """What the backend gets to compile and execute."""
+
+    join_tree: JoinTree
+    measures: Dict[str, Tree]
+    dimensions: Dict[str, Tree]
 
 
 class Store:
@@ -281,22 +387,22 @@ class Store:
     builtins = scalar | aggregate
 
     def __init__(self, config: schema.Config):
-        self.tables = {}
-        self.measures = {}
-        self.dimensions = {}
+        self.tables: Dict[str, Table] = {}
+        self.measures: Dict[str, Measure] = {}
+        self.dimensions: Dict[str, Dimension] = {}
         for table_id, config_table in config.tables.items():
             table = self.ensure_table(config_table, table_id)
-            for related in config_table.related:
+            for related_id, related in config_table.related.items():
                 if related.table not in config.tables:
                     raise KeyError(
                         f"Table {related.table} is referenced as a foreign key target "
                         f"for table {table_id}, but it's not defined in the config."
                     )
-                table.related[related.ref] = RelatedTable(
+                table.related[related_id] = RelatedTable(
                     table=self.ensure_table(
                         config.tables[related.table], related.table
                     ),
-                    **related.dict(include={"foreign_key", "alias"}),
+                    foreign_key=related.foreign_key,
                 )
             for measure_id, measure in config_table.measures.items():
                 _measure = Measure(
@@ -356,28 +462,12 @@ class Store:
                 raise ValueError(f"Measure {measure_id} does not exist")
             if anchor is not None and measure.table != anchor:
                 raise ValueError(
-                    f"Anchor table is {anchor}, but measure {measure}'s anchor "
-                    "is {measure.table}. "
+                    f"Anchor table is {anchor}, but {measure} anchor "
+                    f"is {measure.table}. "
                     "Only measures declared on the same table are allowed."
                 )
             anchor = measure.table
         return anchor
-
-    def get_dimension(self, anchor: Table, dimension_id: str) -> Dimension:
-        """Check that the dimension exists and is allowed for the given anchor.
-
-        Returns the dimension.
-        """
-        dimension = self.dimensions.get(dimension_id)
-        if dimension is None:
-            raise ValueError(f"Dimension {dimension_id} does not exist")
-        if dimension_id not in anchor.allowed_dimensions:
-            raise ValueError(
-                f"Dimension {dimension_id} can't be used in this query. "
-                f"Only dimensions declared directly on table {anchor} and "
-                "it's related tables are allowed."
-            )
-        return dimension
 
     def execute_query(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
@@ -390,14 +480,17 @@ class Store:
         for measure_id in query.measures:
             measure = self.measures.get(measure_id)
             builder = RelatedPathsBuilder(anchor, measure)
-            for path in builder.build():
-                tree.add_path(path)
-            measures[measure_id] = measure
+            expr, paths = builder.build()
+            for path in paths:
+                tree.add_path(path[1:])
+            measures[measure_id] = expr
         for dimension_id in query.dimensions:
-            dimension = self.get_dimension(anchor, dimension_id)
-            builder = RelatedPathsBuilder(anchor, dimension)
-            for path in builder.build():
-                tree.add_path(path)
-            dimensions[dimension_id] = dimension
-        breakpoint()
-        # prepare expressions
+            expr, paths = anchor.get_dimension(dimension_id)
+            for path in paths:
+                tree.add_path(path[1:])
+            dimensions[dimension_id] = expr
+        return Computation(
+            join_tree=tree,
+            measures=measures,
+            dimensions=dimensions,
+        )

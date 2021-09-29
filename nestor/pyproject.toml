@@ -10,6 +10,8 @@ pydantic = "^1.8.2"
 lark = "^0.11.3"
 PyYAML = "^5.4.1"
 pytest-cov = {extras = ["toml"], version = "^2.12.1"}
+SQLAlchemy = "^1.4.25"
+pandas = "^1.3.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

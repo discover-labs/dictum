@@ -1,0 +1,149 @@
+tables:
+
+  genres:
+    source: genres
+    primary_key: GenreId
+    dimensions:
+      genre:
+        name: Genre
+        expr: Name
+        type: nominal
+
+  artists:
+    source: artists
+    primary_key: ArtistId
+    dimensions:
+      artist:
+        name: Artist
+        expr: Name
+        type: nominal
+
+  albums:
+    source: albums
+    primary_key: AlbumId
+    related:
+      artists:
+        table: artists
+        foreign_key: ArtistId
+    dimensions:
+      album:
+        name: Album Title
+        expr: Title
+        type: nominal
+
+  media_types:
+    source: media_types
+    primary_key: MediaTypeId
+    dimensions:
+      media_type:
+        name: Type of Media
+        expr: Name
+        type: nominal
+
+  tracks:
+    source: tracks
+    primary_key: TrackId
+    related:
+      media_types:
+        table: media_types
+        foreign_key: MediaTypeId
+      albums:
+        table: albums
+        foreign_key: AlbumId
+      genres:
+        table: genres
+        foreign_key: GenreId
+    measures:
+      track_count:
+        name: Number of Tracks
+        expr: count()
+      track_length:
+        name: Sum of Track Length (Seconds)
+        expr: sum(Milliseconds) / 1000
+      avg_track_length:
+        name: Average Track Length (Seconds)
+        expr: avg(Milliseconds) / 1000
+    dimensions:
+      track_length_10s_bins:
+        name: Track Length (10-second bins)
+        expr: Milliseconds / 1000 // 10 * 10
+        type: ordinal
+
+  invoice_items:
+    source: invoice_items
+    primary_key: InvoiceLineId
+    related:
+      invoices:
+        table: invoices
+        foreign_key: InvoiceId
+      tracks:
+        table: tracks
+        foreign_key: TrackId
+    measures:
+      revenue:
+        name: Revenue
+        expr: sum(UnitPrice * Quantity)
+      unique_paying_customers:
+        name: Unique Paying Customers
+        expr: distinct(invoices.CustomerId)
+      arppu:
+        name: ARPPU
+        expr: revenue / unique_paying_customers
+      items_sold:
+        name: Number of Items Sold
+        expr: sum(Quantity)
+
+  invoices:
+    source: invoices
+    primary_key: InvoiceId
+    related:
+      customers:
+        table: customers
+        foreign_key: CustomerId
+    dimensions:
+      invoice_date:
+        name: Invoice Date
+        expr: InvoiceDate
+        type: time
+
+  customers:
+    source: customers
+    primary_key: CustomerId
+    related:
+      employees:
+        table: employees
+        foreign_key: SupportRepId
+    dimensions:
+      customer_country:
+        name: Customer Country
+        type: nominal
+        expr: Country
+      customer_city:
+        name: Customer City
+        type: nominal
+        expr: City
+
+  employees:
+    source: employees
+    primary_key: EmployeeId
+    related:
+      manager:
+        table: employees
+        foreign_key: ReportsTo
+    dimensions:
+      manager_title:
+        name: Support Rep's Manager's Title
+        type: nominal
+        expr: manager.Title
+      manager_name:
+        name: Support Rep's Manager's Name
+        type: nominal
+        expr: manager.LastName
+      employee_name:
+        name: Support Rep's Name
+        type: nominal
+        expr: LastName
+      employee_title:
+        name: Support Rep's Title
+        type: nominal
+        expr: Title

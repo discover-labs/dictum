@@ -1,4 +1,4 @@
-from nestor.store.store import Store
+from nestor.store import Store
 
 __all__ = ["Store"]
 

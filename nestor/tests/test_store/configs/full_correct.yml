@@ -8,13 +8,14 @@ tables:
     source: users
     primary_key: id
     related:
-      - table: users
-        alias: creator
+      creator:
+        table: users
         foreign_key: created_by
-      - table: users
-        alias: referrer
+      referrer:
+        table: users
         foreign_key: referred_by
-      - table: attributions
+      attributions:
+        table: attributions
         foreign_key: attribution_id
     measures:
       n_users:
@@ -41,32 +42,34 @@ tables:
         expr: age
       user_age_10:
         name: User's Age Bracket (10 years)
-        type: discrete
+        type: ordinal
         expr: age // 10 * 10
       user_channel:
         name: User Attribution Channel
-        type: discrete
+        type: nominal
         expr: attributions.channel
       is_user_referred:
         expr: if(isnull(referred_by), 'No', 'Yes')
-        type: discrete
+        type: nominal
         name: Is User Referred by Other User
       user_creator_channel:
         expr: creator.channel
-        type: discrete
+        type: nominal
         name: User Creator's Channel
       user_referrer_channel:
         expr: referrer.channel
-        type: discrete
+        type: nominal
         name: User Referrer's Channel
 
   orders:
     source: orders
     primary_key: id
     related:
-      - table: users
-        foreign_key: user-id
-      - table: attributions
+      users:
+        table: users
+        foreign_key: user_id
+      attributions:
+        table: attributions
         foreign_key: attribution_id
     measures:
       pu:
@@ -83,10 +86,6 @@ tables:
         shorthand: ARPPU
         description: Total sum of orders divided by number of unique users who made them
     dimensions:
-      order_user_channel:
-        name: order_user_channel
-        expr: users.user_channel
-        type: discrete
       order_time:
         name: Order Time
         expr: created_at
@@ -97,11 +96,11 @@ tables:
         expr: amount
       order_amount_bin_100:
         name: Order Amount ($100 bins)
-        type: discrete
+        type: ordinal
         expr: amount // 100 * 100
       order_channel:
         name: Order Attribution Channel
-        type: discrete
+        type: nominal
         expr: attributions.channel
 
   attributions:
