@@ -13,6 +13,21 @@ class Preprocessor(Transformer):
     def IDENTIFIER(self, token: Token):
         return token.value
 
+    def not_(self, children):
+        return Tree("NOT", children)
+
+    def and_(self, children):
+        return Tree("AND", children)
+
+    def or_(self, children):
+        return Tree("OR", children)
+
+    def in_(self, children):
+        return Tree("IN", children)
+
+    def not_in(self, children):
+        return Tree("NOT", Tree("IN", children))
+
     def fdiv(self, children):
         """Replaces floor division operator (//) with
         normal division and a function call

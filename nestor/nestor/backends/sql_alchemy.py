@@ -7,17 +7,20 @@ from sqlalchemy import (
     Integer,
     MetaData,
     Table,
+    and_,
     case,
     cast,
     create_engine,
     distinct,
     func,
+    not_,
+    or_,
     select,
 )
 from sqlalchemy.engine.url import URL
 
 from nestor.backends.base import Compiler
-from nestor.store import Computation, JoinTree
+from nestor.store import Computation
 
 
 class ColumnTransformer(Transformer):
@@ -36,6 +39,33 @@ class SQLAlchemyCompiler(Compiler):
     def __init__(self, connection: "SQLAlchemyConnection"):
         self.connection = connection
         super().__init__()
+
+    def INTEGER(self, token):
+        return int(token)
+
+    def FLOAT(self, token):
+        return float(token)
+
+    def STRING(self, token):
+        return str(token)
+
+    def AND(self, a, b):
+        return and_(a, b)
+
+    def OR(self, a, b):
+        return or_(a, b)
+
+    def NOT(self, x):
+        return not_(x)
+
+    def IN(self, a, b):
+        return a.in_(b)
+
+    def eq(self, a, b):
+        return a == b
+
+    def neq(self, a, b):
+        return a != b
 
     def add(self, a, b):
         return a + b
@@ -94,6 +124,7 @@ class SQLAlchemyCompiler(Compiler):
     def compile(self, computation: Computation):
         tree = computation.join_tree
         table: Table = self._table(tree.table.source)
+
         tables = {tree.identity: table}
         for join in tree.unnested_joins:
             right_table = self._table(join.right_source).alias(join.right_identity)
@@ -101,6 +132,7 @@ class SQLAlchemyCompiler(Compiler):
             related_key = right_table.c[join.right_key]
             foreign_key = tables[join.left_identity].c[join.left_key]
             table = table.outerjoin(right_table, foreign_key == related_key)
+
         measures = {}
         dimensions = {}
         column_transformer = ColumnTransformer(tables)
@@ -112,6 +144,7 @@ class SQLAlchemyCompiler(Compiler):
             dimensions[key] = self.transformer.transform(
                 column_transformer.transform(expr)
             )
+
         stmt = (
             select(
                 *(v.label(k) for k, v in dimensions.items()),
@@ -120,7 +153,11 @@ class SQLAlchemyCompiler(Compiler):
             .select_from(table)
             .group_by(*dimensions.values())
         )
-        print(stmt.compile())
+
+        for expr in computation.filters:
+            condition = self.transformer.transform(column_transformer.transform(expr))
+            stmt = stmt.where(condition)
+
         return stmt
 
 

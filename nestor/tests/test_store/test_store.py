@@ -65,15 +65,21 @@ def test_table_get_join_path_self(chinook: Store):
 
 def test_table_get_dimension(chinook: Store):
     table = chinook.tables["invoice_items"]
-    tree, paths = table.get_dimension("manager_name")
+    tree, paths = table.get_dimension_expr_and_paths("manager_name")
     assert tree.children[0] == Tree(
         "column", ["invoice_items.invoices.customers.employees.manager", "LastName"]
     )
-    assert paths == [["invoice_items", "invoices", "customers", "employees", "manager"]]
+    assert paths[1] == [
+        "invoice_items",
+        "invoices",
+        "customers",
+        "employees",
+        "manager",
+    ]
 
 
 def test_table_get_dimension_ambiguous(store: Store):
     table = store.tables["orders"]
-    tree, paths = table.get_dimension("user_channel")
+    tree, paths = table.get_dimension_expr_and_paths("user_channel")
     assert tree.children[0] == Tree("column", ["orders.users.attributions", "channel"])
-    assert paths == [["orders", "users", "attributions"]]
+    assert paths[1] == ["orders", "users", "attributions"]

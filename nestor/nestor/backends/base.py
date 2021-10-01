@@ -45,6 +45,12 @@ class ExpressionTransformer(Transformer):
     mul = CallOwnerBinaryOp()
     div = CallOwnerBinaryOp()
     mod = CallOwnerBinaryOp()
+    eq = CallOwnerBinaryOp()
+    neq = CallOwnerBinaryOp()
+    gt = CallOwnerBinaryOp()
+    gte = CallOwnerBinaryOp()
+    lt = CallOwnerBinaryOp()
+    lte = CallOwnerBinaryOp()
 
 
 class Compiler:
@@ -101,7 +107,7 @@ class Compiler:
         raise NotImplementedError
 
     def compile(self, computation: Computation):
-        tree = computation.join_tree
+        pass
 
 
 class Connection:

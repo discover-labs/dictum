@@ -2,19 +2,26 @@
 
 // Literals. Only numbers are supported for now. String operations are expected to be
 // performed when preparing the data.
-%import common.SIGNED_NUMBER  -> NUMBER
+%import common.SIGNED_FLOAT  -> FLOAT
+%import common.SIGNED_INT    -> INTEGER
 %import common._STRING_ESC_INNER
 STRING: "'" _STRING_ESC_INNER "'"
-?literal: NUMBER | STRING
+TRUE: "TRUE"i
+FALSE: "FALSE"i
+?literal: TRUE | FALSE | INTEGER | FLOAT | STRING
 
 // Identifier: field (column, measure or dimension on another table), table, function name
 IDENTIFIER: /[a-z_]\w*/i
 
 // Column, measure or dimension reference. For the same table, just a bare IDENTIFIER,
-// for tables available via a foreign key join: table.field
+// for related tables: related.field
+// Can be nested, e.g. related.other.field
 // e.g. sum(amount) on orders table is the same as sum(orders.amount)
 // or avg(users.age) on orders with user_id fk -> users.id
-ref: IDENTIFIER | IDENTIFIER "." IDENTIFIER
+column: IDENTIFIER ("." IDENTIFIER)*
+measure: "$" IDENTIFIER
+dimension: ":" IDENTIFIER
+?ref: column | measure | dimension
 
 // Function call
 call: IDENTIFIER "(" [ op ("," op)* ] ")"
@@ -51,22 +58,30 @@ gt: comp ">" add_
 gte: comp ">=" add_
 lt: comp "<" add_
 lte: comp "<=" add_
-eq: comp "==" add_
+eq: comp ("==" | "=") add_
 neq: comp ("!=" | "<>") add_
 
-// Spaces are required as part of the grammar.
+// in operator
+?in: comp | in_ | not_in
+_in_list: "(" comp ("," comp)* ")"
+in_: comp _IN _in_list
+not_in: comp _NOT_IN _in_list
+_IN: "IN"i
+_NOT_IN: "NOT IN"i
 
 // booleans
-?not_: comp | not
-not: "not" comp
+?not: in | not_
+not_: "NOT"i in
 
-?and_: not_ | and
-and: and_ "and" not_
+?and: not | and_
+and_: and _AND not
+_AND: "AND"i
 
-?or_: and_ | or
-or: or_ "or" and_
+?or: and | or_
+or_: or _OR and
+_OR: "OR"i
 
-?op: or_
+?op: or
 expr: op
 
 %ignore /\s/
