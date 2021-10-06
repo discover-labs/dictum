@@ -1,6 +1,7 @@
 import pytest
 from lark import Tree
 
+from nestor.store.schema import Query
 from nestor.store.store import Store
 
 
@@ -83,3 +84,10 @@ def test_table_get_dimension_ambiguous(store: Store):
     tree, paths = table.get_dimension_expr_and_paths("user_channel")
     assert tree.children[0] == Tree("column", ["orders.users.attributions", "channel"])
     assert paths[1] == ["orders", "users", "attributions"]
+
+
+def test_store_measure_related_column(chinook: Store, connection):
+    comp = chinook.execute_query(Query(measures=["unique_paying_customers"]))
+    assert len(comp.join_tree.joins) == 1
+    df = connection.execute(comp)
+    assert df.iloc[0, 0] == 59

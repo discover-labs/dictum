@@ -12,12 +12,21 @@ PyYAML = "^5.4.1"
 pytest-cov = {extras = ["toml"], version = "^2.12.1"}
 SQLAlchemy = "^1.4.25"
 pandas = "^1.3.3"
+fastapi = "^0.68.1"
+uvicorn = "^0.15.0"
+typer = "^0.4.0"
+Jinja2 = "^3.0.1"
+requests = "^2.26.0"
+aiofiles = "^0.7.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 black = "^21.9b0"
 flake8 = "^3.9.2"
 isort = "^5.9.3"
+
+[tool.poetry.scripts]
+nestor = "nestor.cli:app"
 
 [tool.pytest.ini_options]
 addopts = "--cov-report xml --cov-report html --cov=nestor"

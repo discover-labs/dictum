@@ -1,18 +1,19 @@
-import sqlite3
 from pathlib import Path
 
 import pytest
 
 from nestor import Store
-from nestor.store.schema import Config
-from tests.test_store import configs
+from nestor.examples import chinook
+from nestor.tests.test_store import configs
 
 full_config_path = Path(configs.__file__).parent / "full_correct.yml"
-chinook_path = Path(configs.__file__).parent / "chinook.yml"
+chinook_path = Path(chinook.__file__).parent / "chinook.yml"
 
 
 @pytest.fixture(scope="session")
-def chinook_db(tmp_path_factory):
+def setup_db(tmp_path_factory):
+    import sqlite3
+
     from nestor.examples import chinook
 
     sql = Path(chinook.__file__).parent / "chinook.sql"
@@ -23,13 +24,15 @@ def chinook_db(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def config_full():
-    return Config.from_yaml(full_config_path)
+def connection(setup_db):
+    from nestor.backends.sql_alchemy import SQLAlchemyConnection
+
+    return SQLAlchemyConnection(drivername="sqlite", database=setup_db)
 
 
 @pytest.fixture(scope="session")
-def store_full(config_full: Config):
-    return Store(config_full)
+def store_full():
+    return Store.from_yaml(full_config_path)
 
 
 @pytest.fixture(scope="session")

@@ -1,13 +1,6 @@
 from lark import Transformer
 
-from nestor.store import Computation, JoinTree
-
-
-class Client:
-    """A dumb class that only knows how to execute queries on a connection."""
-
-    def execute(self, query):
-        raise NotImplementedError
+from nestor.store import Computation
 
 
 class CallOwnerBinaryOp:
@@ -103,11 +96,8 @@ class Compiler:
     def paren(self, children: list):
         raise NotImplementedError
 
-    def join(self, tree: JoinTree):
-        raise NotImplementedError
-
     def compile(self, computation: Computation):
-        pass
+        raise NotImplementedError
 
 
 class Connection:
@@ -115,7 +105,13 @@ class Connection:
     the incoming computation, executes on the client.
     """
 
+    type: str
+
+    registry = {}
     compiler = Compiler()
+
+    def __init_subclass__(cls):
+        cls.registry[cls.type] = cls
 
     def execute(self, computation: Computation):
         raise NotImplementedError

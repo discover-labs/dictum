@@ -16,17 +16,18 @@ class RelatedTable(Base):
     foreign_key: str
 
 
-class Measure(Base):
+class Calculation(Base):
     name: str
-    description: Optional[str]
-    shorthand: Optional[Identifier]
     expr: Expression
-
-
-class Dimension(Base):
-    expr: str
-    name: str
     description: Optional[str]
+    format: Optional[str]
+
+
+class Measure(Calculation):
+    pass
+
+
+class Dimension(Calculation):
     type: DimensionType
 
 

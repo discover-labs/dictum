@@ -1,0 +1,7 @@
+default: chinook
+profiles:
+  chinook:
+    type: sql_alchemy
+    parameters:
+      drivername: sqlite
+      database: {{ env.CHINOOK_DATABASE }}

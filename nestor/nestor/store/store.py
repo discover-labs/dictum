@@ -1,12 +1,13 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cache, cached_property, reduce
-from typing import ClassVar, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from lark import Transformer, Tree
 
 from nestor.store import schema
 from nestor.store.expr.parser import parse_expr
+from nestor.store.schema.types import DimensionType
 
 
 class ResolverError(Exception):
@@ -30,6 +31,12 @@ class CircularReferenceError(ReferenceResolutionError):
 
 
 class CalculationResolver(Transformer):
+    """Given a Dict[str, Tree] of dependencies in the constructor and an expression
+    in .resolve() method, recursively replaces each reference to a different expression
+    with the actual expression. In the end, only references to columns should be left
+    in the expression.
+    """
+
     def __init__(
         self,
         dependencies: Dict[str, Tree],
@@ -150,13 +157,18 @@ class Table:
     measures: Dict[str, "Measure"] = field(default_factory=dict)
     dimensions: Dict[str, "Dimension"] = field(default_factory=dict)
 
-    def _check_foreign_key(self, table: str):
-        """Checks that a foreign key to the table exists."""
-        if table not in self.related:
-            raise ValueError(
-                f"No primary key for table {table} in the config, "
-                "other tables can't reference it in calculations."
-            )
+    @cache
+    def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
+        """Find all join paths from this table to other tables."""
+        result = []
+        if path:
+            result.append(path)
+        for alias, rel in self.related.items():
+            item = JoinPathItem(rel.table, alias)
+            if item in path:
+                continue  # skip on cycle
+            result.extend(rel.table.find_all_paths(path + (item,)))
+        return result
 
     @cached_property
     def allowed_join_paths(self) -> Dict[str, JoinPath]:
@@ -167,6 +179,15 @@ class Table:
         return {k.table.id: v[0] for k, v in paths.items() if len(v) == 1}
 
     @cached_property
+    def dimension_join_paths(self) -> Dict[str, List[str]]:
+        result = {}
+        for path in self.allowed_join_paths.values():
+            *_, target = path
+            for key in target.table.dimensions:
+                result[key] = [self.id] + [p.alias for p in path]
+        return result
+
+    @cached_property
     def allowed_dimensions(self) -> Dict[str, "Dimension"]:
         """Which dimensions are allowed to be used with this table as anchor.
         Only those to which there's a single direct join path. If there isn't,
@@ -174,7 +195,7 @@ class Table:
         """
         dims = {}
         dims.update(self.dimensions)
-        for _, (*_, target) in self.allowed_join_paths.items():
+        for *_, target in self.allowed_join_paths.values():
             dims.update(target.table.dimensions)
         return dims
 
@@ -190,28 +211,19 @@ class Table:
             )
         return [self.id] + [i.alias for i in result]
 
-    @cache
-    def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
-        """Find all join paths from this table to other tables."""
-        result = []
-        if path:
-            result.append(path)
-        for alias, rel in self.related.items():
-            item = JoinPathItem(rel.table, alias)
-            if item in path:
-                continue  # skip on cycle
-            result.extend(rel.table.find_all_paths(path + (item,)))
-        return result
-
     def get_measure_expr_and_paths(self, measure_id: str) -> Tuple[Tree, List[str]]:
         measure = self.measures[measure_id]
-        return measure.prepare_expr([self.id]), measure.join_paths
+        join_path = [self.id]
+        return measure.prepare_expr([self.id]), [
+            join_path,
+            *(join_path + p for p in measure.join_paths),
+        ]
 
     def get_dimension_expr_and_paths(self, dimension_id: str) -> Tuple[Tree, List[str]]:
         dimension = self.allowed_dimensions.get(dimension_id)
         if dimension is None:
             raise ValueError(f"Dimension {dimension_id} can't be used with {self}")
-        join_path = self.get_join_path(dimension.table.id)
+        join_path = self.dimension_join_paths.get(dimension_id)
         return dimension.prepare_expr(join_path), [
             join_path,
             *(join_path + p for p in dimension.join_paths),
@@ -259,13 +271,11 @@ class Table:
 class Calculation:
     """Parent class for measures and dimensions."""
 
-    type: ClassVar[str]
-    store: "Store"
     id: str
     name: str
     description: Optional[str]
     expr: Tree
-    table: Table
+    str_expr: str
 
     @cached_property
     def join_paths(self) -> List[List[str]]:
@@ -289,7 +299,7 @@ class Calculation:
 
 @dataclass(repr=False)
 class Dimension(Calculation):
-    pass
+    type: DimensionType
 
 
 @dataclass(repr=False)
@@ -458,20 +468,19 @@ class Store:
                 )
             for measure_id, measure in config_table.measures.items():
                 _measure = Measure(
-                    store=self,
                     id=measure_id,
                     expr=parse_expr(measure.expr),
-                    table=table,
+                    str_expr=measure.expr,
                     **measure.dict(include={"name", "description"}),
                 )
                 self.measures[measure_id] = _measure
                 table.measures[measure_id] = _measure
             for dimension_id, dimension in config_table.dimensions.items():
                 _dimension = Dimension(
-                    store=self,
                     id=dimension_id,
                     expr=parse_expr(dimension.expr),
-                    table=table,
+                    str_expr=dimension.expr,
+                    type=dimension.type,
                     **dimension.dict(include={"name", "description"}),
                 )
                 table.dimensions[dimension_id] = _dimension
@@ -492,6 +501,14 @@ class Store:
             )
         return self.tables[table_id]
 
+    @cached_property
+    def measures_tables(self) -> Dict[str, str]:
+        result = {}
+        for table in self.tables.values():
+            for k in table.measures:
+                result[k] = table.id
+        return result
+
     def get_anchor(self, query: schema.Query) -> Table:
         """Decide which table for this query is the anchor.
 
@@ -501,19 +518,19 @@ class Store:
 
         Returns the anchor table.
         """
-        anchor = None
+        anchor: Optional[str] = None
         for measure_id in query.measures:
-            measure = self.measures.get(measure_id)
-            if measure is None:
+            table = self.measures_tables.get(measure_id)
+            if table is None:
                 raise ValueError(f"Measure {measure_id} does not exist")
-            if anchor is not None and measure.table != anchor:
+            if anchor is not None and table != anchor:
                 raise ValueError(
-                    f"Anchor table is {anchor}, but {measure} anchor "
-                    f"is {measure.table}. "
+                    f"Anchor table is {anchor}, but {measure_id} anchor "
+                    f"is {table}. "
                     "Only measures declared on the same table are allowed."
                 )
-            anchor = measure.table
-        return anchor
+            anchor = table
+        return self.tables[anchor]
 
     def execute_query(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
@@ -543,3 +560,23 @@ class Store:
         return Computation(
             join_tree=tree, measures=measures, dimensions=dimensions, filters=filters
         )
+
+    def suggest_measures(self, query: schema.Query) -> List[Measure]:
+        """Suggest a list of possible measures based on a query. Returns a list of
+        measures from the same anchor table as the first, excluding the ones already
+        in the query.
+        """
+        anchor = self.get_anchor(query)
+        return [m for m in anchor.measures.values() if m.id not in query.measures]
+
+    def suggest_dimensions(self, query: schema.Query) -> List[Dimension]:
+        anchor = self.get_anchor(query)
+        return [
+            self.dimensions[d]
+            for d in anchor.allowed_dimensions
+            if d not in query.dimensions
+        ]
+
+    @cached_property
+    def _all(self):
+        return {**self.measures, **self.dimensions}

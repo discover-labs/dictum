@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine.url import URL
 
-from nestor.backends.base import Compiler
+from nestor.backends.base import Compiler, Connection
 from nestor.store import Computation
 
 
@@ -161,7 +161,10 @@ class SQLAlchemyCompiler(Compiler):
         return stmt
 
 
-class SQLAlchemyConnection:
+class SQLAlchemyConnection(Connection):
+
+    type = "sql_alchemy"
+
     def __init__(
         self,
         drivername="sqlite",
@@ -170,6 +173,7 @@ class SQLAlchemyConnection:
         port=None,
         username=None,
         password=None,
+        pool_size: Optional[int] = None,
     ):
         self.compiler = SQLAlchemyCompiler(self)
         self.url = URL.create(
@@ -180,6 +184,7 @@ class SQLAlchemyConnection:
             username=username,
             password=password,
         )
+        self.pool_size = pool_size  # TODO: include pool size
 
     @cached_property
     def engine(self):
