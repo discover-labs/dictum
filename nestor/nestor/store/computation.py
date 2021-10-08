@@ -100,16 +100,20 @@ class JoinTree:
 
 
 @dataclass
-class Computation:
-    """What the backend gets to compile and execute.
-
-    To support multi-fact queries (aka "drill-across"), Calculation must contain the
-    following info:
-    - a list of JoinTrees + relevant measures
-    - dimensions
+class FactTable:
+    """Represents a fact table aggregated to a relevant (for the request) level of
+    detail.
     """
 
     join_tree: JoinTree
-    measures: Dict[str, Tree]
-    dimensions: Dict[str, Tree]
+    measures: Dict[str, Tree] = field(default_factory=lambda: {})
+    dimensions: Dict[str, Tree] = field(default_factory=lambda: {})
     filters: List[Tree] = field(default_factory=lambda: [])
+
+
+@dataclass
+class Computation:
+    """What the backend gets to compile and execute."""
+
+    facts: List[FactTable]
+    groupby: List[str]

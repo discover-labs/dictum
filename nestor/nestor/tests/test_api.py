@@ -32,5 +32,5 @@ def test_store(client: TestClient):
     res = client.get("/api/store/")
     res.raise_for_status()
     store = res.json()
-    assert len(store["measures"]) == 7
+    assert len(store["measures"]) == 9
     assert len(store["dimensions"]) == 13

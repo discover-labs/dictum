@@ -69,6 +69,12 @@ tables:
         name: Average Track Length (Seconds)
         expr: avg(Milliseconds) / 1000
         format: .0f
+      avg_track_price:
+        name: Average Track Price
+        description: |
+          Average price of a track in our library. For average sold item size, see
+          Average Sold Unit Price.
+        expr: avg(UnitPrice)
     dimensions:
       track_length_10s_bins:
         name: Track Length (10-second bins)
@@ -103,6 +109,10 @@ tables:
       items_sold:
         name: Number of Items Sold
         expr: sum(Quantity)
+      avg_sold_unit_price:
+        name: Averate Sold Unit Price
+        description: Average price of a track that we sold.
+        expr: $revenue / $items_sold
 
   invoices:
     source: invoices

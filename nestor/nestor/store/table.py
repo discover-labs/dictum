@@ -171,6 +171,8 @@ class Table:
             *_, target = path
             for key in target.table.dimensions:
                 result[key] = [self.id] + [p.alias for p in path]
+        for dimension_id in self.dimensions:
+            result[dimension_id] = [self.id]
         return result
 
     @cached_property
@@ -206,10 +208,13 @@ class Table:
         ]
 
     def get_dimension_expr_and_paths(self, dimension_id: str) -> Tuple[Tree, List[str]]:
+        """Get a dimension expression relative to this table and the required join paths."""
         dimension = self.allowed_dimensions.get(dimension_id)
         if dimension is None:
             raise ValueError(f"Dimension {dimension_id} can't be used with {self}")
         join_path = self.dimension_join_paths.get(dimension_id)
+        if join_path is None:
+            breakpoint()
         return dimension.prepare_expr(join_path), [
             join_path,
             *(join_path + p for p in dimension.join_paths),

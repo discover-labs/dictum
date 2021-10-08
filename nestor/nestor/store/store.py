@@ -1,9 +1,9 @@
 from functools import cached_property
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from nestor.store import schema
 from nestor.store.calculations import Dimension, Measure
-from nestor.store.computation import Computation, JoinTree
+from nestor.store.computation import Computation, FactTable, JoinTree
 from nestor.store.expr.parser import parse_expr
 from nestor.store.table import RelatedTable, Table
 
@@ -100,80 +100,79 @@ class Store:
         return self.tables[table_id]
 
     @cached_property
-    def measures_tables(self) -> Dict[str, str]:
+    def measures_tables(self) -> Dict[str, Table]:
+        """Find a table id by measure id."""
         result = {}
         for table in self.tables.values():
             for k in table.measures:
-                result[k] = table.id
+                result[k] = table
         return result
 
-    def get_anchor(self, query: schema.Query) -> Table:
-        """Decide which table for this query is the anchor.
-
-        Check that the query is valid in terms of measures
-        - All measures exist
-        - All measures are declared on the same table (anchor)
-
-        Returns the anchor table.
-        """
-        anchor: Optional[str] = None
+    def get_fact_tables(self, query: schema.Query) -> List[FactTable]:
+        """Get a list of fact tables' join trees with relevant measures."""
+        facts: Dict[str, FactTable] = {}
         for measure_id in query.measures:
             table = self.measures_tables.get(measure_id)
             if table is None:
                 raise ValueError(f"Measure {measure_id} does not exist")
-            if anchor is not None and table != anchor:
-                raise ValueError(
-                    f"Anchor table is {anchor}, but {measure_id} anchor "
-                    f"is {table}. "
-                    "Only measures declared on the same table are allowed."
+
+            # create a FactTable with all dimensions and joins once
+            if table.id not in facts:
+                facts[table.id] = FactTable(
+                    join_tree=JoinTree(table=table, identity=table.id)
                 )
-            anchor = table
-        return self.tables[anchor]
+                fact = facts[table.id]
+                for dimension_id in query.dimensions:
+                    expr, paths = table.get_dimension_expr_and_paths(dimension_id)
+                    fact.dimensions[dimension_id] = expr
+                    for path in paths:
+                        fact.join_tree.add_path(path[1:])
+                for filter in query.filters:
+                    expr, paths = table.get_filter_expr_and_paths(parse_expr(filter))
+                    fact.filters.append(expr)
+                    for path in paths:
+                        fact.join_tree.add_path(path[1:])
+            else:
+                fact = facts[table.id]
+
+            # add current measure
+            expr, paths = table.get_measure_expr_and_paths(measure_id)
+            fact.measures[measure_id] = expr
+            for path in paths:
+                fact.join_tree.add_path(path[1:])
+
+        return list(facts.values())
 
     def execute_query(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
-        anchor = self.get_anchor(query)
-        measures = {}
-        dimensions = {}
-        filters = []
-
-        tree = JoinTree(table=anchor, identity=anchor.id)
-        for measure_id in query.measures:
-            expr, paths = anchor.get_measure_expr_and_paths(measure_id)
-            for path in paths:
-                tree.add_path(path[1:])
-            measures[measure_id] = expr
-        for dimension_id in query.dimensions:
-            expr, paths = anchor.get_dimension_expr_and_paths(dimension_id)
-            for path in paths:
-                tree.add_path(path[1:])
-            dimensions[dimension_id] = expr
-
-        for filter in query.filters:
-            expr, paths = anchor.get_filter_expr_and_paths(parse_expr(filter))
-            filters.append(expr)
-            for path in paths:
-                tree.add_path(path[1:])
-
-        return Computation(
-            join_tree=tree, measures=measures, dimensions=dimensions, filters=filters
-        )
+        facts = self.get_fact_tables(query)
+        return Computation(facts=facts, groupby=query.dimensions)
 
     def suggest_measures(self, query: schema.Query) -> List[Measure]:
-        """Suggest a list of possible measures based on a query. Returns a list of
-        measures from the same anchor table as the first, excluding the ones already
-        in the query.
+        """Suggest a list of possible measures based on a query.
+        Only measures that can be used with all the dimensions from the query
         """
-        anchor = self.get_anchor(query)
-        return [m for m in anchor.measures.values() if m.id not in query.measures]
+        result = []
+        query_dims = set(query.dimensions)
+        for measure in self.measures.values():
+            if measure.id in query.measures:
+                continue
+            table = self.measures_tables.get(measure.id)
+            allowed_dims = set(table.allowed_dimensions)
+            if query_dims & allowed_dims == query_dims:
+                result.append(measure)
+        return result
 
     def suggest_dimensions(self, query: schema.Query) -> List[Dimension]:
-        anchor = self.get_anchor(query)
-        return [
-            self.dimensions[d]
-            for d in anchor.allowed_dimensions
-            if d not in query.dimensions
-        ]
+        """Suggest a list of possible dimensions based on a query. Only dimensions
+        shared by all measures that are already in the query.
+        """
+        dims = set(self.dimensions)
+        dims = dims - set(query.dimensions)
+        for measure_id in query.measures:
+            table = self.measures_tables.get(measure_id)
+            dims = dims & set(table.allowed_dimensions)
+        return [self.dimensions[d] for d in dims]
 
     @cached_property
     def _all(self):

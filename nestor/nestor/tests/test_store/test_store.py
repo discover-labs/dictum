@@ -88,6 +88,95 @@ def test_table_get_dimension_ambiguous(store: Store):
 
 def test_store_measure_related_column(chinook: Store, connection):
     comp = chinook.execute_query(Query(measures=["unique_paying_customers"]))
-    assert len(comp.join_tree.joins) == 1
+    assert len(comp.facts[0].join_tree.joins) == 1
     df = connection.execute(comp)
     assert df.iloc[0, 0] == 59
+
+
+def test_get_fact_tables(chinook: Store):
+    facts = chinook.get_fact_tables(Query(measures=["track_count"]))
+    assert len(facts) == 1
+    assert facts[0].join_tree.table.id == "tracks"
+
+    facts = chinook.get_fact_tables(Query(measures=["track_count", "revenue"]))
+    assert len(facts) == 2
+    assert facts[1].join_tree.table.id == "invoice_items"
+
+
+def test_get_fact_tables_with_dimensions(chinook: Store):
+    facts = chinook.get_fact_tables(
+        Query(measures=["track_count"], dimensions=["artist"])
+    )
+    assert len(facts) == 1
+    assert len(facts[0].dimensions) == 1
+    assert len(list(facts[0].join_tree.unnested_joins)) == 2
+
+    facts = chinook.get_fact_tables(
+        Query(measures=["track_count", "revenue"], dimensions=["artist"])
+    )
+    assert len(facts) == 2
+    assert len(facts[0].dimensions) == 1
+    assert len(list(facts[0].join_tree.unnested_joins)) == 2
+    assert len(list(facts[1].join_tree.unnested_joins)) == 3
+
+
+def test_get_fact_tables_with_filters(chinook: Store):
+    facts = chinook.get_fact_tables(
+        Query(
+            measures=["track_count", "revenue"],
+            dimensions=["artist"],
+            filters=[":genre = 'Rock'"],
+        )
+    )
+    for fact in facts:
+        assert len(fact.filters) == 1
+
+
+def test_suggest_measures_no_dims(chinook: Store):
+    measures = chinook.suggest_measures(Query(measures=["track_count"]))
+    assert len(measures) == 8
+
+    measures = chinook.suggest_measures(Query(measures=["track_count", "revenue"]))
+    assert len(measures) == 7
+
+
+def test_suggest_measures_with_dims(chinook: Store):
+    measures = chinook.suggest_measures(
+        Query(measures=["revenue"], dimensions=["customer_country"])
+    )
+    assert set(m.id for m in measures) == {
+        "arppu",
+        "unique_paying_customers",
+        "items_sold",
+        "avg_sold_unit_price",
+    }
+
+    measures = chinook.suggest_measures(
+        Query(measures=["revenue"], dimensions=["genre"])
+    )
+    assert len(measures) == 8
+
+
+def test_suggest_dimensions(chinook: Store):
+    dimensions = chinook.suggest_dimensions(
+        Query(
+            measures=["track_count", "revenue"],
+            dimensions=["album"],
+        )
+    )
+    assert set(d.id for d in dimensions) == {
+        "genre",
+        "artist",
+        "track_length_10s_bins",
+        "media_type",
+    }
+
+
+def test_dimension_same_table_as_measures(chinook: Store, connection):
+    """There was a bug where the table couldn't find a join path from a self to
+    a dimension declared on self :-/
+    """
+    assert (
+        chinook.tables["tracks"].dimension_join_paths.get("track_length_10s_bins")
+        is not None
+    )

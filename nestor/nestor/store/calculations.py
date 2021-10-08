@@ -46,20 +46,20 @@ class Calculation:
 
     @cached_property
     def metadata(self) -> schema.CalculationMetadata:
-        format = (
-            self.format.spec
-            if isinstance(self.format, schema.CalculationFormat)
-            else self.format
-        )
-        patch = {}
-        if isinstance(self.format, schema.CalculationFormat) and (
-            self.format.prefix or self.format.suffix
-        ):
-            patch = {"currency": [self.format.prefix, self.format.sufix]}
+        # format = (
+        #     self.format.spec
+        #     if isinstance(self.format, schema.CalculationFormat)
+        #     else self.format
+        # )
+        # patch = {}
+        # if isinstance(self.format, schema.CalculationFormat) and (
+        #     self.format.prefix or self.format.suffix
+        # ):
+        #     patch = {"currency": [self.format.prefix, self.format.sufix]}
         return schema.CalculationMetadata(
             name=self.name,
-            format=format,
-            locale_patch=patch,
+            # format=format,
+            # locale_patch=patch,
         )
 
     def __str__(self):
@@ -67,6 +67,12 @@ class Calculation:
 
     def __repr__(self):
         return str(self)
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, other):
+        return self.id == other.id
 
 
 @dataclass(repr=False)

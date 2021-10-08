@@ -32,3 +32,20 @@ def test_convert_datetime(chinook: Store, connection):
     comp = chinook.execute_query(q)
     df = connection.execute(comp)
     assert is_datetime64_any_dtype(df["invoice_date"].dtype)
+
+
+def test_multiple_facts(chinook: Store, connection):
+    q = Query(measures=["items_sold", "track_count"])
+    comp = chinook.execute_query(q)
+    df = connection.execute(comp)
+    assert tuple(df.iloc[0]) == (2240, 3503)
+
+
+def test_multiple_facts_dimensions(chinook: Store, connection):
+    q = Query(measures=["items_sold", "track_count"], dimensions=["genre"])
+    comp = chinook.execute_query(q)
+    df = connection.execute(comp)
+    assert tuple(df[df["genre"] == "Rock"].iloc[0][["items_sold", "track_count"]]) == (
+        835,
+        1297,
+    )

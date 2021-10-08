@@ -1,6 +1,7 @@
 from functools import cached_property
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from lark import Transformer
 from sqlalchemy import (
@@ -20,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.engine.url import URL
 
 from nestor.backends.base import Compiler, Connection
-from nestor.store import Computation
+from nestor.store import Computation, FactTable
 
 
 class ColumnTransformer(Transformer):
@@ -121,8 +122,8 @@ class SQLAlchemyCompiler(Compiler):
             schema = schema[0]
         return self.connection.table(tablename, schema=schema)
 
-    def compile(self, computation: Computation):
-        tree = computation.join_tree
+    def compile_fact(self, fact: FactTable):
+        tree = fact.join_tree
         table: Table = self._table(tree.table.source)
 
         tables = {tree.identity: table}
@@ -136,11 +137,11 @@ class SQLAlchemyCompiler(Compiler):
         measures = {}
         dimensions = {}
         column_transformer = ColumnTransformer(tables)
-        for key, expr in computation.measures.items():
+        for key, expr in fact.measures.items():
             measures[key] = self.transformer.transform(
                 column_transformer.transform(expr)
             )
-        for key, expr in computation.dimensions.items():
+        for key, expr in fact.dimensions.items():
             dimensions[key] = self.transformer.transform(
                 column_transformer.transform(expr)
             )
@@ -154,11 +155,14 @@ class SQLAlchemyCompiler(Compiler):
             .group_by(*dimensions.values())
         )
 
-        for expr in computation.filters:
+        for expr in fact.filters:
             condition = self.transformer.transform(column_transformer.transform(expr))
             stmt = stmt.where(condition)
 
         return stmt
+
+    def compile(self, computation: Computation):
+        return [self.compile_fact(f) for f in computation.facts]
 
 
 class SQLAlchemyConnection(Connection):
@@ -195,8 +199,20 @@ class SQLAlchemyConnection(Connection):
         return MetaData(self.engine)
 
     def execute(self, computation: Computation) -> pd.DataFrame:
-        query = self.compiler.compile(computation)
-        return pd.read_sql(query, self.engine)
+        df = None
+        for query in self.compiler.compile(computation):
+            result = pd.read_sql(query, self.engine)
+            if len(computation.groupby) > 0:
+                result = result.set_index(computation.groupby)
+            if df is None:
+                df = result
+            else:
+                df = pd.merge(
+                    df, result, how="outer", left_index=True, right_index=True
+                )
+        if len(computation.groupby) > 0:
+            df = df.reset_index()
+        return df.replace([np.nan], [None])
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
         return Table(name, self.metadata, schema=schema, autoload=True)
