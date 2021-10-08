@@ -6,9 +6,6 @@
     export let selectedIndex;
 
     $: ids = calculations.map((i) => i.id);
-    $: _calculations = calculations.map((i, ix) =>
-        Object.assign({ selected: ix == selectedIndex }, i)
-    );
 
     const dispatch = createEventDispatcher();
     const indexFromId = (id) => {
@@ -24,12 +21,12 @@
 </script>
 
 <div class="calculation-list">
-    {#each _calculations as { id, name, description, selected } (id)}
+    {#each calculations as { id, name, highlightedName, description }, i (id)}
         <CalculationListItem
             {id}
-            {name}
+            name={highlightedName || name}
             {description}
-            {selected}
+            selected={i === selectedIndex}
             on:hoverItem={hoverItem}
             on:clickItem={clickItem}
         />

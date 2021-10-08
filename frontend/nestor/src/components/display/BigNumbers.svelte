@@ -8,7 +8,7 @@
         let data = queryResult.data[0];
         let meta = queryResult.metadata.columns;
         values = Object.keys(data).map((k) => ({
-            name: meta[k],
+            name: meta[k].name,
             value: data[k],
         }));
     }

@@ -2,14 +2,13 @@
     import { createEventDispatcher } from "svelte";
     export let id;
     export let name;
-    export let type;
 
     const dispatch = createEventDispatcher();
-    const close = (event) => dispatch("closeItemClick", { id });
+    const close = () => dispatch("closeItemClick", { id });
 </script>
 
 <div class="calculation">
-    <mark><span>{name} ({type})</span><button on:click={close}>x</button></mark>
+    <mark><span>{name}</span><button on:click={close}>x</button></mark>
 </div>
 
 <style>

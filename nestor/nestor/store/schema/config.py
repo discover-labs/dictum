@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import yaml
 from pydantic import BaseModel, Field
@@ -16,11 +16,17 @@ class RelatedTable(Base):
     foreign_key: str
 
 
+class CalculationFormat(Base):
+    spec: str
+    prefix: Optional[str]
+    suffix: Optional[str]
+
+
 class Calculation(Base):
     name: str
     expr: Expression
     description: Optional[str]
-    format: Optional[str]
+    format: Optional[Union[str, CalculationFormat]]
 
 
 class Measure(Calculation):

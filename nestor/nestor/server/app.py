@@ -1,7 +1,7 @@
 import os
 from functools import cache
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -49,7 +49,7 @@ def query(
         data=df.to_dict(orient="records"),
         query=query,
         metadata=schema.QueryResultMetadata(
-            columns={c: store._all[c].name for c in df.columns},
+            columns={c: store._all[c].metadata for c in df.columns},
             store=schema.Store(
                 measures=store.suggest_measures(query),
                 dimensions=store.suggest_dimensions(query),

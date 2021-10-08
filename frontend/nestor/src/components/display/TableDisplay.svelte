@@ -1,7 +1,7 @@
 <script>
     export let queryResult;
     $: keys = Object.keys(queryResult.metadata.columns);
-    $: names = keys.map((k) => queryResult.metadata.columns[k]);
+    $: names = keys.map((k) => queryResult.metadata.columns[k].name);
 </script>
 
 <div class="table-wrapper">

@@ -19,7 +19,7 @@
     on:focus={hoverItem}
 >
     <div class="header">
-        <span>{name}</span>
+        <span>{@html name}</span>
     </div>
     {#if description}
         <p class="description">{description}</p>

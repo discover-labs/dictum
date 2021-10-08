@@ -29,6 +29,7 @@
     const removeMeasure = (event) => {
         measures = measures.filter((i) => i.id !== event.detail.id);
         if (measures.length === 0) {
+            dimensions = [];
             getStore();
         }
     };
@@ -71,7 +72,7 @@
     {#if measures.length > 0}
         <CalculationSelector
             title="by"
-            placeholder="find a dimension..."
+            placeholder="add a breakdown..."
             calculations={dimensions}
             availableCalculations={store.dimensions}
             on:addCalculation={addDimension}

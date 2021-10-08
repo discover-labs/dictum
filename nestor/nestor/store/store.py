@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cache, cached_property, reduce
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from lark import Transformer, Tree
 
@@ -276,6 +276,7 @@ class Calculation:
     description: Optional[str]
     expr: Tree
     str_expr: str
+    format: Optional[Union[str, schema.CalculationFormat]]
 
     @cached_property
     def join_paths(self) -> List[List[str]]:
@@ -289,6 +290,26 @@ class Calculation:
     def prepare_expr(self, base_path: List[str]) -> Tree:
         t = ColumnReferenceTransformer(base_path)
         return t.transform(self.expr)
+
+    @cached_property
+    def metadata(self) -> schema.CalculationMetadata:
+        format = (
+            self.format.spec
+            if isinstance(self.format, schema.CalculationFormat)
+            else self.format
+        )
+        patch = {}
+        if isinstance(self.format, schema.CalculationFormat) and (
+            self.format.prefix or self.format.suffix
+        ):
+            patch = {
+                "currency": [self.format.prefix, self.format.sufix]
+            }
+        return schema.CalculationMetadata(
+            name=self.name,
+            format=format,
+            locale_patch=patch,
+        )
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.id})"
@@ -471,7 +492,7 @@ class Store:
                     id=measure_id,
                     expr=parse_expr(measure.expr),
                     str_expr=measure.expr,
-                    **measure.dict(include={"name", "description"}),
+                    **measure.dict(include={"name", "description", "format"}),
                 )
                 self.measures[measure_id] = _measure
                 table.measures[measure_id] = _measure
@@ -481,7 +502,7 @@ class Store:
                     expr=parse_expr(dimension.expr),
                     str_expr=dimension.expr,
                     type=dimension.type,
-                    **dimension.dict(include={"name", "description"}),
+                    **dimension.dict(include={"name", "description", "format"}),
                 )
                 table.dimensions[dimension_id] = _dimension
                 self.dimensions[dimension_id] = _dimension

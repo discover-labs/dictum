@@ -64,9 +64,11 @@ tables:
       track_length:
         name: Sum of Track Length (Seconds)
         expr: sum(Milliseconds) / 1000
+        format: .0f
       avg_track_length:
         name: Average Track Length (Seconds)
         expr: avg(Milliseconds) / 1000
+        format: .0f
     dimensions:
       track_length_10s_bins:
         name: Track Length (10-second bins)
@@ -87,12 +89,17 @@ tables:
       revenue:
         name: Revenue
         expr: sum(UnitPrice * Quantity)
+        format: &USD
+          spec: $.2f
+          prefix: $
       unique_paying_customers:
         name: Unique Paying Customers
         expr: distinct(invoices.CustomerId)
       arppu:
         name: ARPPU
         expr: $revenue / $unique_paying_customers
+        format:
+          <<: *USD
       items_sold:
         name: Number of Items Sold
         expr: sum(Quantity)

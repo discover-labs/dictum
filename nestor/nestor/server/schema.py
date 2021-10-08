@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from nestor.store.schema import Query
+from nestor.store.schema import CalculationMetadata, Query
 from nestor.store.schema.types import DimensionType, Identifier
 
 
@@ -37,7 +37,7 @@ class Table(BaseModel):
 
 
 class QueryResultMetadata(BaseModel):
-    columns: Dict[str, str]
+    columns: Dict[str, CalculationMetadata]
     store: "Store"
 
 
