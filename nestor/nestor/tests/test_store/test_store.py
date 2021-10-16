@@ -88,7 +88,7 @@ def test_table_get_dimension_ambiguous(store: Store):
 
 def test_store_measure_related_column(chinook: Store, connection):
     comp = chinook.execute_query(Query(measures=["unique_paying_customers"]))
-    assert len(comp.facts[0].join_tree.joins) == 1
+    assert len(comp.queries[0].join_tree.joins) == 1
     df = connection.execute(comp)
     assert df.iloc[0, 0] == 59
 
@@ -108,14 +108,14 @@ def test_get_fact_tables_with_dimensions(chinook: Store):
         Query(measures=["track_count"], dimensions=["artist"])
     )
     assert len(facts) == 1
-    assert len(facts[0].dimensions) == 1
+    assert len(facts[0].groupby) == 1
     assert len(list(facts[0].join_tree.unnested_joins)) == 2
 
     facts = chinook.get_fact_tables(
         Query(measures=["track_count", "revenue"], dimensions=["artist"])
     )
     assert len(facts) == 2
-    assert len(facts[0].dimensions) == 1
+    assert len(facts[0].groupby) == 1
     assert len(list(facts[0].join_tree.unnested_joins)) == 2
     assert len(list(facts[1].join_tree.unnested_joins)) == 3
 

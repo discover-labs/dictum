@@ -1,5 +1,11 @@
-from typing import Literal
+from enum import Enum
 
 Expression = str
 Identifier = str  # TODO: make these actual types
-DimensionType = Literal["time", "continuous", "ordinal", "nominal"]
+
+
+class DimensionType(str, Enum):
+    time = "time"
+    continuous = "continuous"
+    ordinal = "ordinal"
+    nominal = "nominal"

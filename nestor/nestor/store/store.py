@@ -3,7 +3,7 @@ from typing import Dict, List
 
 from nestor.store import schema
 from nestor.store.calculations import Dimension, Measure
-from nestor.store.computation import Computation, FactTable, JoinTree
+from nestor.store.computation import Computation, JoinTree, RelationalQuery
 from nestor.store.expr.parser import parse_expr
 from nestor.store.table import RelatedTable, Table
 
@@ -86,6 +86,18 @@ class Store:
         for table in self.tables.values():
             table.resolve_calculations()
 
+    def get_measure(self, measure_id: str):
+        measure = self.measures.get(measure_id)
+        if measure is None:
+            raise ValueError(f"Measure {measure_id} does not exist")
+        return measure
+
+    def get_dimension(self, dimension_id: str):
+        dimension = self.dimensions.get(dimension_id)
+        if dimension is None:
+            raise ValueError(f"Dimension {dimension_id} does not exist")
+        return dimension
+
     @classmethod
     def from_yaml(cls, path: str):
         config = schema.Config.from_yaml(path)
@@ -108,9 +120,17 @@ class Store:
                 result[k] = table
         return result
 
-    def get_fact_tables(self, query: schema.Query) -> List[FactTable]:
+    @cached_property
+    def dimensions_tables(self) -> Dict[str, Table]:
+        result = {}
+        for table in self.tables.values():
+            for k in table.dimensions:
+                result[k] = table
+        return result
+
+    def get_fact_tables(self, query: schema.Query) -> List[RelationalQuery]:
         """Get a list of fact tables' join trees with relevant measures."""
-        facts: Dict[str, FactTable] = {}
+        facts: Dict[str, RelationalQuery] = {}
         for measure_id in query.measures:
             table = self.measures_tables.get(measure_id)
             if table is None:
@@ -118,13 +138,13 @@ class Store:
 
             # create a FactTable with all dimensions and joins once
             if table.id not in facts:
-                facts[table.id] = FactTable(
+                facts[table.id] = RelationalQuery(
                     join_tree=JoinTree(table=table, identity=table.id)
                 )
                 fact = facts[table.id]
                 for dimension_id in query.dimensions:
                     expr, paths = table.get_dimension_expr_and_paths(dimension_id)
-                    fact.dimensions[dimension_id] = expr
+                    fact.groupby[dimension_id] = expr
                     for path in paths:
                         fact.join_tree.add_path(path[1:])
                 for filter in query.filters:
@@ -137,7 +157,7 @@ class Store:
 
             # add current measure
             expr, paths = table.get_measure_expr_and_paths(measure_id)
-            fact.measures[measure_id] = expr
+            fact.aggregate[measure_id] = expr
             for path in paths:
                 fact.join_tree.add_path(path[1:])
 
@@ -146,7 +166,7 @@ class Store:
     def execute_query(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
         facts = self.get_fact_tables(query)
-        return Computation(facts=facts, groupby=query.dimensions)
+        return Computation(queries=facts, merge=query.dimensions)
 
     def suggest_measures(self, query: schema.Query) -> List[Measure]:
         """Suggest a list of possible measures based on a query.
@@ -173,6 +193,38 @@ class Store:
             table = self.measures_tables.get(measure_id)
             dims = dims & set(table.allowed_dimensions)
         return [self.dimensions[d] for d in dims]
+
+    def get_range_computation(self, dimension_id: str) -> Computation:
+        """Get a computation that will compute a range of values for a given dimension.
+        This is seriously out of line with what different parts of computation mean, so
+        maybe we need to give them more abstract names.
+        """
+        dimension = self.get_dimension(dimension_id)
+        table = self.dimensions_tables.get(dimension_id)
+        min_, max_ = dimension.prepare_range_expr([table.id])
+        return Computation(
+            queries=[
+                RelationalQuery(
+                    join_tree=JoinTree(table=table, identity=table.id),
+                    aggregate={"min": min_, "max": max_},
+                )
+            ]
+        )
+
+    def get_values_computation(self, dimension_id: str) -> Computation:
+        """Get a computation that will compute a list of unique possible values for this
+        dimension.
+        """
+        dimension = self.get_dimension(dimension_id)
+        table = self.dimensions_tables.get(dimension_id)
+        return Computation(
+            queries=[
+                RelationalQuery(
+                    join_tree=JoinTree(table=table, identity=table.id),
+                    groupby={"values": dimension.prepare_expr([table.id])},
+                )
+            ]
+        )
 
     @cached_property
     def _all(self):

@@ -100,14 +100,14 @@ class JoinTree:
 
 
 @dataclass
-class FactTable:
+class RelationalQuery:
     """Represents a fact table aggregated to a relevant (for the request) level of
     detail.
     """
 
     join_tree: JoinTree
-    measures: Dict[str, Tree] = field(default_factory=lambda: {})
-    dimensions: Dict[str, Tree] = field(default_factory=lambda: {})
+    aggregate: Dict[str, Tree] = field(default_factory=lambda: {})
+    groupby: Dict[str, Tree] = field(default_factory=lambda: {})
     filters: List[Tree] = field(default_factory=lambda: [])
 
 
@@ -115,5 +115,5 @@ class FactTable:
 class Computation:
     """What the backend gets to compile and execute."""
 
-    facts: List[FactTable]
-    groupby: List[str]
+    queries: List[RelationalQuery]
+    merge: List[str] = field(default_factory=lambda: [])

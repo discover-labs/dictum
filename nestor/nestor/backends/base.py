@@ -1,3 +1,4 @@
+import pandas as pd
 from lark import Transformer
 
 from nestor.store import Computation
@@ -113,5 +114,5 @@ class Connection:
     def __init_subclass__(cls):
         cls.registry[cls.type] = cls
 
-    def execute(self, computation: Computation):
+    def execute(self, computation: Computation) -> pd.DataFrame:
         raise NotImplementedError

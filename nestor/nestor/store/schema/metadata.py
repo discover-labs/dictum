@@ -1,9 +1,13 @@
-from typing import Dict, Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
+
+from nestor.store.schema.config import CalculationFormat
+from nestor.store.schema.types import DimensionType
 
 
 class CalculationMetadata(BaseModel):
     name: str
-    format: Optional[str]  # d3-format
-    locale_patch: Optional[Dict]  # patches current locale, used for currencies
+    kind: Literal["measure", "dimension"]
+    type: Optional[DimensionType]
+    format: Optional[CalculationFormat]

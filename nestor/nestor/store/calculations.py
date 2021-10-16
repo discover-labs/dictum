@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple
 
 from lark import Transformer, Tree
 
@@ -29,7 +29,7 @@ class Calculation:
     description: Optional[str]
     expr: Tree
     str_expr: str
-    format: Optional[Union[str, schema.CalculationFormat]]
+    format: Optional[schema.CalculationFormat]
 
     @cached_property
     def join_paths(self) -> List[List[str]]:
@@ -44,22 +44,19 @@ class Calculation:
         t = ColumnReferenceTransformer(base_path)
         return t.transform(self.expr)
 
+    def prepare_range_expr(self, base_path: List[str]) -> Tuple[Tree, Tree]:
+        return (
+            Tree("call", ["min", self.prepare_expr(base_path)]),
+            Tree("call", ["max", self.prepare_expr(base_path)]),
+        )
+
     @cached_property
     def metadata(self) -> schema.CalculationMetadata:
-        # format = (
-        #     self.format.spec
-        #     if isinstance(self.format, schema.CalculationFormat)
-        #     else self.format
-        # )
-        # patch = {}
-        # if isinstance(self.format, schema.CalculationFormat) and (
-        #     self.format.prefix or self.format.suffix
-        # ):
-        #     patch = {"currency": [self.format.prefix, self.format.sufix]}
         return schema.CalculationMetadata(
             name=self.name,
-            # format=format,
-            # locale_patch=patch,
+            format=self.format,
+            kind="dimension" if isinstance(self, Dimension) else "measure",
+            type=getattr(self, "type", None),
         )
 
     def __str__(self):
@@ -82,4 +79,4 @@ class Dimension(Calculation):
 
 @dataclass(repr=False)
 class Measure(Calculation):
-    pass
+    """Measure"""

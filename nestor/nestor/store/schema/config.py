@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from nestor.store.schema.types import DimensionType, Expression, Identifier
 
@@ -18,15 +18,21 @@ class RelatedTable(Base):
 
 class CalculationFormat(Base):
     spec: str
-    prefix: Optional[str]
-    suffix: Optional[str]
+    currency_prefix: str = ""
+    currency_suffix: str = ""
 
 
 class Calculation(Base):
     name: str
     expr: Expression
     description: Optional[str]
-    format: Optional[Union[str, CalculationFormat]]
+    format: Optional[CalculationFormat]
+
+    @validator("format", pre=True)
+    def validate_format(cls, value):
+        if isinstance(value, str):
+            return {"spec": value}
+        return value
 
 
 class Measure(Calculation):

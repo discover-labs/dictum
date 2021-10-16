@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.engine.url import URL
 
 from nestor.backends.base import Compiler, Connection
-from nestor.store import Computation, FactTable
+from nestor.store import Computation, RelationalQuery
 
 
 class ColumnTransformer(Transformer):
@@ -122,8 +122,8 @@ class SQLAlchemyCompiler(Compiler):
             schema = schema[0]
         return self.connection.table(tablename, schema=schema)
 
-    def compile_fact(self, fact: FactTable):
-        tree = fact.join_tree
+    def compile_query(self, query: RelationalQuery):
+        tree = query.join_tree
         table: Table = self._table(tree.table.source)
 
         tables = {tree.identity: table}
@@ -134,35 +134,35 @@ class SQLAlchemyCompiler(Compiler):
             foreign_key = tables[join.left_identity].c[join.left_key]
             table = table.outerjoin(right_table, foreign_key == related_key)
 
-        measures = {}
-        dimensions = {}
+        aggregate = {}
+        groupby = {}
         column_transformer = ColumnTransformer(tables)
-        for key, expr in fact.measures.items():
-            measures[key] = self.transformer.transform(
+        for key, expr in query.aggregate.items():
+            aggregate[key] = self.transformer.transform(
                 column_transformer.transform(expr)
             )
-        for key, expr in fact.dimensions.items():
-            dimensions[key] = self.transformer.transform(
+        for key, expr in query.groupby.items():
+            groupby[key] = self.transformer.transform(
                 column_transformer.transform(expr)
             )
 
         stmt = (
             select(
-                *(v.label(k) for k, v in dimensions.items()),
-                *(v.label(k) for k, v in measures.items()),
+                *(v.label(k) for k, v in groupby.items()),
+                *(v.label(k) for k, v in aggregate.items()),
             )
             .select_from(table)
-            .group_by(*dimensions.values())
+            .group_by(*groupby.values())
         )
 
-        for expr in fact.filters:
+        for expr in query.filters:
             condition = self.transformer.transform(column_transformer.transform(expr))
             stmt = stmt.where(condition)
 
         return stmt
 
     def compile(self, computation: Computation):
-        return [self.compile_fact(f) for f in computation.facts]
+        return [self.compile_query(f) for f in computation.queries]
 
 
 class SQLAlchemyConnection(Connection):
@@ -202,15 +202,15 @@ class SQLAlchemyConnection(Connection):
         df = None
         for query in self.compiler.compile(computation):
             result = pd.read_sql(query, self.engine)
-            if len(computation.groupby) > 0:
-                result = result.set_index(computation.groupby)
+            if len(computation.merge) > 0:
+                result = result.set_index(computation.merge)
             if df is None:
                 df = result
             else:
                 df = pd.merge(
                     df, result, how="outer", left_index=True, right_index=True
                 )
-        if len(computation.groupby) > 0:
+        if len(computation.merge) > 0:
             df = df.reset_index()
         return df.replace([np.nan], [None])
 

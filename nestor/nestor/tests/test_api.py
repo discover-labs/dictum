@@ -33,4 +33,28 @@ def test_store(client: TestClient):
     res.raise_for_status()
     store = res.json()
     assert len(store["measures"]) == 9
-    assert len(store["dimensions"]) == 13
+    assert len(store["dimensions"]) == 14
+
+
+def test_dimension_info_nominal(client: TestClient):
+    res = client.get("/api/dimensions/customer_country/")
+    res.raise_for_status()
+    data = res.json()
+    assert data["range"] is None
+    assert len(data["values"]) == 24
+
+
+def test_dimension_info_ordinal(client: TestClient):
+    res = client.get("/api/dimensions/track_length_10s_bins/")
+    res.raise_for_status()
+    data = res.json()
+    assert data["range"] == [0, 5280]
+    assert len(data["values"]) == 139
+
+
+def test_dimension_info_continuous(client: TestClient):
+    res = client.get("/api/dimensions/order_amount/")
+    res.raise_for_status()
+    data = res.json()
+    assert data["range"] == [0.99, 25.86]
+    assert data["values"] is None

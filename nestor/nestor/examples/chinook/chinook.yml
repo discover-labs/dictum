@@ -1,44 +1,40 @@
 tables:
 
-  genres:
-    source: genres
-    primary_key: GenreId
-    dimensions:
-      genre:
-        name: Genre
-        expr: Name
-        type: nominal
-
-  artists:
-    source: artists
-    primary_key: ArtistId
-    dimensions:
-      artist:
-        name: Artist
-        expr: Name
-        type: nominal
-
-  albums:
-    source: albums
-    primary_key: AlbumId
+  invoice_items:
+    source: invoice_items
+    primary_key: InvoiceLineId
     related:
-      artists:
-        table: artists
-        foreign_key: ArtistId
-    dimensions:
-      album:
-        name: Album Title
-        expr: Title
-        type: nominal
-
-  media_types:
-    source: media_types
-    primary_key: MediaTypeId
-    dimensions:
-      media_type:
-        name: Type of Media
-        expr: Name
-        type: nominal
+      invoices:
+        table: invoices
+        foreign_key: InvoiceId
+      tracks:
+        table: tracks
+        foreign_key: TrackId
+    measures:
+      revenue:
+        name: Revenue
+        expr: sum(UnitPrice * Quantity)
+        format: &USD
+          spec: $.2f
+          currency_prefix: $
+      unique_paying_customers:
+        name: Unique Paying Customers
+        expr: distinct(invoices.CustomerId)
+      arppu:
+        name: ARPPU
+        expr: $revenue / $unique_paying_customers
+        format:
+          <<: *USD
+      items_sold:
+        name: Number of Items Sold
+        expr: sum(Quantity)
+        format: .0f
+      avg_sold_unit_price:
+        name: Averate Sold Unit Price
+        description: Average price of a track that we sold.
+        expr: $revenue / $items_sold
+        format:
+          <<: *USD
 
   tracks:
     source: tracks
@@ -75,44 +71,14 @@ tables:
           Average price of a track in our library. For average sold item size, see
           Average Sold Unit Price.
         expr: avg(UnitPrice)
+        format:
+          <<: *USD
     dimensions:
       track_length_10s_bins:
         name: Track Length (10-second bins)
         expr: Milliseconds / 1000 // 10 * 10
         type: ordinal
-
-  invoice_items:
-    source: invoice_items
-    primary_key: InvoiceLineId
-    related:
-      invoices:
-        table: invoices
-        foreign_key: InvoiceId
-      tracks:
-        table: tracks
-        foreign_key: TrackId
-    measures:
-      revenue:
-        name: Revenue
-        expr: sum(UnitPrice * Quantity)
-        format: &USD
-          spec: $.2f
-          prefix: $
-      unique_paying_customers:
-        name: Unique Paying Customers
-        expr: distinct(invoices.CustomerId)
-      arppu:
-        name: ARPPU
-        expr: $revenue / $unique_paying_customers
-        format:
-          <<: *USD
-      items_sold:
-        name: Number of Items Sold
-        expr: sum(Quantity)
-      avg_sold_unit_price:
-        name: Averate Sold Unit Price
-        description: Average price of a track that we sold.
-        expr: $revenue / $items_sold
+        format: .0f
 
   invoices:
     source: invoices
@@ -123,13 +89,22 @@ tables:
         foreign_key: CustomerId
     dimensions:
       invoice_date:
-        name: Invoice Date
+        name: Sale Date
         expr: InvoiceDate
         type: time
+        format: "%d.%m.%Y"
+      order_amount:
+        name: Order Amount
+        expr: Total
+        type: continuous
+        format:
+          <<: *USD
       order_amount_10_dollar_bins:
         name: Total Order Amount ($10 bins)
         expr: Total // 10 * 10
         type: ordinal
+        format:
+          <<: *USD
 
   customers:
     source: customers
@@ -172,3 +147,43 @@ tables:
         name: Support Rep's Title
         type: nominal
         expr: Title
+
+  genres:
+    source: genres
+    primary_key: GenreId
+    dimensions:
+      genre:
+        name: Genre
+        expr: Name
+        type: nominal
+
+  artists:
+    source: artists
+    primary_key: ArtistId
+    dimensions:
+      artist:
+        name: Artist
+        expr: Name
+        type: nominal
+
+  albums:
+    source: albums
+    primary_key: AlbumId
+    related:
+      artists:
+        table: artists
+        foreign_key: ArtistId
+    dimensions:
+      album:
+        name: Album Title
+        expr: Title
+        type: nominal
+
+  media_types:
+    source: media_types
+    primary_key: MediaTypeId
+    dimensions:
+      media_type:
+        name: Type of Media
+        expr: Name
+        type: nominal
