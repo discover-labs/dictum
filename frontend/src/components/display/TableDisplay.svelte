@@ -1,10 +1,10 @@
-<script>
-    import { getFormatters } from "../format";
+<script lang="ts">
+    export let data: object[];
+    export let formatters: object;
+    export let meta: object;
 
-    export let queryResult;
-    $: keys = Object.keys(queryResult.metadata.columns);
-    $: names = keys.map((k) => queryResult.metadata.columns[k].name);
-    $: formatters = getFormatters(queryResult.metadata);
+    $: keys = Object.keys(formatters);
+    $: names = keys.map((k) => meta[k].name);
 </script>
 
 <div class="table-wrapper">
@@ -17,7 +17,7 @@
             </tr>
         </thead>
         <tbody>
-            {#each queryResult.data as row}
+            {#each data as row}
                 <tr>
                     {#each keys as k (k)}
                         <td> {formatters[k](row[k])}</td>

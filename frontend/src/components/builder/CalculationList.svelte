@@ -1,14 +1,15 @@
-<script>
+<script lang="ts">
     import { createEventDispatcher } from "svelte";
     import CalculationListItem from "./CalculationListItem.svelte";
+    import type { Calculation } from "src/schema";
 
-    export let calculations;
-    export let selectedIndex;
+    export let calculations: Calculation[];
+    export let selectedIndex: number;
 
     $: ids = calculations.map((i) => i.id);
 
     const dispatch = createEventDispatcher();
-    const indexFromId = (id) => {
+    const indexFromId = (id: string): number | null => {
         let index = ids.indexOf(id);
         return index > -1 ? index : null;
     };

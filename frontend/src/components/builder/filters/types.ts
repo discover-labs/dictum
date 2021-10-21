@@ -3,14 +3,16 @@ import type { Dimension } from "src/schema";
 type FilterRangeValue = number | Date | null;
 type FilterRange = [FilterRangeValue, FilterRangeValue];
 
-interface RangeFilterInfo {
-    range: FilterRange;
-}
-
 export type FilterValue = string | number | Date;
 
-interface ValuesFilterInfo {
+interface RangeFilterQuery {
+    range: FilterRange;
+    values?: any
+}
+
+interface ValuesFilterQuery {
     values: FilterValue[];
+    range?: any
 }
 
 export interface FilterState {
@@ -18,9 +20,7 @@ export interface FilterState {
     values: Set<FilterValue> | null;
 }
 
-interface FilterQuery {
-    query: RangeFilterInfo | ValuesFilterInfo;
-}
+export type FilterQuery = RangeFilterQuery | ValuesFilterQuery;
 
 export interface FilterInfoResponse {
     dimension: Dimension;

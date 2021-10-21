@@ -1,18 +1,16 @@
-<script>
+<script lang="ts">
     import BigNumber from "./BigNumber.svelte";
-    import { getFormatters } from "../format";
 
-    export let queryResult;
+    export let data: object[];
+    export let formatters: object;
+    export let meta: object;
     let values = [];
 
-    $: formatters = getFormatters(queryResult.metadata);
-
-    $: if (queryResult.data.length === 1) {
-        const data = queryResult.data[0];
-        const meta = queryResult.metadata.columns;
-        values = Object.keys(data).map((k) => ({
+    $: if (data.length === 1) {
+        const row = data[0];
+        values = Object.keys(row).map((k) => ({
             name: meta[k].name,
-            value: formatters[k](data[k]),
+            value: formatters[k](row[k]),
         }));
     }
 </script>

@@ -16,6 +16,7 @@
     "d3-format": "^3.0.1",
     "d3-time-format": "^4.0.0",
     "fuse.js": "^6.4.6",
+    "sass": "^1.43.2",
     "svelte": "^3.37.0",
     "svelte-check": "^2.1.0",
     "svelte-preprocess": "^4.7.2",

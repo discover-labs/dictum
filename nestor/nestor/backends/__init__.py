@@ -1,3 +1,4 @@
-from nestor.backends.sql_alchemy import SQLAlchemyConnection
+from nestor.backends.postgres import PostgresConnection
+from nestor.backends.sqlite import SQLiteConnection
 
-__all__ = ["SQLAlchemyConnection"]
+__all__ = ["PostgresConnection", "SQLiteConnection"]

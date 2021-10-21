@@ -38,7 +38,10 @@ class Preprocessor(Transformer):
     def call(self, children):
         """All function calls to lowercase."""
         fn, *args = children
-        return Tree("call", [fn.lower(), *args])
+        fn = fn.lower()
+        upper_fns = {"if"}  # some functions can only be uppercase methods
+        fn = fn.upper() if fn in upper_fns else fn
+        return Tree("call", [fn, *args])
 
 
 grammar = Path(__file__).parent / "expr.lark"

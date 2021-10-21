@@ -81,7 +81,15 @@ _AND: "AND"i
 or_: or _OR and
 _OR: "OR"i
 
-?op: or
+_CASE: "CASE"i
+_WHEN: "WHEN"i
+_THEN: "THEN"i
+_ELSE: "ELSE"i
+_END: "END"i
+?case_: or | case
+case: _CASE (_WHEN or _THEN or)+ [ _ELSE or ] _END
+
+?op: case_
 expr: op
 
 %ignore /\s/

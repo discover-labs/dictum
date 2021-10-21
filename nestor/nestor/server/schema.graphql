@@ -1,0 +1,105 @@
+schema {
+    query: Query
+}
+
+type Query {
+    query(input: StoreQuery!): StoreQueryResult!
+    store: Store!
+}
+
+type CalculationFormat {
+    spec: String!
+    currencyPrefix: String!
+    currencySuffix: String!
+}
+
+interface Calculation {
+    id: String!
+    name: String!
+    description: String
+    expr: String!
+    format: CalculationFormat
+}
+
+type Measure implements Calculation {
+    id: String!
+    name: String!
+    description: String
+    expr: String!
+    format: CalculationFormat
+}
+
+enum DimensionType {
+    time
+    continuous
+    ordinal
+    nominal
+}
+
+scalar Range
+scalar Values
+
+type DimensionInfo {
+    range: Range
+    values: Values
+}
+
+type Dimension implements Calculation {
+    id: String!
+    name: String!
+    description: String
+    expr: String!
+    format: CalculationFormat
+    type: DimensionType!
+    info: DimensionInfo
+}
+
+type RelatedTable {
+    table: Table!
+    foreignKey: String!
+}
+
+type Table {
+    id: String!
+    source: String!
+    related: [RelatedTable!]!
+    measures: [Measure!]!
+    dimensions: [Dimension!]!
+}
+
+type Store {
+    tables: [Table!]!
+    measures: [Measure!]!
+    dimensions: [Dimension!]!
+}
+
+
+input StoreQuery {
+    measures: [String!]!
+    dimensions: [String!]!
+    filters: [String!]!
+}
+
+scalar Record
+
+type StoreQueryResult {
+    metadata: StoreQueryResultMetadata!
+    data: [Record!]!
+}
+
+scalar Columns
+scalar NumberLocaleDefinition
+scalar TimeLocaleDefinition
+
+type LocaleDefinition {
+    number: NumberLocaleDefinition
+    time: TimeLocaleDefinition
+}
+
+union ResultColumn = Measure | Dimension
+
+type StoreQueryResultMetadata {
+    columns: [ResultColumn!]!
+    locale: LocaleDefinition
+    store: Store!
+}

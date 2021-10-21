@@ -1,10 +1,12 @@
-<script>
+<script lang="ts">
     import { createEventDispatcher } from "svelte";
     import CalculationList from "./CalculationList.svelte";
     import Fuse from "fuse.js";
 
-    export let availableCalculations;
-    export let placeholder;
+    import type { Calculation } from "src/schema";
+
+    export let availableCalculations: Calculation[];
+    export let placeholder: string;
 
     let query = ""; // search input value
     let selectedIndex = 0; // highlighted item
@@ -43,7 +45,7 @@
     const hoverItem = (event) => {
         selectedIndex = event.detail.index;
     };
-    const selectItem = (n) => {
+    const selectItem = (n: number) => {
         // +1 for next -1 for previous. loops around
         let selection = selectedIndex + n;
         if (selection >= calculations.length) {

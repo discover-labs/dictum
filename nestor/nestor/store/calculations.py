@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from lark import Transformer, Tree
 
 from nestor.store import schema
-from nestor.store.schema.types import DimensionType
+from nestor.store.schema.types import CalculationType
 
 
 class ColumnReferenceTransformer(Transformer):
@@ -30,6 +30,7 @@ class Calculation:
     expr: Tree
     str_expr: str
     format: Optional[schema.CalculationFormat]
+    key: bool = False
 
     @cached_property
     def join_paths(self) -> List[List[str]]:
@@ -74,9 +75,31 @@ class Calculation:
 
 @dataclass(repr=False)
 class Dimension(Calculation):
-    type: DimensionType
+    # not really a default, schema prevents that
+    type: CalculationType = CalculationType.continuous
 
 
 @dataclass(repr=False)
 class Measure(Calculation):
-    """Measure"""
+    def metric(self) -> "Metric":
+        return Metric(
+            self.id,
+            name=self.name,
+            description=self.description,
+            expr=Tree("expr", [Tree("measure", [self.id])]),
+            str_expr=self.str_expr,
+            format=self.format,
+            key=self.key,
+        )
+
+
+@dataclass(repr=False)
+class Metric(Measure):
+    """Metric"""
+
+    @cached_property
+    def measures(self) -> List[str]:
+        result = []
+        for tree in self.expr.find_data("measure"):
+            result.append(tree.children[0])
+        return result

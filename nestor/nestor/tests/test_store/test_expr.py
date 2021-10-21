@@ -119,3 +119,45 @@ def test_in():
             ),
         ],
     )
+
+
+def test_case_abbr():
+    assert parse_expr("case when x > 0 then 1 end").children[0] == Tree(
+        "case",
+        [
+            Tree("gt", [Tree("column", ["x"]), Token("INTEGER", "0")]),
+            Token("INTEGER", "1"),
+        ],
+    )
+
+
+def test_case_full():
+    assert parse_expr("case when x > 0 then 1 else -1 end").children[0] == Tree(
+        "case",
+        [
+            Tree(
+                "gt",
+                [
+                    Tree("column", ["x"]),
+                    Token("INTEGER", "0"),
+                ],
+            ),
+            Token("INTEGER", "1"),
+            Token("INTEGER", "-1"),
+        ],
+    )
+
+
+def test_case_multi():
+    assert parse_expr("case when x > 0 then 1 when x < 0 then -1 else 0 end").children[
+        0
+    ] == Tree(
+        "case",
+        [
+            Tree("gt", [Tree("column", ["x"]), Token("INTEGER", "0")]),
+            Token("INTEGER", "1"),
+            Tree("lt", [Tree("column", ["x"]), Token("INTEGER", "0")]),
+            Token("INTEGER", "-1"),
+            Token("INTEGER", "0"),
+        ],
+    )

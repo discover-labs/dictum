@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import pkg_resources
 import yaml
 from jinja2 import Template
 from pydantic import BaseModel
@@ -50,5 +51,14 @@ class ProfilesConfig(BaseModel):
         profile = self.get_profile(profile)
         connection_cls = Connection.registry.get(profile.type)
         if connection_cls is None:
-            raise KeyError(f"Connection type {profile.type} is not recognized.")
+            connection_cls = self.get_plugin_connection(profile.type)
         return connection_cls(**profile.parameters)
+
+    def get_plugin_connection(self, type: str):
+        for entry_point in pkg_resources.iter_entry_points(
+            "nestor.backends", name=type
+        ):
+            return entry_point.load()
+        raise ImportError(
+            f"Backend {type} was not found. Try installing nestor-backend-{type} package."
+        )

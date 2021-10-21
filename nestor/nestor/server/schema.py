@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from nestor.server import static
 from nestor.store.schema import CalculationMetadata, Query
-from nestor.store.schema.types import DimensionType, Identifier
+from nestor.store.schema.types import CalculationType, Identifier
 
 static = Path(static.__file__).parent
 
@@ -21,6 +21,7 @@ class Calculation(BaseModel):
     name: str
     description: Optional[str]
     expr: str = Field(..., alias="str_expr")
+    type: CalculationType
 
     class Config:
         orm_mode = True
@@ -28,11 +29,11 @@ class Calculation(BaseModel):
 
 
 class Measure(Calculation):
-    pass
+    type: CalculationType = CalculationType.continuous
 
 
 class Dimension(Calculation):
-    type: DimensionType
+    pass
 
 
 class Table(BaseModel):

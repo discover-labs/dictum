@@ -7,11 +7,15 @@
     import FilterDisplay from "./filters/FilterDisplay.svelte";
     import type { Filter, FilterInfoResponse } from "./filters/types";
     import type { ValuesFilterToggleEvent } from "./filters/events";
+    import { compileFilter } from "./compile";
 
     export let title: string;
     export let placeholder: string;
     export let availableDimensions: Dimension[];
     let filters: Filter[] = [];
+    $: compiled = filters.map(compileFilter).filter((i) => i !== null);
+    const dispatch = createEventDispatcher();
+    $: dispatch("updateFilters", compiled);
 
     const addItem = (event: Event) => {
         addFilter(event.detail.item.id);
@@ -42,6 +46,7 @@
                     f.state.values.add(label);
                 }
             }
+            f.query = { values: Array.from(f.state.values) };
             return f;
         });
     }
@@ -56,6 +61,7 @@
                 } else {
                     f.state.values = new Set(f.info.values);
                 }
+                f.query = { values: Array.from(f.state.values) };
             }
             return f;
         });
@@ -73,7 +79,6 @@
     {#each filters as filter}
         <FilterDisplay
             {filter}
-            on:filter
             on:toggle={handleToggle}
             on:checkAll={handleCheckAll}
             on:uncheckAll={handleUncheckAll}

@@ -1,8 +1,20 @@
-tables:
+name: Chinook Example
+description: |
+  An example project based on Chinook sqlite database, use for testing, introductory
+  tutorial and as a basic example of what can be done here.
 
+.usd: &USD
+  spec: $.2f
+  currency_prefix: $
+
+metrics:
+  revenue_per_track:
+    name: Revenue per Track in the Library
+    expr: $track_count / $revenue
+
+tables:
   invoice_items:
     source: invoice_items
-    primary_key: InvoiceLineId
     related:
       invoices:
         table: invoices
@@ -14,25 +26,78 @@ tables:
       revenue:
         name: Revenue
         expr: sum(UnitPrice * Quantity)
-        format: &USD
-          spec: $.2f
-          currency_prefix: $
-      unique_paying_customers:
-        name: Unique Paying Customers
-        expr: distinct(invoices.CustomerId)
+        format:
+          <<: *USD
+        key: true
+        groups:
+          - Sales
       arppu:
         name: ARPPU
         expr: $revenue / $unique_paying_customers
         format:
           <<: *USD
-      items_sold:
-        name: Number of Items Sold
-        expr: sum(Quantity)
-        format: .0f
+        groups:
+          - Sales
+          - Customers
       avg_sold_unit_price:
         name: Averate Sold Unit Price
         description: Average price of a track that we sold.
         expr: $revenue / $items_sold
+        format:
+          <<: *USD
+        groups:
+          - Sales
+          - Media Library
+
+      unique_paying_customers:
+        name: Unique Paying Customers
+        expr: countd(invoices.CustomerId)
+        description: |
+          Number of unique users who made an order.
+        groups:
+          - Sales
+          - Customers
+      items_sold:
+        name: Number of Items Sold
+        expr: sum(Quantity)
+        format: .0f
+        key: true
+        groups:
+          - Sales
+
+  invoices:
+    source: invoices
+    primary_key: InvoiceId
+    related:
+      customers:
+        table: customers
+        foreign_key: CustomerId
+    dimensions:
+      invoice_date:
+        name: Sale Date
+        expr: InvoiceDate
+        type: time
+        format: "%d.%m.%Y"
+      invoice_month:
+        name: Sale Date (Month)
+        expr: datetrunc('month', InvoiceDate)
+        type: time
+        format: "%b %Y"
+      invoice_year:
+        name: Sale Date (Year)
+        expr: datetrunc('year', InvoiceDate)
+        type: time
+        format: "%Y"
+      order_amount:
+        name: Order Amount
+        expr: Total
+        type: continuous
+        format:
+          <<: *USD
+      order_amount_10_dollar_bins:
+        name: Total Order Amount ($10 bins)
+        expr: Total // 10 * 10
+        type: ordinal
         format:
           <<: *USD
 
@@ -79,32 +144,6 @@ tables:
         expr: Milliseconds / 1000 // 10 * 10
         type: ordinal
         format: .0f
-
-  invoices:
-    source: invoices
-    primary_key: InvoiceId
-    related:
-      customers:
-        table: customers
-        foreign_key: CustomerId
-    dimensions:
-      invoice_date:
-        name: Sale Date
-        expr: InvoiceDate
-        type: time
-        format: "%d.%m.%Y"
-      order_amount:
-        name: Order Amount
-        expr: Total
-        type: continuous
-        format:
-          <<: *USD
-      order_amount_10_dollar_bins:
-        name: Total Order Amount ($10 bins)
-        expr: Total // 10 * 10
-        type: ordinal
-        format:
-          <<: *USD
 
   customers:
     source: customers

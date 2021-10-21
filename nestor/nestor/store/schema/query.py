@@ -13,6 +13,6 @@ class Query(BaseModel):
     filters: list of boolean expressions. will be concatenated with AND
     """
 
-    measures: List[Identifier] = Field(..., min_items=1)
+    metrics: List[Identifier] = Field(..., min_items=1)
     dimensions: List[Identifier] = []
     filters: List[str] = []

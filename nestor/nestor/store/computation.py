@@ -116,4 +116,5 @@ class Computation:
     """What the backend gets to compile and execute."""
 
     queries: List[RelationalQuery]
+    metrics: Dict[str, Tree]
     merge: List[str] = field(default_factory=lambda: [])

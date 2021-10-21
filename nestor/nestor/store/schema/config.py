@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, validator
 
-from nestor.store.schema.types import DimensionType, Expression, Identifier
+from nestor.store.schema.types import CalculationType, Expression, Identifier
 
 
 class Base(BaseModel):
@@ -36,26 +36,32 @@ class Calculation(Base):
 
 
 class Measure(Calculation):
+    key: bool = False
+    metric: bool = True
+
+
+class Metric(Measure):
     pass
 
 
 class Dimension(Calculation):
-    type: DimensionType
+    type: CalculationType
 
 
 class Table(Base):
     description: Optional[str]
     source: str
-    primary_key: Optional[Identifier] = Field(
-        ..., description="If not set, this table can't be a target of a foreign key."
-    )
+    primary_key: Optional[Identifier]
     related: Dict[str, RelatedTable] = {}
     measures: Dict[Identifier, Measure] = {}
     dimensions: Dict[Identifier, Dimension] = {}
 
 
 class Config(Base):
-    tables: Dict[Identifier, Table]
+    name: str
+    description: Optional[str]
+    metrics: Dict[Identifier, Metric] = {}
+    tables: Dict[Identifier, Table] = {}
 
     @classmethod
     def from_yaml(cls, path: str):

@@ -4,7 +4,7 @@ Expression = str
 Identifier = str  # TODO: make these actual types
 
 
-class DimensionType(str, Enum):
+class CalculationType(str, Enum):
     time = "time"
     continuous = "continuous"
     ordinal = "ordinal"

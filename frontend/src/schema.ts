@@ -6,21 +6,20 @@ export interface Store {
     dimensions: Dimension[];
 }
 
+type CalculationType = "time" | "continuous" | "ordinal" | "nominal";
+
 export interface Calculation {
     id: string;
     name: string;
     description: string | null;
+    type: CalculationType;
+    format: CalculationFormat;
 }
-
 
 export interface Measure extends Calculation { }
 
 
-type DimensionType = "time" | "continuous" | "ordinal" | "nominal";
-
-
 export interface Dimension extends Calculation {
-    type: DimensionType;
 }
 
 export interface DimensionInfo {
@@ -42,19 +41,10 @@ export interface QueryResult {
     metadata: QueryResultMetadata;
 }
 
-type CalculationKind = "measure" | "dimension";
-
 export interface CalculationFormat {
     spec: string;
-    currency_prefix: string;
-    currency_suffix: string;
-}
-
-interface CalculationMetadata {
-    name: string;
-    kind: CalculationKind;
-    type?: DimensionType;
-    format: CalculationFormat;
+    currencyPrefix: string;
+    currencySuffix: string;
 }
 
 interface LocaleDefinition {
@@ -63,7 +53,7 @@ interface LocaleDefinition {
 }
 
 export interface QueryResultMetadata {
-    columns: { [key: string]: CalculationMetadata };
+    columns: Calculation[];
     store: Store;
     locale: LocaleDefinition;
 }

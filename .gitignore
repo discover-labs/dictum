@@ -2,3 +2,8 @@
 __pycache__
 *.ipynb
 *.db
+dist/
+htmlcov/
+coverage.xml
+.coverage
+.pytest_cache

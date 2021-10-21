@@ -213,8 +213,6 @@ class Table:
         if dimension is None:
             raise ValueError(f"Dimension {dimension_id} can't be used with {self}")
         join_path = self.dimension_join_paths.get(dimension_id)
-        if join_path is None:
-            breakpoint()
         return dimension.prepare_expr(join_path), [
             join_path,
             *(join_path + p for p in dimension.join_paths),

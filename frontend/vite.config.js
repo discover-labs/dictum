@@ -5,7 +5,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 export default defineConfig({
     plugins: [svelte()],
     build: {
-        outDir: "../nestor/nestor/server/static/"
+        outDir: "../nestor/nestor/server/static/",
     },
     server: {
         cors: {
@@ -13,7 +13,7 @@ export default defineConfig({
         },
         proxy: {
             "^/static": { target: "http://localhost:8000" },
-            "^/api": { target: "http://localhost:8000" }
+            "^/graphql": { target: "http://localhost:8000" }
         }
     }
 })

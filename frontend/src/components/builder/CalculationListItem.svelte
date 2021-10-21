@@ -1,11 +1,11 @@
-<script>
+<script lang="ts">
     import { createEventDispatcher } from "svelte";
     const dispatch = createEventDispatcher();
 
-    export let id;
-    export let name;
-    export let description;
-    export let selected;
+    export let id: string;
+    export let name: string;
+    export let description: string | null;
+    export let selected: boolean;
 
     const clickItem = () => dispatch("clickItem", { id });
     const hoverItem = () => dispatch("hoverItem", { id });

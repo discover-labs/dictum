@@ -87,7 +87,7 @@ def test_table_get_dimension_ambiguous(store: Store):
 
 
 def test_store_measure_related_column(chinook: Store, connection):
-    comp = chinook.execute_query(Query(measures=["unique_paying_customers"]))
+    comp = chinook.get_computation(Query(measures=["unique_paying_customers"]))
     assert len(comp.queries[0].join_tree.joins) == 1
     df = connection.execute(comp)
     assert df.iloc[0, 0] == 59
@@ -172,7 +172,7 @@ def test_suggest_dimensions(chinook: Store):
     }
 
 
-def test_dimension_same_table_as_measures(chinook: Store, connection):
+def test_dimension_same_table_as_measures(chinook: Store):
     """There was a bug where the table couldn't find a join path from a self to
     a dimension declared on self :-/
     """
@@ -180,3 +180,7 @@ def test_dimension_same_table_as_measures(chinook: Store, connection):
         chinook.tables["tracks"].dimension_join_paths.get("track_length_10s_bins")
         is not None
     )
+
+
+def test_metrics_reference_implicit_measures(chinook: Store):
+    breakpoint()

@@ -1,6 +1,6 @@
 import { formatLocale } from "d3-format";
 import { timeFormatLocale } from "d3-time-format";
-import type { QueryResultMetadata, CalculationFormat } from "../schema";
+import type { QueryResultMetadata, CalculationFormat, Calculation } from "../schema";
 import type { FormatLocaleDefinition } from "d3-format";
 import type { TimeLocaleDefinition } from "d3-time-format";
 
@@ -11,7 +11,7 @@ function getFormatter(defn: FormatLocaleDefinition, format?: CalculationFormat |
     if (typeof (format) === "undefined" || format === null) {
         return identity
     }
-    const currency = (format.currency_prefix.length > 0 || format.currency_suffix.length > 0) ? [format.currency_prefix, format.currency_suffix] :
+    const currency = (format.currencyPrefix.length > 0 || format.currencySuffix.length > 0) ? [format.currencyPrefix, format.currencySuffix] :
         defn.currency;
     const currencyLocale = Object.assign({}, defn, { currency: currency })
     const locale = formatLocale(currencyLocale);
@@ -31,14 +31,11 @@ function getTimeFormatter(defn: TimeLocaleDefinition, format?: CalculationFormat
 }
 
 export function getFormatters(metadata: QueryResultMetadata) {
-    let result = {};
-    Object.keys(metadata.columns).forEach((k) => {
-        const col = metadata.columns[k];
-        if (col.type === "time") {
-            result[k] = getTimeFormatter(metadata.locale.time, col.format);
-        } else {
-            result[k] = getFormatter(metadata.locale.number, col.format);
-        }
-    })
-    return result;
+    const { time, number } = metadata.locale;
+    return metadata.columns.reduce((prev, curr) =>
+        Object.assign(prev, {
+            [curr.id]: curr.type === "time"
+                ? getTimeFormatter(time, curr.format)
+                : getFormatter(number, curr.format)
+        }), {});
 }

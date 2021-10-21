@@ -1,15 +1,16 @@
 <script lang="ts">
-    import CalculationSelector from "./builder/CalculationSelector.svelte";
-    import FilterSelector from "./builder/FilterSelector.svelte";
-    import QueryResultDisplay from "./display/QueryResultDisplay.svelte";
+    import CalculationSelector from "./CalculationSelector.svelte";
+    import FilterSelector from "./FilterSelector.svelte";
+    import QueryResultDisplay from "../display/QueryResultDisplay.svelte";
     import type {
         Query,
         Measure,
         Dimension,
         QueryResult,
         Store,
-    } from "../schema";
-    import type { Event } from "./types";
+    } from "src/schema";
+    import type { Event } from "src/components/types";
+    import { Server } from "../../graphql";
 
     let store: Store = {
         measures: [],
@@ -17,11 +18,13 @@
     };
     let measures: Measure[] = [];
     let dimensions: Dimension[] = [];
+    let filters: string[] = [];
     let queryResult: QueryResult | null = null;
 
     $: query = {
         measures: measures.map((i) => i.id),
         dimensions: dimensions.map((i) => i.id),
+        filters: filters,
     };
     $: runQuery(query);
 
@@ -36,24 +39,58 @@
     const setDimensions = (event: Event) => {
         dimensions = event.detail.calculations;
     };
+    const setFilters = (event: Event) => {
+        filters = event.detail;
+    };
+    const server = new Server();
+    const executeQuery = `
+    query executeQuery($input: StoreQuery!) {
+        result: query(input: $input) {
+            metadata {
+                columns {
+                    __typename
+                    ...on Calculation {
+                        id
+                        name
+                        format {
+                            spec
+                            currencyPrefix
+                            currencySuffix
+                        }
+                    }
+                }
+                locale { number time }
+                store {
+                    measures { id name }
+                    dimensions { id name }
+                }
+            }
+            data
+        }
+    }`;
     const runQuery = (query: Query) => {
         if (measures.length > 0) {
-            fetch("/api/query/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(query),
-            })
+            server
+                .request(executeQuery, { input: query })
                 .then((res) => res.json())
-                .then((data) => {
-                    queryResult = data;
-                    store = data.metadata.store;
+                .then((res) => {
+                    queryResult = res.data.result;
+                    store = queryResult.metadata.store;
                 });
         }
     };
+    const getStoreQuery = `
+        query {
+            store {
+                measures { id name }
+                dimensions { id name }
+            }
+        }`;
     const getStore = () => {
-        fetch("/api/store/")
+        server
+            .request(getStoreQuery)
             .then((res) => res.json())
-            .then((data) => (store = data))
+            .then((res) => (store = res.data.store))
             .catch((err) => console.error(err));
     };
 
@@ -78,7 +115,7 @@
             title="but only if"
             placeholder="add a filter..."
             availableDimensions={store.dimensions}
-            on:filters
+            on:updateFilters={setFilters}
         />
     {/if}
 

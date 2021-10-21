@@ -1,0 +1,36 @@
+@import "./colors.scss";
+body {
+    background-color: $background;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    font-family: "Inter";
+    font-weight: 300;
+    color: $text-primary;
+}
+
+.card {
+    @include card-shadow;
+    display: flex;
+    flex-direction: column;
+    background-color: $card-background;
+    font-size: 14pt;
+    font-weight: 200;
+    &.metric {
+        border-top: 2px solid $blue;
+    }
+    &.dimension {
+        border-top: 2px solid $green;
+    }
+    .body {
+        margin: 5pt;
+        * {
+            margin: 10pt
+        }
+    }
+}
+
+.container {
+    max-width: 1080px;
+    margin: 0 auto 0 auto;
+}

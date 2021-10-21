@@ -1,13 +1,21 @@
 <script lang="ts">
-    import type { QueryResult } from "../../schema";
     import BigNumbers from "./BigNumbers.svelte";
     import TableDisplay from "./TableDisplay.svelte";
+    import { getFormatters } from "../format";
+    import type { Calculation, QueryResult } from "src/schema";
 
     export let queryResult: QueryResult;
+    $: data = queryResult.data;
+    $: formatters = getFormatters(queryResult.metadata);
+    $: meta = queryResult.metadata.columns.reduce(
+        (acc: object, val: Calculation) =>
+            Object.assign(acc, { [val.id]: val }),
+        {}
+    );
 </script>
 
 {#if queryResult.data.length === 1}
-    <BigNumbers {queryResult} />
+    <BigNumbers {data} {formatters} {meta} />
 {:else if queryResult.data.length > 1}
-    <TableDisplay {queryResult} />
+    <TableDisplay {data} {formatters} {meta} />
 {/if}
