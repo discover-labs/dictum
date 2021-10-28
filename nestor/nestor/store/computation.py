@@ -1,8 +1,10 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Tuple, Union
 
 from lark import Tree
 
+from nestor.store.expr.parser import parse_expr
 from nestor.store.table import Table
 
 
@@ -11,13 +13,15 @@ class Join:
     """A single join in the join tree"""
 
     foreign_key: str
-    related_key: str  # primary key of the related table
-    to: "JoinTree"
+    related_key: str
+    alias: str
+    to: "RelationalQuery"
 
     def __eq__(self, other: "Join"):
         return (
             self.foreign_key == other.foreign_key
             and self.related_key == other.related_key
+            and self.alias == other.alias
             and self.to == other.to
         )
 
@@ -29,13 +33,13 @@ class UnnestedJoin:
     left_identity: str
     left_key: str
 
-    right_source: str
+    right: Union[str, "RelationalQuery"]
     right_identity: str
     right_key: str
 
 
 @dataclass
-class JoinTree:
+class RelationalQuery:
     """A table and an optional tree of joins. Which tables need to be joined
     to which. Keeps track of joins, so that no join is performed twice.
 
@@ -45,8 +49,74 @@ class JoinTree:
     """
 
     table: Table
-    identity: str  # table identity (see the docstring)
+    aggregate: Dict[str, Tree] = field(default_factory=dict)
+    groupby: Dict[str, Tree] = field(default_factory=dict)
+    filters: List[str] = field(default_factory=list)
     joins: List[Join] = field(default_factory=list)
+    subquery: bool = False
+
+    def add_measure(self, measure_id: str):
+        measure = self.table.measures.get(measure_id)
+        self.aggregate[measure_id] = self.prefix_columns([self.table.id], measure.expr)
+        self.joins.extend(measure.joins)
+
+    def join_dimension(
+        self, dimension_id: str, _path: Tuple[str, ...] = ()
+    ) -> Tuple["RelationalQuery", Tuple[str, ...]]:
+        """Add the necessary joins for a dimension.
+        Returns innermost JoinTree.
+        """
+        # termination: dimension is right here
+        if dimension_id in self.table.dimensions:
+            dimension = self.table.dimensions.get(dimension_id)
+            self.joins.extend(dimension.joins)
+            return self, _path  # terminate
+
+        path = self.table.dimension_join_paths.get(dimension_id)
+        if path is None:
+            raise KeyError(
+                f"Can't find a path from {self.table} to dimension {dimension_id}"
+            )
+        _, *path = path  # first item in path is self.table.id
+
+        for existing_join in self.joins:
+            if existing_join.alias == path[0]:
+                # add to the existing join and terminate
+                return existing_join.to.join_dimension(
+                    dimension_id, (*_path, existing_join.alias)
+                )
+
+        # no existing join: add it and join the dimension to the target
+        alias = path[0]
+        related = self.table.related[alias]
+        join = Join(
+            foreign_key=related.foreign_key,
+            related_key=related.table.primary_key,
+            alias=alias,
+            to=RelationalQuery(table=related.table),
+        )
+        self.joins.append(join)
+        return join.to.join_dimension(dimension_id, (*_path, alias))
+
+    def add_dimension(self, dimension_id: str):
+        tree, path = self.join_dimension(dimension_id)
+        dimension = tree.table.dimensions.get(dimension_id)
+        self.groupby[dimension_id] = self.prefix_columns(
+            (self.table.id, *path), dimension.expr
+        )
+
+    def add_filter(self, filter: str):
+        expr = parse_expr(filter)
+        for ref in expr.find_data("dimension"):
+            dimension_id = ref.children[0]
+            tree, path = self.join_dimension(dimension_id)
+            dimension = tree.table.dimensions.get(dimension_id)
+            tree.joins.extend(dimension.joins)
+            ref.children = self.prefix_columns(
+                (self.table.id, *path), dimension.expr.children[0]
+            ).children
+            ref.data = "column"
+        self.filters.append(expr)
 
     def add_path(self, tables: List[str]):
         """Add a single path to the existing join tree. Tables will be joined on the
@@ -56,13 +126,11 @@ class JoinTree:
             return
         table_or_alias, *tables = tables
         related = self.table.related[table_or_alias]
-        fk = related.foreign_key
-        table = related.table
-        identity = f"{self.identity}.{table_or_alias}"
         join = Join(
-            foreign_key=fk,
-            related_key=table.primary_key,
-            to=JoinTree(table=table, identity=identity),
+            foreign_key=related.foreign_key,
+            related_key=related.table.primary_key,
+            to=RelationalQuery(table=related.table),
+            alias=table_or_alias,
         )
         for existing_join in self.joins:
             if join == existing_join:  # if this join already exists, go down a level
@@ -74,16 +142,34 @@ class JoinTree:
 
     @property
     def unnested_joins(self):
-        """Unnested joins in the correct order."""
+        """Unnested joins in the correct order, depth-first"""
+        return list(self._unnested_joins())
+
+    @staticmethod
+    def prefix_columns(prefix: List[str], expr: Tree):
+        result = deepcopy(expr)
+        for ref in result.find_data("column"):
+            *tables, field = ref.children
+            ref.children = [".".join([*prefix, *tables]), field]
+        for ref in result.find_data("measure"):  # for measure-based dimensions
+            ref.data = "column"
+            ref.children = [".".join([*prefix, *ref.children]), *ref.children]
+        return result
+
+    def _unnested_joins(self, path=()):
+        if len(path) == 0:
+            path = (self.table.id,)
         for join in self.joins:
+            prefix = [*path, join.alias]
             yield UnnestedJoin(
-                left_identity=self.identity,
+                left_identity=".".join(path),
                 left_key=join.foreign_key,
-                right_source=join.to.table.source,
-                right_identity=join.to.identity,
+                right=join.to,
+                right_identity=".".join(prefix),
                 right_key=join.related_key,
             )
-            yield from join.to.unnested_joins
+            if not join.to.subquery:
+                yield from join.to._unnested_joins((*path, join.alias))
 
     def _print(self):
         print("\n".join(self._paths()))
@@ -95,20 +181,13 @@ class JoinTree:
             result += join.to._paths()
         return result
 
-    def __eq__(self, other: "JoinTree"):
-        return self.identity == other.identity
-
-
-@dataclass
-class RelationalQuery:
-    """Represents a fact table aggregated to a relevant (for the request) level of
-    detail.
-    """
-
-    join_tree: JoinTree
-    aggregate: Dict[str, Tree] = field(default_factory=lambda: {})
-    groupby: Dict[str, Tree] = field(default_factory=lambda: {})
-    filters: List[Tree] = field(default_factory=lambda: [])
+    def __eq__(self, other: "RelationalQuery"):
+        return (
+            self.table.id == other.table.id
+            and self.subquery == other.subquery
+            and len(self.joins) == len(other.joins)
+            and all(a == b for a, b in zip(self.joins, other.joins))
+        )
 
 
 @dataclass

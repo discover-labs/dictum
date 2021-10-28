@@ -1,12 +1,15 @@
 from typing import Optional
 
+from sqlalchemy import Integer
+from sqlalchemy.sql import cast, func
+
 from nestor.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
-from sqlalchemy.sql import func
 
 
 class PostgresCompiler(SQLAlchemyCompiler):
     def datepart(self, args: list):
-        return func.date_part(*args)
+        # cast cause date_part returns double
+        return cast(func.date_part(*args), Integer)
 
     def datetrunc(self, args: list):
         return func.date_trunc(*args)

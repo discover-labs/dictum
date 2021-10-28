@@ -21,12 +21,13 @@ interface Calculation {
     format: CalculationFormat
 }
 
-type Measure implements Calculation {
+type Metric implements Calculation {
     id: String!
     name: String!
     description: String
     expr: String!
     format: CalculationFormat
+    dimensions: [Dimension!]!
 }
 
 enum DimensionType {
@@ -54,28 +55,14 @@ type Dimension implements Calculation {
     info: DimensionInfo
 }
 
-type RelatedTable {
-    table: Table!
-    foreignKey: String!
-}
-
-type Table {
-    id: String!
-    source: String!
-    related: [RelatedTable!]!
-    measures: [Measure!]!
-    dimensions: [Dimension!]!
-}
-
 type Store {
-    tables: [Table!]!
-    measures: [Measure!]!
+    metrics: [Metric!]!
     dimensions: [Dimension!]!
 }
 
 
 input StoreQuery {
-    measures: [String!]!
+    metrics: [String!]!
     dimensions: [String!]!
     filters: [String!]!
 }
@@ -96,7 +83,7 @@ type LocaleDefinition {
     time: TimeLocaleDefinition
 }
 
-union ResultColumn = Measure | Dimension
+union ResultColumn = Metric | Dimension
 
 type StoreQueryResultMetadata {
     columns: [ResultColumn!]!

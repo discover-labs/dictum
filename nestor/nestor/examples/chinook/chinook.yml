@@ -10,16 +10,18 @@ description: |
 metrics:
   revenue_per_track:
     name: Revenue per Track in the Library
-    expr: $track_count / $revenue
+    expr: $revenue / $track_count
+    format:
+      <<: *USD
 
 tables:
   invoice_items:
     source: invoice_items
     related:
-      invoices:
+      invoice:
         table: invoices
         foreign_key: InvoiceId
-      tracks:
+      track:
         table: tracks
         foreign_key: TrackId
     measures:
@@ -31,8 +33,23 @@ tables:
         key: true
         groups:
           - Sales
+      unique_paying_customers:
+        name: Unique Paying Customers
+        expr: countd(invoice.CustomerId)
+        description: |
+          Number of unique users who made an order.
+        groups:
+          - Sales
+          - Customers
+      items_sold:
+        name: Number of Items Sold
+        expr: sum(Quantity)
+        format: .0f
+        key: true
+        groups:
+          - Sales
       arppu:
-        name: ARPPU
+        name: Average Revenue per Paying Customer
         expr: $revenue / $unique_paying_customers
         format:
           <<: *USD
@@ -49,29 +66,18 @@ tables:
           - Sales
           - Media Library
 
-      unique_paying_customers:
-        name: Unique Paying Customers
-        expr: countd(invoices.CustomerId)
-        description: |
-          Number of unique users who made an order.
-        groups:
-          - Sales
-          - Customers
-      items_sold:
-        name: Number of Items Sold
-        expr: sum(Quantity)
-        format: .0f
-        key: true
-        groups:
-          - Sales
-
   invoices:
     source: invoices
     primary_key: InvoiceId
     related:
-      customers:
+      customer:
         table: customers
         foreign_key: CustomerId
+      min_sale_date:
+        metric: false
+        name: First Sale Date
+        expr: min(InvoiceDate)
+        description: Not a metric, used in customers dimension.
     dimensions:
       invoice_date:
         name: Sale Date
@@ -85,7 +91,7 @@ tables:
         format: "%b %Y"
       invoice_year:
         name: Sale Date (Year)
-        expr: datetrunc('year', InvoiceDate)
+        expr: datepart('year', InvoiceDate)
         type: time
         format: "%Y"
       order_amount:
@@ -100,27 +106,33 @@ tables:
         type: ordinal
         format:
           <<: *USD
+      leap_year:
+        name: Invoice Date is in Leap Year
+        expr: |
+          if(:invoice_year % 400 == 0, 'Yes',
+             :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
+             'No'
+            )
+        type: nominal
 
   tracks:
     source: tracks
     primary_key: TrackId
     related:
-      media_types:
+      media_type:
         table: media_types
         foreign_key: MediaTypeId
-      albums:
+      album:
         table: albums
         foreign_key: AlbumId
-      genres:
+      genre:
         table: genres
         foreign_key: GenreId
     measures:
       track_count:
         name: Number of Tracks
         description: |
-          Total Number of Tracks in the Library. Use this measure to explore what can
-          possible be sold here. Can be split up by various musical parameters: genre,
-          artist, album. Has no connection to sales.
+          Total Number of Tracks in the Library.
         expr: count()
       track_length:
         name: Sum of Track Length (Seconds)
@@ -149,7 +161,7 @@ tables:
     source: customers
     primary_key: CustomerId
     related:
-      employees:
+      employee:
         table: employees
         foreign_key: SupportRepId
     dimensions:
@@ -161,6 +173,18 @@ tables:
         name: Customer City
         type: nominal
         expr: City
+      customer_orders_amount:
+        name: Customer's Total Orders Amount ($10 bins)
+        type: ordinal
+        expr: $revenue // 10 * 10
+        format:
+          <<: *USD
+      customer_first_sale_date:
+        name: Customer's First Sale Date
+        type: time
+        expr: $min_sale_date
+        format: %d.%m.%Y
+
 
   employees:
     source: employees
@@ -209,7 +233,7 @@ tables:
     source: albums
     primary_key: AlbumId
     related:
-      artists:
+      artist:
         table: artists
         foreign_key: ArtistId
     dimensions:

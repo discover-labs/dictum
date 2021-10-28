@@ -78,7 +78,7 @@ class ExpressionTransformer(Transformer):
 
     def case(self, children: list):
         whens, else_ = _get_whens_else(children)
-        return self.compiler.case(*whens, else_=else_)
+        return self.compiler.case(whens, else_=else_)
 
     def expr(self, children: list):
         return children[0]
@@ -199,14 +199,14 @@ class Compiler(ABC):
         """Logical disjunction"""
 
     @abstractmethod
-    def case(self, *whens, else_=None):
+    def case(self, whens, else_=None):
         """whens: tuples of (condition, value)
         else: else value (optional)
         """
 
     def IF(self, args: list):
         whens, else_ = _get_whens_else(args)
-        return self.case(*whens, else_=else_)
+        return self.case(whens, else_=else_)
 
     # built-in functions
     # aggregate

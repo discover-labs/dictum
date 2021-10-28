@@ -64,9 +64,3 @@ class ArithmeticCompilerMixin:
 
     def OR(self, a, b):
         return a or b
-
-    def case(self, *whens, else_=None):
-        for cond, val in whens:
-            if cond:
-                return val
-        return else_

@@ -36,7 +36,7 @@ def run(
     )
     if profile is not None:
         os.environ["NESTOR_PROFILE"] = profile
-    uvicorn.run("nestor.server.app:app", reload=True)
+    uvicorn.run("nestor.server:app", reload=True)
 
 
 @app.command()

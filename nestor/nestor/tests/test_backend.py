@@ -43,7 +43,7 @@ def test_metric_not_measure(chinook: Store, connection):
     q = Query(metrics=["revenue", "track_count", "revenue_per_track"])
     comp = chinook.get_computation(q)
     df = connection.compute(comp)
-    assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 1.5)
+    assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 0.66)
 
 
 def test_metric_with_groupby(chinook: Store, connection):
@@ -68,3 +68,19 @@ def test_multiple_facts_dimensions(chinook: Store, connection):
         835,
         1297,
     )
+
+
+def test_if(chinook: Store, connection):
+    """Test if() function and case when ... then ... else ... end constructs"""
+    q = Query(metrics=["items_sold"], dimensions=["invoice_year", "leap_year"])
+    comp = chinook.get_computation(q)
+    df = connection.compute(comp)
+    assert df[df["leap_year"] == "Yes"].iloc[0]["invoice_year"] == 2012
+
+
+def test_subquery_join(chinook: Store, connection):
+    q = Query(metrics=["items_sold"], dimensions=["customer_orders_amount"])
+    comp = chinook.get_computation(q)
+    df = connection.compute(comp)
+    assert df.shape == (2, 2)
+    assert df[df["customer_orders_amount"] == 30].iloc[0].items_sold == 1708

@@ -1,9 +1,9 @@
 <script lang="ts">
-    import type { Calculation } from "src/schema";
+    import type { Metric } from "src/schema";
     import MetricCard from "./MetricCard.svelte";
 
     export let name: string;
-    export let metrics: Calculation[];
+    export let metrics: Metric[];
 </script>
 
 <div class="metrics-section">
@@ -27,9 +27,10 @@
         display: flex;
         flex-direction: row;
         overflow-x: scroll;
+        flex-wrap: wrap;
 
         .wrapper {
-            padding: 10pt 10pt 10pt 0;
+            padding: 0 10pt 10pt 2px;
         }
     }
 </style>

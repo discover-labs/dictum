@@ -22,12 +22,7 @@ body {
     &.dimension {
         border-top: 2px solid $green;
     }
-    .body {
-        margin: 5pt;
-        * {
-            margin: 10pt
-        }
-    }
+    padding: 10pt 15pt;
 }
 
 .container {

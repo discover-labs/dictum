@@ -56,7 +56,7 @@ class CalculationResolver(Transformer):
             dep = self._deps.get(key)
             if dep is None:
                 raise ReferenceNotFoundError(
-                    f"'{key}' not found in dependencies.  "
+                    f"'{key}' not found in dependencies. "
                     f"Valid values: {set(self._deps)}"
                 )
             self._check_circular_refs(dep, path=path + (key,))
@@ -68,7 +68,7 @@ class CalculationResolver(Transformer):
     def _transform(self, children):
         (ref,) = children
         dep = self._deps[ref]
-        return self.resolve(dep).children[0]
+        return self.resolve(dep)
 
     measure = _transform
     dimension = _transform
@@ -84,12 +84,30 @@ class MeasureResolver(CalculationResolver):
 
 
 class DimensionResolver(CalculationResolver):
+    def _check_circular_refs(self, expr: Tree, path=()):
+        for ref in expr.find_data("dimension"):
+            key = ref.children[0]
+            if key in path:
+                path_str = " -> ".join(path + (key,))
+                raise CircularReferenceError(
+                    f"circular reference in calculation: {path_str}"
+                )
+            dep = self._deps.get(key)
+            if dep is None:
+                raise ReferenceNotFoundError(
+                    f"'{key}' not found in dependencies. "
+                    f"Valid values: {set(self._deps)}"
+                )
+            self._check_circular_refs(dep, path=path + (key,))
+
+    # def measure(self, children):
+    #     (ref,) = children
+    #     raise InvalidReferenceTypeError(
+    #         f"dimension references '{ref}', which is a measure. "
+    #         "Only calculations of the same type can reference each other."
+    #     )
     def measure(self, children):
-        (ref,) = children
-        raise InvalidReferenceTypeError(
-            f"dimension references '{ref}', which is a measure. "
-            "Only calculations of the same type can reference each other."
-        )
+        return Tree("measure", children)
 
 
 class FilterResolver(CalculationResolver):
@@ -128,13 +146,10 @@ class JoinPathItem:
 JoinPath = Tuple[JoinPathItem, ...]
 
 
-def _acc_paths(acc: dict, path: JoinPath):
-    acc[path[-1]].append(path)
-    return acc
-
-
 @dataclass(repr=False)
 class Table:
+    """Represents a relational data table"""
+
     id: str
     source: str
     description: Optional[str]
@@ -142,10 +157,13 @@ class Table:
     related: Dict[str, RelatedTable] = field(default_factory=dict)
     measures: Dict[str, Measure] = field(default_factory=dict)
     dimensions: Dict[str, Dimension] = field(default_factory=dict)
+    measure_backlinks: Dict[str, "Table"] = field(
+        default_factory=dict
+    )  # measure_id -> table
 
     @cache
     def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
-        """Find all join paths from this table to other tables."""
+        """Find all join paths from this table to other tables"""
         result = []
         if path:
             result.append(path)
@@ -161,6 +179,11 @@ class Table:
         """A dict of table id -> tuple of JoinPathItem. Join targets for which there
         exists only a single join path.
         """
+
+        def _acc_paths(acc: dict, path: JoinPath):
+            acc[path[-1]].append(path)
+            return acc
+
         paths = reduce(_acc_paths, self.find_all_paths(), defaultdict(lambda: []))
         return {k.table.id: v[0] for k, v in paths.items() if len(v) == 1}
 
@@ -198,38 +221,6 @@ class Table:
                 f"There's no unambiguous join path from {self} to Table({target})"
             )
         return [self.id] + [i.alias for i in result]
-
-    def get_measure_expr_and_paths(self, measure_id: str) -> Tuple[Tree, List[str]]:
-        measure = self.measures[measure_id]
-        join_path = [self.id]
-        return measure.prepare_expr([self.id]), [
-            join_path,
-            *(join_path + p for p in measure.join_paths),
-        ]
-
-    def get_dimension_expr_and_paths(self, dimension_id: str) -> Tuple[Tree, List[str]]:
-        """Get a dimension expression relative to this table and the required join paths."""
-        dimension = self.allowed_dimensions.get(dimension_id)
-        if dimension is None:
-            raise ValueError(f"Dimension {dimension_id} can't be used with {self}")
-        join_path = self.dimension_join_paths.get(dimension_id)
-        return dimension.prepare_expr(join_path), [
-            join_path,
-            *(join_path + p for p in dimension.join_paths),
-        ]
-
-    def get_filter_expr_and_paths(self, filter_expr: Tree):
-        dimensions = filter_expr.find_data("dimension")
-        paths = []
-        exprs = {}
-        for tree in dimensions:
-            (ref,) = tree.children
-            expr, p = self.get_dimension_expr_and_paths(ref)
-            exprs[ref] = expr
-            paths.extend(p)
-        resolver = FilterResolver(exprs)
-        expr = resolver.resolve(filter_expr)
-        return expr, paths
 
     def _resolve_calculations(self, calcs, resolver_cls):
         resolver = resolver_cls({k: v.expr for k, v in calcs.items()})

@@ -17,6 +17,9 @@ export interface Calculation {
 }
 
 export interface Measure extends Calculation { }
+export interface Metric extends Calculation {
+    dimensions: Dimension[];
+}
 
 
 export interface Dimension extends Calculation {

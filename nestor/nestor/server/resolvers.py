@@ -5,21 +5,18 @@ from nestor.store import calculations, schema
 
 Query = QueryType()
 Store = ObjectType("Store")
-Measure = ObjectType("Measure")
+Metric = ObjectType("Metric")
 Dimension = ObjectType("Dimension")
-Table = ObjectType("Table")
-RelatedTable = ObjectType("RelatedTable")
 ResultColumn = UnionType("ResultColumn")
 
-types = [Query, Store, Measure, Dimension, Table, RelatedTable, ResultColumn]
+types = [Store, Metric, Dimension, Query, ResultColumn]
 
 
 @Query.field("store")
 def resolve_store(_, info):
     store = info.context["store"]
     return {
-        "tables": store.tables.values(),
-        "measures": store.measures.values(),
+        "metrics": store.metrics.values(),
         "dimensions": store.dimensions.values(),
     }
 
@@ -38,22 +35,23 @@ def resolve_store_query(obj, info, *, input: dict):
             "columns": [c for c in store._all.values() if c.id in df.columns],
             "store": {
                 "tables": store.tables.values(),
-                "measures": store.suggest_measures(query),
+                "metrics": store.suggest_metrics(query),
                 "dimensions": store.suggest_dimensions(query),
             },
         },
     }
 
 
-@Table.field("related")
-def resolve_table_related(obj, info):
-    return obj.related.values()
+@Metric.field("expr")
+@Dimension.field("expr")
+def resolve_expr(obj, *_):
+    return obj.str_expr
 
 
 @ResultColumn.type_resolver
 def resolve_column_type(obj, *_):
-    if isinstance(obj, calculations.Measure):
-        return "Measure"
+    if isinstance(obj, calculations.Metric):
+        return "Metric"
     if isinstance(obj, calculations.Dimension):
         return "Dimension"
     raise TypeError("TEST")

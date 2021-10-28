@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 from lark import Transformer
 
@@ -42,10 +43,10 @@ class PandasCompiler(ArithmeticCompilerMixin, Compiler):
         return a | b
 
     def case(self, *whens, else_=None):
-        """whens: tuples of (condition, value)
-        else: else value (optional)
-        """
-        raise NotImplementedError
+        return pd.Series(
+            np.select(*zip(*whens), default=else_),
+            index=whens[0][0].index,
+        )
 
     # built-in functions
     # aggregate

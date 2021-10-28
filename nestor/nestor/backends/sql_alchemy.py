@@ -4,12 +4,10 @@ from typing import List, Optional
 import pandas as pd
 from lark import Transformer
 from sqlalchemy import (
-    Integer,
     MetaData,
     Table,
     and_,
     case,
-    cast,
     create_engine,
     distinct,
     func,
@@ -60,11 +58,10 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         self.connection = connection
         super().__init__()
 
-    def column(self, column):
+    def column(self, _):
         """A no-op. SQLAlchemy columns need to know about tables,
         so this transformation is done beforehand with ColumnTransformer.
         """
-        return column
 
     def IN(self, a, b):
         return a.in_(b)
@@ -77,6 +74,9 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
 
     def OR(self, a, b):
         return or_(a, b)
+
+    def case(self, whens, else_=None):
+        return case(whens, else_=else_)
 
     def sum(self, args):
         return func.sum(*args)
@@ -97,20 +97,10 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         return func.count(distinct(*args))
 
     def floor(self, args):
-        """For supporing SQLite, which doesn't have floor."""
-        arg = args[0]
-        return case(
-            (arg < 0, cast(arg, Integer) - 1),
-            else_=cast(arg, Integer),
-        )
+        return func.floor(*args)
 
     def ceil(self, args):
-        """For supporing SQLite, which doesn't have ceil."""
-        arg = args[0]
-        return case(
-            (arg > 0, cast(arg, Integer) + 1),
-            else_=cast(arg, Integer),
-        )
+        return func.ceil(*args)
 
     def abs(self, args):
         return func.abs(*args)
@@ -124,12 +114,15 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         return self.connection.table(tablename, schema=schema)
 
     def compile_query(self, query: RelationalQuery):
-        tree = query.join_tree
-        table: Table = self._table(tree.table.source)
+        table: Table = self._table(query.table.source)
 
-        tables = {tree.identity: table}
-        for join in tree.unnested_joins:
-            right_table = self._table(join.right_source).alias(join.right_identity)
+        tables = {query.table.id: table}
+        for join in query.unnested_joins:
+            if join.right.subquery:
+                right_table = self.compile_query(join.right)
+            else:
+                right_table = self._table(join.right.table.source)
+            right_table = right_table.alias(join.right_identity)
             tables[join.right_identity] = right_table
             related_key = get_case_insensitive_column(right_table, join.right_key)
             foreign_key = get_case_insensitive_column(

@@ -1,0 +1,27 @@
+site_name: Hyperplane
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+repo_url: https://github.com/rad-data-labs/hyperplane
+repo_name: rad-data-labs/hyperplane
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets
+nav:
+  - index.md
+  - User Guide:
+    - user_guide/getting_started.md
+    - user_guide/modeling/starting_model.md
+    - user_guide/modeling/dimensions.md
+  - Reference:
+    - Expression language: reference/expression_language.md
+    - reference/python_api.md
+    - Backends:
+      - reference/backends.md
+      - reference/plugins.md

@@ -2,8 +2,8 @@ from functools import cached_property
 from typing import List
 
 import pandas as pd
-from sqlalchemy import create_engine
-from sqlalchemy.sql import Select, func
+from sqlalchemy import Integer, create_engine
+from sqlalchemy.sql import Select, case, cast, func
 
 from nestor.backends.pandas import PandasColumnTransformer, PandasCompiler
 from nestor.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
@@ -16,14 +16,35 @@ part_modifiers = {
 }
 
 
+part_formats = {
+    "day": r"%d",
+    "month": r"%m",
+    "year": r"%Y",
+}
+
+
 class SQLiteCompiler(SQLAlchemyCompiler):
+    def floor(self, args):
+        arg = args[0]
+        return case(
+            (arg < 0, cast(arg, Integer) - 1),
+            else_=cast(arg, Integer),
+        )
+
+    def ceil(self, args):
+        arg = args[0]
+        return case(
+            (arg > 0, cast(arg, Integer) + 1),
+            else_=cast(arg, Integer),
+        )
+
     def datetrunc(self, args: list):
         part, dt = args
         modifier = part_modifiers[part]
         return func.datetime(dt, modifier)
 
     def datepart(self, args: list):
-        return super().datepart(args)
+        return cast(func.strftime(part_formats[args[0]], args[1]), Integer)
 
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
         """SQLite doesn't support outer joins, so we have to materialize here and

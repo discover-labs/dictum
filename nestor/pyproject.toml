@@ -9,7 +9,6 @@ python = "^3.9"
 pydantic = "^1.8.2"
 lark = "^0.11.3"
 PyYAML = "^5.4.1"
-pytest-cov = {extras = ["toml"], version = "^2.12.1"}
 SQLAlchemy = "^1.4.25"
 pandas = "^1.3.3"
 uvicorn = "^0.15.0"
@@ -24,16 +23,19 @@ psycopg2-binary = "^2.9.1"
 postgres = ["psycopg2-binary^2.9.1"]
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
 black = "^21.9b0"
 flake8 = "^3.9.2"
 isort = "^5.9.3"
+pytest = "^6.2.5"
+pytest-cov = {extras = ["toml"], version = "^3.0.0"}
+mkdocs = "^1.2.3"
+mkdocs-material = "^7.3.4"
 
 [tool.poetry.scripts]
 nestor = "nestor.cli:app"
 
 [tool.pytest.ini_options]
-addopts = "--cov-report xml --cov-report html --cov=nestor"
+addopts = "--cov-report=xml --cov=nestor"
 
 [tool.isort]
 profile = "black"

@@ -1,22 +1,31 @@
 <script lang="ts">
     import MetricsSection from "../components/MetricsSection.svelte";
-    import type { Calculation } from "src/schema";
+    import type { Metric } from "src/schema";
     import { Server } from "../graphql";
 
     const server = new Server();
-    let metrics: Calculation[] = [];
-    const measuresRequest = `
+    let metrics: Metric[] = [];
+    const metricsRequest = `
     query {
         store {
-            measures {
-                id name description format { spec }
+            metrics {
+                id
+                name
+                description
+                format {
+                    spec
+                }
+                dimensions {
+                    id
+                    name
+                }
             }
         }
     }
     `;
     server
-        .request(measuresRequest)
-        .then((data) => (metrics = data.store.measures));
+        .request(metricsRequest)
+        .then((data) => (metrics = data.store.metrics));
 </script>
 
 <div>
