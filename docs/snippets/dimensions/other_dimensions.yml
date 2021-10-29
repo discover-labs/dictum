@@ -5,6 +5,7 @@ description: |
 tables:
   orders:
     source: orders
+    primary_key: id
     measures:
       revenue:
         name: Revenue
@@ -15,7 +16,7 @@ tables:
         name: Time of Order
         type: time
         expr: created_at
-      channel:
+      order_channel:
         name: Order Marketing Channel
         type: nominal
         expr: channel

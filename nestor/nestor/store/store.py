@@ -1,3 +1,4 @@
+import dataclasses
 from collections import UserDict, defaultdict
 from functools import cached_property
 from typing import Dict, List, Optional
@@ -151,48 +152,58 @@ class Store:
         self.metrics = MetricDict()
 
         # add all tables and their relationships
-        for table_id, config_table in config.tables.items():
-            table = self.ensure_table(config_table, table_id)
-            for related_id, related in config_table.related.items():
+        for config_table in config.tables.values():
+            table = self.ensure_table(config_table)
+            for related in config_table.related.values():
                 if related.table not in config.tables:
                     raise KeyError(
                         f"Table {related.table} is referenced as a foreign key target "
-                        f"for table {table_id}, but it's not defined in the config."
+                        f"for table {table.id}, but it's not defined in the config."
                     )
                 related_table = config.tables[related.table]
                 if related_table.primary_key is None:
                     raise ValueError(
-                        f"Table {related.table} is a related table for {table_id}, but "
+                        f"Table {related.table} is a related table for {table.id}, but "
                         "it doesn't have a primary key."
                     )
-                table.related[related_id] = RelatedTable(
-                    table=self.ensure_table(related_table, related.table),
-                    foreign_key=related.foreign_key,
+                table.related[related.alias] = RelatedTable(
+                    table=self.ensure_table(related_table),
+                    **related.dict(include={"foreign_key", "alias"}),
                 )
 
         # add all dimensions
-        for table_id, config_table in config.tables.items():
-            table = self.tables.get(table_id)
-            for dimension_id, dimension in config_table.dimensions.items():
+        for config_table in config.tables.values():
+            table = self.tables.get(config_table.id)
+            for dimension in config_table.dimensions.values():
                 _dimension = Dimension(
-                    id=dimension_id,
                     expr=parse_expr(dimension.expr),
                     str_expr=dimension.expr,
-                    type=dimension.type,
                     table=table,
-                    **dimension.dict(include={"name", "description", "format"}),
+                    **dimension.dict(
+                        include={"id", "name", "type", "description", "format"}
+                    ),
                 )
-                table.dimensions[dimension_id] = _dimension
+                table.dimensions[dimension.id] = _dimension
+                if dimension.union is not None:
+                    if dimension.union in table.dimensions:
+                        raise KeyError(
+                            f"Duplicate union dimension {dimension.union} "
+                            f"on table {table.id}"
+                        )
+                    table.dimensions[dimension.union] = dataclasses.replace(
+                        _dimension, id=dimension.union
+                    )
                 self.dimensions.add(_dimension)
 
         # add all measures
-        for table_id, config_table in config.tables.items():
-            table = self.tables.get(table_id)
-            for measure_id, measure in config_table.measures.items():
-                _measure = self.build_measure(measure_id, measure, table)
-                table.measures[_measure.id] = _measure
+        for config_table in config.tables.values():
+            table = self.tables.get(config_table.id)
+            for measure in config_table.measures.values():
+                _measure = self.build_measure(measure, table)
+                table.measures[measure.id] = _measure
                 self.measures.add(_measure)
 
+        # add measure backlinks
         for table in self.tables.values():
             for measure in table.measures.values():
                 for path in table.allowed_join_paths.values():
@@ -204,13 +215,12 @@ class Store:
             table.resolve_calculations()
 
         # add and resolve metrics
-        for metric_id, metric in config.metrics.items():
-            self.metrics[metric_id] = Metric(
-                id=metric_id,
+        for metric in config.metrics.values():
+            self.metrics[metric.id] = Metric(
                 expr=parse_expr(metric.expr),
                 str_expr=metric.expr,
                 format=metric.format,
-                **metric.dict(include={"name", "description"}),
+                **metric.dict(include={"id", "name", "description"}),
             )
         metric_resolver = MetricResolver(
             dependencies={k: v.expr for k, v in self.metrics.items()},
@@ -226,18 +236,16 @@ class Store:
             except ReferenceResolutionError as e:
                 raise e.__class__(f"Error resolving {metric}: {e}")
 
-    def build_measure(self, id: str, measure: schema.Measure, table: Table) -> Measure:
+    def build_measure(self, measure: schema.Measure, table: Table) -> Measure:
         _measure = Measure(
-            id=id,
             expr=parse_expr(measure.expr),
             str_expr=measure.expr,
             format=measure.format,
             table=table,
-            **measure.dict(include={"name", "description"}),
+            **measure.dict(include={"id", "name", "description"}),
         )
-        if not measure.metric:
-            return _measure
-        self.metrics.add(_measure.metric(measure.key))
+        if measure.metric:
+            self.metrics.add(_measure.metric())
         return _measure
 
     @classmethod
@@ -245,13 +253,12 @@ class Store:
         config = schema.Config.from_yaml(path)
         return cls(config)
 
-    def ensure_table(self, table: schema.Table, table_id: str) -> Table:
-        if table_id not in self.tables:
-            self.tables[table_id] = Table(
-                id=table_id,
-                **table.dict(include={"source", "description", "primary_key"}),
+    def ensure_table(self, table: schema.Table) -> Table:
+        if table.id not in self.tables:
+            self.tables[table.id] = Table(
+                **table.dict(include={"id", "source", "description", "primary_key"}),
             )
-        return self.tables[table_id]
+        return self.tables[table.id]
 
     def get_computation(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
@@ -284,9 +291,7 @@ class Store:
         for metric in self.metrics.values():
             if metric.id in query.metrics:
                 continue
-            allowed_dims = set.intersection(
-                *(set(d.id for d in m.dimensions) for m in metric.measures)
-            )
+            allowed_dims = set(d.id for d in metric.dimensions)
             if query_dims < allowed_dims:
                 result.append(metric)
         return sorted(result, key=lambda x: (x.name))

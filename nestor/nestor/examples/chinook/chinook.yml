@@ -14,6 +14,11 @@ metrics:
     format:
       <<: *USD
 
+unions:
+  country:
+    name: Country
+    type: nominal
+
 tables:
   invoice_items:
     source: invoice_items
@@ -73,6 +78,7 @@ tables:
       customer:
         table: customers
         foreign_key: CustomerId
+    measures:
       min_sale_date:
         metric: false
         name: First Sale Date
@@ -164,8 +170,13 @@ tables:
       employee:
         table: employees
         foreign_key: SupportRepId
+    measures:
+      n_customers:
+        name: Number of Customers
+        expr: count()
     dimensions:
       customer_country:
+        union: country
         name: Customer Country
         type: nominal
         expr: Country
@@ -183,7 +194,7 @@ tables:
         name: Customer's First Sale Date
         type: time
         expr: $min_sale_date
-        format: %d.%m.%Y
+        format: "%d.%m.%Y"
 
 
   employees:
@@ -193,6 +204,10 @@ tables:
       manager:
         table: employees
         foreign_key: ReportsTo
+    measures:
+      n_employees:
+        name: Number of Employees
+        expr: count()
     dimensions:
       manager_title:
         name: Support Rep's Manager's Title
@@ -210,6 +225,11 @@ tables:
         name: Support Rep's Title
         type: nominal
         expr: Title
+      employee_country:
+        union: country
+        name: Employee Country
+        type: nominal
+        expr: Country
 
   genres:
     source: genres

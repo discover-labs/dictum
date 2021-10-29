@@ -5,6 +5,7 @@ description: |
 tables:
   orders:
     source: orders
+    primary_key: id
     measures:
       revenue:
         name: Revenue

@@ -1,0 +1,21 @@
+tables:
+  orders:
+    ...
+    dimensions:
+      order_time:
+        name: Time of Order
+        type: time
+        expr: created_at
+        union: date
+      order_channel:
+        ...
+  users:
+    ...
+    dimensions:
+      user_signup_date:
+        name: User Signup Date
+        type: time
+        expr: created_at
+        union: date
+      user_channel:
+        ...

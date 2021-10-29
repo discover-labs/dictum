@@ -14,13 +14,26 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.snippets
 nav:
-  - index.md
-  - User Guide:
-    - user_guide/getting_started.md
-    - user_guide/modeling/starting_model.md
-    - user_guide/modeling/dimensions.md
+  - Introduction: index.md
+  - Data Model Guide:
+    - Gettings started: data_model/getting_started.md
+    - Tables and Measures: data_model/tables.md
+    - Dimensions: data_model/dimensions.md
+    - Table Relationships: data_model/table_relationships.md
+    - Reusable Expressions: data_model/reusable_expressions.md
+    - Union Dimensions: data_model/union_dimensions.md
+    - Metrics and Measures: data_model/metrics_and_measures.md
+    - Aggregate Dimensions: data_model/aggregate_dimensions.md
+    - Dimension Transforms -: index.md
+  - Recipes:
+    - Cohort Analysis: index.md
+    - Retention: index.md
+  - Live Demos:
+    - Tutorial Example: index.md
+    - Chinook Database: index.md
+    - AdventureWorks Data Warehouse: index.md
   - Reference:
-    - Expression language: reference/expression_language.md
+    - Expression Language: reference/expression_language.md
     - reference/python_api.md
     - Backends:
       - reference/backends.md

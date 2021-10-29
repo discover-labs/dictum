@@ -123,6 +123,7 @@ class FilterResolver(CalculationResolver):
 class RelatedTable:
     table: "Table"
     foreign_key: str
+    alias: str
 
 
 @dataclass(repr=False)
@@ -203,24 +204,17 @@ class Table:
         """Which dimensions are allowed to be used with this table as anchor.
         Only those to which there's a single direct join path. If there isn't,
         dimensions must be declared directly on a table that's available for join.
+
+        In addition, unions are only available on a table itself.
         """
         dims = {}
         dims.update(self.dimensions)
+        counts = defaultdict(lambda: 0)
         for *_, target in self.allowed_join_paths.values():
-            dims.update(target.table.dimensions)
+            for dimension in target.table.dimensions.values():
+                counts[dimension] += 1
+        dims.update({d.id: d for d, paths in counts.items() if paths == 1})
         return dims
-
-    def get_join_path(self, target: str) -> List[str]:
-        """Get an aliased join path from this table to target table. Includes current
-        table."""
-        if target == self.id:  # same table
-            return [self.id]
-        result = self.allowed_join_paths.get(target)
-        if result is None:
-            raise ValueError(
-                f"There's no unambiguous join path from {self} to Table({target})"
-            )
-        return [self.id] + [i.alias for i in result]
 
     def _resolve_calculations(self, calcs, resolver_cls):
         resolver = resolver_cls({k: v.expr for k, v in calcs.items()})

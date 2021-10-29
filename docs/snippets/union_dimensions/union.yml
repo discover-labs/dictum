@@ -1,0 +1,11 @@
+name: Hyperplane Tutorial
+description: |
+  A tutorial project for Hyperplane docs. The `description` field is optional.
+
+unions:
+  date:
+    name: Date
+    description: User signup date, order date etc.
+
+tables:
+  ...

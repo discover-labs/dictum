@@ -142,9 +142,9 @@ class Dimension(TableCalculation):
 class Measure(TableCalculation):
     @cached_property
     def dimensions(self):
-        return list(self.table.allowed_dimensions.values())
+        return self.table.allowed_dimensions.values()
 
-    def metric(self, key: bool) -> "Metric":
+    def metric(self) -> "Metric":
         return Metric(
             self.id,
             name=self.name,
@@ -153,7 +153,6 @@ class Measure(TableCalculation):
             str_expr=self.str_expr,
             format=self.format,
             measures=[self],
-            key=key,
         )
 
 

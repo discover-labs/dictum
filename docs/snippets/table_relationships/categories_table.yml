@@ -1,0 +1,8 @@
+categories:
+  source: categories
+  primary_key: id
+  dimensions:
+    category:
+      name: Category
+      type: nominal
+      expr: name

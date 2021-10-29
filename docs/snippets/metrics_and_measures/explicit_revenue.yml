@@ -1,0 +1,14 @@
+metrics:
+  revenue:
+    name: Revenue
+    expr: $order_amount_sum
+
+tables:
+  orders:
+    ...
+    measures:
+      order_amount_sum:
+        metric: false
+        name: Sum of Order Amount
+        description: Just a measure, not a metric, used to defined Revenue metric.
+        expr: sum(amount)

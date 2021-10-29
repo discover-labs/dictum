@@ -1,0 +1,15 @@
+orders:
+  source: orders
+  primary_key: id
+  related:
+    category:
+      table: categories
+      foreign_key: category_id
+  measures:
+    ...
+  dimensions:
+    order_category:
+      name: Order Category
+      type: nominal
+      expr: category.name
+    ...

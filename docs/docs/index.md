@@ -31,7 +31,7 @@ in some design details.
 
 ## Where to start
 
-Read the [User Guide](user_guide/getting_started.md).
+Read the [Data model guide](data_model/getting_started.md).
 
 ## Design considerations
 

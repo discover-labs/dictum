@@ -1,4 +1,4 @@
-# Add dimensions to your model
+# Dimensions
 
 Just calculating total revenue is not very useful. You'll certainly want to calculate it
 across time and break it down by other attributes. So, let's do that.
@@ -9,7 +9,7 @@ across time and break it down by other attributes. So, let's do that.
 Orders have time that they were made at. We might want to look at revenue per day, week,
 month, year etc. So, let's add a time dimension to our model.
 
-```{ .yaml title=project.yml hl_lines="13 14 15 16 17"}
+```{ .yaml title=project.yml hl_lines="14 15 16 17 18"}
 --8<-- "snippets/dimensions/time_dimension.yml"
 ```
 
@@ -43,14 +43,14 @@ Let's add all the info that we have in the `orders` table. First, we have an obv
 candidate: the `channel` column. This is the marketing channel this order was assigned
 to.
 
-```{ .yaml title=project.yml hl_lines="18 19 20 21" }
+```{ .yaml title=project.yml hl_lines="19 20 21 22" }
 --8<-- "snippets/dimensions/other_dimensions.yml"
 ```
 
 Channel's type is `nominal`, because we can't give it an order. `facebook` doesn't come
 "before" `instagram` of vice versa.
 
-```{ .yaml title=project.yml hl_lines="22 23 24 25" }
+```{ .yaml title=project.yml hl_lines="23 24 25 26" }
 --8<-- "snippets/dimensions/other_dimensions.yml"
 ```
 

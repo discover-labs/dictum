@@ -30,10 +30,10 @@ def test_store_measure_related_column(chinook: Store):
 
 def test_suggest_metrics_no_dims(chinook: Store):
     metrics = chinook.suggest_metrics(Query(metrics=["track_count"]))
-    assert len(metrics) == 9
+    assert len(metrics) == 11
 
     metrics = chinook.suggest_metrics(Query(metrics=["track_count", "revenue"]))
-    assert len(metrics) == 8
+    assert len(metrics) == 10
 
 
 def test_suggest_metrics_with_dims(chinook: Store):
@@ -45,6 +45,7 @@ def test_suggest_metrics_with_dims(chinook: Store):
         "unique_paying_customers",
         "items_sold",
         "avg_sold_unit_price",
+        "n_customers",
     }
 
     metrics = chinook.suggest_metrics(Query(metrics=["revenue"], dimensions=["genre"]))
@@ -66,6 +67,20 @@ def test_suggest_dimensions(chinook: Store):
     }
 
 
+def test_suggest_metrics_with_union(chinook: Store):
+    metrics = chinook.suggest_metrics(
+        Query(metrics=["n_customers"], dimensions=["country"])
+    )
+    assert metrics[0].id == "n_employees"
+
+
+def test_suggest_dimensions_with_union(chinook: Store):
+    dimensions = chinook.suggest_dimensions(
+        Query(metrics=["n_customers"], dimensions=["country"])
+    )
+    assert len(dimensions) == 9
+
+
 def test_dimension_same_table_as_measures(chinook: Store):
     """There was a bug where the table couldn't find a join path from a self to
     a dimension declared on self :-/
@@ -84,3 +99,17 @@ def test_resolve_metrics(chinook: Store):
             Tree("measure", ["track_count"]),
         ],
     )
+
+
+def test_compute_union(chinook: Store):
+    q = Query(metrics=["n_customers", "n_employees"], dimensions=["country"])
+    comp = chinook.get_computation(q)
+    for query in comp.queries:
+        assert list(query.groupby)[0] == "country"
+
+
+def test_union_allowed_dimensions(chinook: Store):
+    table = chinook.tables.get("invoice_items")
+    assert "country" not in table.allowed_dimensions
+    assert "customer_country" in table.allowed_dimensions
+    assert "employee_country" in table.allowed_dimensions

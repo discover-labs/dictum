@@ -1,4 +1,4 @@
-# Starting with your data model
+# Tables and Measures
 
 The most important entity in your data model is a __table__. Almost everything in the model
 revolves around tables. You can think of a table as a table in a relational database
@@ -21,7 +21,7 @@ Before doing anything, it's good to look at your database and relationships betw
 tables.
 
 <figure markdown>
-  ![Example database schema](../../assets/example_schema.png)
+  ![Example database schema](../assets/example_schema.png)
   <figcaption>Example database structure</figcaption>
 </figure>
 
@@ -50,11 +50,14 @@ This is an internal name, so you can name your tables anything — think of a va
 name in a programming language or an SQL alias.
 
 Each table must have a `source` — in our case this is the name of the actual database
-table. This is an string that will tell your backend where this table is stored.
+table. This is a string that will tell your backend where this table is stored.
 
-`primary_key` is not required for a table, but it's good to add this if the table has
-one, because it will help with handling table relationships later on.
+!!! info
 
+    A primary key is a column that uniquely identifies rows in this table.
+
+    `primary_key` field is not required, but it's a good practice to add them if applicable.
+    Without this field a table can't be a target of a relationship.
 
 ```{ .yaml title=project.yml hl_lines="9 10 11 12 13" }
 --8<-- "snippets/first_model/first_measure.yml"
@@ -71,7 +74,7 @@ it's a good practice to write exhaustive descriptions.
 
 `expr` is the most importand field. It's an expression that will calculate what you want.
 Expressions are written in a special
-[SQL-like expression language](../../reference/expression_language.md).
+[SQL-like expression language](../reference/expression_language.md).
 Measure expressions are always aggregate, meaning that they use aggregate functions like
 `sum`, `avg`, `min`, `max` etc.
 
@@ -80,7 +83,6 @@ need to calculate the sum of `amount` column on current table (`orders`). If you
 about it, it makes sense: revenue is just the sum of order amounts.
 
 !!! info
-
     You might have noticed that we talked about _metrics_ in the introduction, but here we're
     defining _measures_. There is a subtle difference between measures and metrics, but
     all measures are automatically promoted to metrics by default. So, for the time being,

@@ -1,4 +1,4 @@
-# Getting started
+# Getting Started
 
 Hyperplane was designed for an easy start. You can create a minimal data model in just
 a dozen of lines of code and then build from there.

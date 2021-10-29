@@ -15,3 +15,10 @@ def test_table_calculation_joins(chinook: Store):
 def test_dimensions_joins(chinook: Store):
     dimension = chinook.dimensions.get("customer_orders_amount")
     assert len(dimension.joins) == 1
+
+
+def test_measure_dimensions_union(chinook: Store):
+    assert "country" in set(
+        d.id for d in chinook.measures.get("n_customers").dimensions
+    )
+    assert "country" in set(d.id for d in chinook.metrics.get("n_customers").dimensions)
