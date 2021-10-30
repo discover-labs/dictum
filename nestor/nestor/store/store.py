@@ -168,6 +168,7 @@ class Store:
                     )
                 table.related[related.alias] = RelatedTable(
                     table=self.ensure_table(related_table),
+                    related_key=related_table.primary_key,
                     **related.dict(include={"foreign_key", "alias"}),
                 )
 
@@ -209,6 +210,10 @@ class Store:
                 for path in table.allowed_join_paths.values():
                     target = path[-1].table
                     target.measure_backlinks[measure.id] = table
+
+        # add virtual related tables (subqueries)
+        for dimension in self.dimensions.values():
+            dimension.table.related.update(dimension.related)
 
         # resolve calculations
         for table in self.tables.values():

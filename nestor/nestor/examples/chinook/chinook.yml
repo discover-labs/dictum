@@ -70,6 +70,17 @@ tables:
         groups:
           - Sales
           - Media Library
+    dimensions:
+      order_customer_country:
+        name: Order's Customer Country
+        description: Duplicate of Customer Country, used for tests
+        type: nominal
+        expr: :customer_country
+      first_order_cohort_month:
+          name: Month After First Order
+          type: ordinal
+          expr: datediff('month', :customer_first_sale_date, :invoice_date)
+
 
   invoices:
     source: invoices
@@ -185,9 +196,15 @@ tables:
         type: nominal
         expr: City
       customer_orders_amount:
+        name: Customer's Total Orders Amount
+        type: ordinal
+        expr: $revenue
+        format:
+          <<: *USD
+      customer_orders_amount_10_bins:
         name: Customer's Total Orders Amount ($10 bins)
         type: ordinal
-        expr: $revenue // 10 * 10
+        expr: :customer_orders_amount // 10 * 10
         format:
           <<: *USD
       customer_first_sale_date:

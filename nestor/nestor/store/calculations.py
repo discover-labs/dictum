@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Dict, List, Optional, Tuple
@@ -79,20 +80,28 @@ class TableCalculation(Calculation):
 
     @cached_property
     def joins(self) -> List["nestor.store.Join"]:
-        result = []
+        query = nestor.store.RelationalQuery(table=self.table)
         for ref in self.expr.find_data("column"):
             *tables, _ = ref.children
-            if len(tables) > 0:
-                related = self.table.related.get(tables[0])
-                join = nestor.store.Join(
-                    foreign_key=related.foreign_key,
-                    related_key=related.table.primary_key,
-                    alias=tables[0],
-                    to=nestor.store.RelationalQuery(table=related.table),
-                )
-                join.to.add_path(tables[1:])
-                result.append(join)
-        return result
+            query.add_path(tables)
+            # if len(tables) > 0:
+            #     related = self.table.related.get(tables[0])
+            #     to = (
+            #         related.table
+            #         if isinstance(related.table, nestor.store.RelationalQuery)
+            #         else nestor.store.RelationalQuery(table=related.table)
+            #     )
+            #     join = nestor.store.Join(
+            #         foreign_key=related.foreign_key,
+            #         related_key=related.related_key,
+            #         alias=tables[0],
+            #         to=to,
+            #     )
+            #     join.to.add_path(tables[1:])
+            #     result.append(join)
+        if self.id == "first_order_cohort_month":
+            breakpoint()
+        return query.joins
 
 
 @dataclass(eq=False, repr=False)
@@ -100,21 +109,60 @@ class Dimension(TableCalculation):
     # not really a default, schema prevents that
     type: CalculationType = CalculationType.continuous
 
-    @cached_property
-    def joins(self) -> List["nestor.store.Join"]:
-        joins = []
+    @property
+    def related(self) -> Dict[str, "nestor.store.RelationalQuery"]:
+        """Virtual related tables that need to be added to the user-defined related
+        tables. Will be joined as a subquery. Aggregate dimensions are implemented this
+        way.
+        Run before resolving the expression.
+        """
+        result = {}
         for ref in self.expr.find_data("measure"):
             # figure out the subquery — group the measure by self.table.primary_key
             measure_id = ref.children[0]
             source_table = self.table.measure_backlinks[measure_id]
-            query = nestor.store.RelationalQuery(
+            subquery = nestor.store.RelationalQuery(
                 table=source_table,
                 subquery=True,
             )
-            query.add_measure(measure_id)
+            subquery.add_measure(measure_id)
             path = [p.alias for p in source_table.allowed_join_paths.get(self.table.id)]
-            query.add_path(path)
-            query.groupby[self.table.primary_key] = Tree(
+            subquery.add_path(path)
+            subquery.groupby[self.table.primary_key] = Tree(
+                "expr",
+                [
+                    Tree(
+                        "column",
+                        [
+                            ".".join([source_table.id, *path]),
+                            self.table.primary_key,
+                        ],
+                    )
+                ],
+            )
+            result[f"__subquery__{measure_id}"] = nestor.store.RelatedTable(
+                table=subquery,
+                foreign_key=self.table.primary_key,
+                related_key=self.table.primary_key,
+                alias=measure_id,
+            )
+        return result
+
+    @cached_property
+    def _joins(self) -> List["nestor.store.Join"]:
+        joins = []
+        for ref in self.expr.find_data("measure"):  # add joins for aggregate dimensions
+            # figure out the subquery — group the measure by self.table.primary_key
+            measure_id = ref.children[0]
+            source_table = self.table.measure_backlinks[measure_id]
+            subquery = nestor.store.RelationalQuery(
+                table=source_table,
+                subquery=True,
+            )
+            subquery.add_measure(measure_id)
+            path = [p.alias for p in source_table.allowed_join_paths.get(self.table.id)]
+            subquery.add_path(path)
+            subquery.groupby[self.table.primary_key] = Tree(
                 "expr",
                 [
                     Tree(
@@ -132,10 +180,28 @@ class Dimension(TableCalculation):
                 foreign_key=self.table.primary_key,
                 related_key=self.table.primary_key,
                 alias=measure_id,
-                to=query,
+                to=subquery,
             )
             joins.append(join)
+
+        query = nestor.store.RelationalQuery(table=self.table)
+        for ref in self.expr.find_data("dimension"):
+            dimension_id = ref.children[0]
+            query.join_dimension(dimension_id)
+        joins.extend(query.joins)
+
         return [*super().joins, *joins]
+
+    def prefixed_expr(self, path: List[str]) -> Tree:
+        result = deepcopy(self.expr)
+        for ref in result.find_data("column"):
+            *tables, field = ref.children
+            ref.children = [*path, *tables, field]
+        for ref in result.find_data("measure"):
+            *tables, field = ref.children
+            ref.data = "column"
+            ref.children = [*path, *tables, field, field]
+        return result
 
 
 @dataclass(repr=False)

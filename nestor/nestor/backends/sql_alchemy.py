@@ -4,10 +4,15 @@ from typing import List, Optional
 import pandas as pd
 from lark import Transformer
 from sqlalchemy import (
+    Date,
+    DateTime,
+    Float,
+    Integer,
     MetaData,
     Table,
     and_,
     case,
+    cast,
     create_engine,
     distinct,
     func,
@@ -20,8 +25,8 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.functions import coalesce
 
-from nestor.backends.arithmetic import ArithmeticCompilerMixin
 from nestor.backends.base import Compiler, Connection
+from nestor.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from nestor.store import Computation, RelationalQuery
 
 
@@ -104,6 +109,18 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
 
     def abs(self, args):
         return func.abs(*args)
+
+    def tointeger(self, args: list):
+        return cast(args[0], Integer)
+
+    def tonumber(self, args: list):
+        return cast(args[0], Float)
+
+    def todate(self, args: list):
+        return cast(args[0], Date)
+
+    def todatetime(self, args: list):
+        return cast(args[0], DateTime)
 
     def _table(self, source: str):
         *schema, tablename = source.split(".")

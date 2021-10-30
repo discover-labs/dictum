@@ -1,6 +1,8 @@
+import pytest
 from pandas.api.types import is_datetime64_any_dtype
 
-from nestor.store import Store
+from nestor.store import Computation, RelationalQuery, Store
+from nestor.store.expr.parser import parse_expr
 from nestor.store.schema import Query
 
 
@@ -79,8 +81,93 @@ def test_if(chinook: Store, connection):
 
 
 def test_subquery_join(chinook: Store, connection):
-    q = Query(metrics=["items_sold"], dimensions=["customer_orders_amount"])
+    q = Query(metrics=["items_sold"], dimensions=["customer_orders_amount_10_bins"])
     comp = chinook.get_computation(q)
     df = connection.compute(comp)
     assert df.shape == (2, 2)
-    assert df[df["customer_orders_amount"] == 30].iloc[0].items_sold == 1708
+    assert df[df["customer_orders_amount_10_bins"] == 30].iloc[0].items_sold == 1708
+
+
+@pytest.fixture(scope="module")
+def compute(chinook: Store, connection):
+    def computer(expr: str):
+        expr = parse_expr(expr)
+        comp = Computation(
+            queries=[
+                RelationalQuery(
+                    table=chinook.tables.get("media_types"), groupby={"value": expr}
+                )
+            ],
+            merge=["value"],
+            metrics={},
+        )
+        df = connection.compute(comp)
+        return str(df.iloc[0, 0])
+
+    return computer
+
+
+def test_datetrunc(compute):
+    dt = "2021-12-19 14:05:38"
+
+    def datetrunc(part: str):
+        return compute(f"datetrunc('{part}', toDatetime('{dt}'))")
+
+    assert datetrunc("year") == "2021-01-01 00:00:00"
+    assert datetrunc("quarter") == "2021-10-01 00:00:00"
+    assert datetrunc("month") == "2021-12-01 00:00:00"
+    assert datetrunc("week") == "2021-12-13 00:00:00"
+    assert (
+        compute("datetrunc('week', toDatetime('2022-01-03'))") == "2022-01-03 00:00:00"
+    )
+    assert datetrunc("day") == "2021-12-19 00:00:00"
+    assert datetrunc("hour") == "2021-12-19 14:00:00"
+    assert datetrunc("minute") == "2021-12-19 14:05:00"
+    assert datetrunc("second") == "2021-12-19 14:05:38"
+
+
+def test_datepart(compute):
+    """ISO states that the first week of the year is the week that contains the first
+    Thursday of the year, or the week that contains January 4th. Not all database engines
+    conform to this and it would be very tedious to implement that on the backend level,
+    so we don't test for the edge cases (start and end of year) here. Just use whatever
+    logic the RDBMS provides.
+    """
+    dt = "2021-12-19 14:05:38"
+
+    def datepart(part: str):
+        return int(compute(f"datepart('{part}', toDatetime('{dt}'))"))
+
+    assert datepart("year") == 2021
+    assert datepart("quarter") == 4
+    assert compute("datepart('quarter', toDatetime('2021-12-31'))") == "4"
+    assert compute("datepart('quarter', toDatetime('2022-01-01'))") == "1"
+    assert datepart("month") == 12
+    assert datepart("week") == 50
+    assert datepart("day") == 19
+    assert datepart("hour") == 14
+    assert datepart("minute") == 5
+    assert datepart("second") == 38
+
+
+def test_datediff(compute):
+    def datediff(part, s, e):
+        return int(compute(f"datediff('{part}', toDatetime('{s}'), toDatetime('{e}'))"))
+
+    assert datediff("year", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+    assert datediff("quarter", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+    assert datediff("month", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+    assert datediff("week", "2022-01-02 23:59:59", "2022-01-03 00:00:00") == 1
+    assert datediff("day", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+    assert datediff("hour", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+    assert datediff("minute", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+    assert datediff("second", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
+
+    assert datediff("year", "2021-01-01", "2021-12-31") == 0
+    assert datediff("quarter", "2021-01-01", "2021-03-31") == 0
+    assert datediff("month", "2021-01-01", "2021-01-31") == 0
+    assert datediff("week", "2022-01-03", "2022-01-09") == 0
+    assert datediff("day", "2021-12-31 00:00:00", "2021-12-31 23:59:59") == 0
+    assert datediff("hour", "2021-12-31 04:00:00", "2021-12-31 04:59:59") == 0
+    assert datediff("minute", "2021-12-31 04:59:00", "2021-12-31 04:59:59") == 0
+    assert datediff("second", "2021-12-31 04:59:59", "2021-12-31 04:59:59") == 0

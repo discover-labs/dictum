@@ -3,16 +3,22 @@ from typing import Optional
 from sqlalchemy import Integer
 from sqlalchemy.sql import cast, func
 
+from nestor.backends.mixins.datediff import DatediffCompilerMixin
 from nestor.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
 
 
-class PostgresCompiler(SQLAlchemyCompiler):
+class PostgresCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
     def datepart(self, args: list):
         # cast cause date_part returns double
         return cast(func.date_part(*args), Integer)
 
     def datetrunc(self, args: list):
         return func.date_trunc(*args)
+
+    def datediff_day(self, args: list):
+        start = self.datetrunc(["day", args[0]])
+        end = self.datetrunc(["day", args[1]])
+        return self.datepart(["day", end - start])  # the argument is an interval
 
 
 class PostgresConnection(SQLAlchemyConnection):

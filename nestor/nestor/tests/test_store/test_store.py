@@ -2,7 +2,7 @@ import pytest
 from lark import Tree
 
 from nestor.store.schema import Query
-from nestor.store.store import Store
+from nestor.store.store import RelationalQuery, Store
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +78,7 @@ def test_suggest_dimensions_with_union(chinook: Store):
     dimensions = chinook.suggest_dimensions(
         Query(metrics=["n_customers"], dimensions=["country"])
     )
-    assert len(dimensions) == 9
+    assert len(dimensions) == 10
 
 
 def test_dimension_same_table_as_measures(chinook: Store):
@@ -113,3 +113,38 @@ def test_union_allowed_dimensions(chinook: Store):
     assert "country" not in table.allowed_dimensions
     assert "customer_country" in table.allowed_dimensions
     assert "employee_country" in table.allowed_dimensions
+
+
+def test_aggregate_dimension_related_subquery(chinook: Store):
+    related = chinook.tables.get("customers").related
+    key = "__subquery__revenue"
+    assert key in related
+    assert isinstance(related[key].table, RelationalQuery)
+    assert related[key].table.subquery
+
+
+def test_resolve_aggregate_dimension(chinook: Store):
+    assert chinook.dimensions.get("customer_orders_amount").expr.children[0] == Tree(
+        "column", ["__subquery__revenue", "revenue"]
+    )
+
+
+def test_resolve_related_dimension(chinook: Store):
+    assert chinook.dimensions.get("order_customer_country").expr.children[0] == Tree(
+        "column", ["invoice", "customer", "Country"]
+    )
+
+
+def test_resolve_related_aggregate_dimension(chinook: Store):
+    assert chinook.dimensions.get("first_order_cohort_month").expr.children[0] == Tree(
+        "call",
+        [
+            "datediff",
+            "month",
+            Tree(
+                "column",
+                ["invoice", "customer", "__subquery__min_sale_date", "min_sale_date"],
+            ),
+            Tree("column", ["invoice", "InvoiceDate"]),
+        ],
+    )

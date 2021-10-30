@@ -249,6 +249,24 @@ class Compiler(ABC):
     def ceil(self, args: list):
         """Numeric ceiling"""
 
+    # type casting
+
+    @abstractmethod
+    def tointeger(self, args: list):
+        """cast as int"""
+
+    @abstractmethod
+    def tonumber(self, args: list):
+        """cast as float"""
+
+    @abstractmethod
+    def todate(self, args: list):
+        """cast as date"""
+
+    @abstractmethod
+    def todatetime(self, args: list):
+        """cast as datetime/timestamp"""
+
     # dates
 
     @abstractmethod
@@ -260,6 +278,12 @@ class Compiler(ABC):
     @abstractmethod
     def datetrunc(self, args: list):
         """Date truncated to a given part. Args same as datepart."""
+
+    @abstractmethod
+    def datediff(self, args: list):
+        """Difference between two dates, given as number of times there's a change of
+        date at the given level.
+        """
 
     # compilation
 

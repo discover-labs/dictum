@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 from lark import Transformer
 
-from nestor.backends.arithmetic import ArithmeticCompilerMixin
 from nestor.backends.base import Compiler
+from nestor.backends.mixins.arithmetic import ArithmeticCompilerMixin
+from nestor.backends.mixins.datediff import DatediffCompilerMixin
 from nestor.store import RelationalQuery
 
 
@@ -26,7 +27,7 @@ class PandasColumnTransformer(Transformer):
         return self._tables[0][children[0]]
 
 
-class PandasCompiler(ArithmeticCompilerMixin, Compiler):
+class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def column(self, table: str, name: str):
         """Not required, columns are replaced by pd.Series with PandasColumnTransformer"""
 
@@ -80,6 +81,20 @@ class PandasCompiler(ArithmeticCompilerMixin, Compiler):
     def ceil(self, args: list):
         return args[0].ceil()
 
+    # type casting
+
+    def tointeger(self, args: list):
+        return args[0].astype(int)
+
+    def tonumber(self, args: list):
+        return args[0].astype(float)
+
+    def todate(self, args: list):
+        return pd.to_datetime(args[0]).dt.round("D")
+
+    def todatetime(self, args: list):
+        return pd.to_datetime(args[0])
+
     # dates
 
     def datepart(self, args: list):
@@ -96,6 +111,11 @@ class PandasCompiler(ArithmeticCompilerMixin, Compiler):
             "day": "D",
         }
         return args[1].dt.round(mapping[args[0]])
+
+    # for DatediffCompilerMixin
+    def datediff_day(self, args: list):
+        start, end = args
+        return (end - start).days
 
     # compilation
 

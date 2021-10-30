@@ -1,10 +1,11 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import cache, cached_property, reduce
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from lark import Transformer, Tree
 
+import nestor.store
 from nestor.store.calculations import Dimension, Measure
 
 
@@ -38,9 +39,11 @@ class CalculationResolver(Transformer):
     def __init__(
         self,
         dependencies: Dict[str, Tree],
+        ignore=None,
         visit_tokens: bool = True,
     ):
         self._deps = dependencies
+        self._ignore = set(ignore) if ignore is not None else set()
         super().__init__(visit_tokens=visit_tokens)
 
     def _check_circular_refs(self, expr: Tree, path=()):
@@ -54,24 +57,35 @@ class CalculationResolver(Transformer):
                     f"circular reference in calculation: {path_str}"
                 )
             dep = self._deps.get(key)
-            if dep is None:
+            if dep is None and key not in self._ignore:
                 raise ReferenceNotFoundError(
                     f"'{key}' not found in dependencies. "
                     f"Valid values: {set(self._deps)}"
                 )
-            self._check_circular_refs(dep, path=path + (key,))
+            if dep is not None:
+                self._check_circular_refs(dep, path=path + (key,))
 
     def resolve(self, expr: Tree):
         self._check_circular_refs(expr)
         return self.transform(expr)
 
-    def _transform(self, children):
-        (ref,) = children
-        dep = self._deps[ref]
-        return self.resolve(dep)
+    def _transform(data: str):
+        def transform(self, children):
+            (key,) = children
+            dep = self._deps.get(key)
+            if dep is None and key not in self._ignore:
+                raise ReferenceNotFoundError(
+                    f"'{key}' not found in dependencies. "
+                    f"Valid values: {set(self._deps)}"
+                )
+            if dep is None:
+                return Tree(data, children)
+            return self.resolve(dep).children[0]
 
-    measure = _transform
-    dimension = _transform
+        return transform
+
+    measure = _transform("measure")
+    dimension = _transform("dimension")
 
 
 class MeasureResolver(CalculationResolver):
@@ -93,21 +107,20 @@ class DimensionResolver(CalculationResolver):
                     f"circular reference in calculation: {path_str}"
                 )
             dep = self._deps.get(key)
-            if dep is None:
+            if dep is None and key not in self._ignore:
                 raise ReferenceNotFoundError(
                     f"'{key}' not found in dependencies. "
                     f"Valid values: {set(self._deps)}"
                 )
-            self._check_circular_refs(dep, path=path + (key,))
+            if dep is not None:
+                self._check_circular_refs(dep, path=path + (key,))
 
-    # def measure(self, children):
-    #     (ref,) = children
-    #     raise InvalidReferenceTypeError(
-    #         f"dimension references '{ref}', which is a measure. "
-    #         "Only calculations of the same type can reference each other."
-    #     )
     def measure(self, children):
-        return Tree("measure", children)
+        """There will be a related table with subquery as a target, named after the
+        measure, e.g. if the measure is $revenue, we need a revenue.revenue column.
+        """
+        field = children[0]
+        return Tree("column", [f"__subquery__{field}", field])
 
 
 class FilterResolver(CalculationResolver):
@@ -121,8 +134,9 @@ class FilterResolver(CalculationResolver):
 
 @dataclass
 class RelatedTable:
-    table: "Table"
+    table: Union["Table", "nestor.store.RelationalQuery"]
     foreign_key: str
+    related_key: str
     alias: str
 
 
@@ -204,8 +218,6 @@ class Table:
         """Which dimensions are allowed to be used with this table as anchor.
         Only those to which there's a single direct join path. If there isn't,
         dimensions must be declared directly on a table that's available for join.
-
-        In addition, unions are only available on a table itself.
         """
         dims = {}
         dims.update(self.dimensions)
@@ -216,20 +228,36 @@ class Table:
         dims.update({d.id: d for d, paths in counts.items() if paths == 1})
         return dims
 
-    def _resolve_calculations(self, calcs, resolver_cls):
-        resolver = resolver_cls({k: v.expr for k, v in calcs.items()})
-        for calc in calcs.values():
+    def resolve_measures(self):
+        resolver = MeasureResolver({m.id: m.expr for m in self.measures.values()})
+        for measure in self.measures.values():
             try:
-                calc.expr = resolver.resolve(calc.expr)
+                measure.expr = resolver.resolve(measure.expr)
             except ResolverError as e:
-                raise e.__class__(f"Error processing {calc}: {e}")
+                raise e.__class__(f"Error processing {measure}: {e}")
+
+    def resolve_dimensions(self):
+        exprs = {d.id: d.expr for d in self.dimensions.values()}
+        for dimension in self.allowed_dimensions.values():
+            if dimension.id not in exprs:
+                # related dimensions must be resolved first
+                dimension.table.resolve_dimensions()
+                exprs[dimension.id] = dimension.prefixed_expr(
+                    self.dimension_join_paths[dimension.id][1:]
+                )
+        resolver = DimensionResolver(exprs)
+        for dimension in self.dimensions.values():
+            try:
+                dimension.expr = resolver.resolve(dimension.expr)
+            except ResolverError as e:
+                raise e.__class__(f"Error processing {dimension}: {e}")
 
     def resolve_calculations(self):
-        self._resolve_calculations(self.measures, MeasureResolver)
-        self._resolve_calculations(self.dimensions, DimensionResolver)
+        self.resolve_measures()
+        self.resolve_dimensions()
 
-    def __eq__(self, other):
-        return self.id == other.id
+    def __eq__(self, other: "Table"):
+        return isinstance(other, Table) and self.id == other.id
 
     def __hash__(self):
         return hash(self.id)

@@ -98,11 +98,20 @@ class RelationalQuery:
         self.joins.append(join)
         return join.to.join_dimension(dimension_id, (*_path, alias))
 
+    @staticmethod
+    def prefix_columns(prefix: List[str], expr: Tree):
+        result = deepcopy(expr)
+        for ref in result.find_data("column"):
+            *tables, field = ref.children
+            ref.children = [".".join([*prefix, *tables]), field]
+        return result
+
     def add_dimension(self, dimension_id: str):
         tree, path = self.join_dimension(dimension_id)
         dimension = tree.table.dimensions.get(dimension_id)
         self.groupby[dimension_id] = self.prefix_columns(
-            (self.table.id, *path), dimension.expr
+            (self.table.id, *path),
+            dimension.expr,
         )
 
     def add_filter(self, filter: str):
@@ -120,16 +129,21 @@ class RelationalQuery:
 
     def add_path(self, tables: List[str]):
         """Add a single path to the existing join tree. Tables will be joined on the
-        relevant foreign key.
+        relevant foreign key. Path starts with the first related table alias.
         """
         if len(tables) == 0:
             return
         table_or_alias, *tables = tables
         related = self.table.related[table_or_alias]
+        to = (
+            related.table
+            if isinstance(related.table, RelationalQuery)
+            else RelationalQuery(table=related.table)
+        )
         join = Join(
             foreign_key=related.foreign_key,
-            related_key=related.table.primary_key,
-            to=RelationalQuery(table=related.table),
+            related_key=related.related_key,
+            to=to,
             alias=table_or_alias,
         )
         for existing_join in self.joins:
@@ -144,17 +158,6 @@ class RelationalQuery:
     def unnested_joins(self):
         """Unnested joins in the correct order, depth-first"""
         return list(self._unnested_joins())
-
-    @staticmethod
-    def prefix_columns(prefix: List[str], expr: Tree):
-        result = deepcopy(expr)
-        for ref in result.find_data("column"):
-            *tables, field = ref.children
-            ref.children = [".".join([*prefix, *tables]), field]
-        for ref in result.find_data("measure"):  # for measure-based dimensions
-            ref.data = "column"
-            ref.children = [".".join([*prefix, *ref.children]), *ref.children]
-        return result
 
     def _unnested_joins(self, path=()):
         if len(path) == 0:
@@ -183,10 +186,11 @@ class RelationalQuery:
 
     def __eq__(self, other: "RelationalQuery"):
         return (
-            self.table.id == other.table.id
+            isinstance(other, RelationalQuery)
+            and self.table.id == other.table.id
+            and self.groupby == other.groupby
+            and self.aggregate == other.aggregate
             and self.subquery == other.subquery
-            and len(self.joins) == len(other.joins)
-            and all(a == b for a, b in zip(self.joins, other.joins))
         )
 
 
