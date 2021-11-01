@@ -21,7 +21,8 @@ IDENTIFIER: /[a-z_]\w*/i
 column: IDENTIFIER ("." IDENTIFIER)*
 measure: "$" IDENTIFIER
 dimension: ":" IDENTIFIER
-?ref: column | measure | dimension
+ARG: "@"  // argument for transforms and filters
+?ref: column | measure | dimension | ARG
 
 // Function call
 call: IDENTIFIER "(" [ op ("," op)* ] ")"

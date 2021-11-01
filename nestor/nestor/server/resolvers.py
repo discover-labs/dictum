@@ -1,5 +1,8 @@
+import json
+
 from ariadne import ObjectType, QueryType, UnionType
 
+from nestor.ql import parse_query
 from nestor.server.schema import LocaleDefinition
 from nestor.store import calculations, schema
 
@@ -21,18 +24,19 @@ def resolve_store(_, info):
     }
 
 
-@Query.field("query")
-def resolve_store_query(obj, info, *, input: dict):
+def _exec(info, query: Query):
     store = info.context["store"]
     connection = info.context["connection"]
-    query = schema.Query.parse_obj(input)
     computation = store.get_computation(query)
-    df = connection.compute(computation)
+    result = connection.compute(computation)
+    df = result.data
     return {
-        "data": df.to_dict(orient="records"),
+        "data": json.loads(df.to_json(orient="records")),
         "metadata": {
+            "raw_query": result.raw_query,
             "locale": LocaleDefinition.from_locale_name("en-US").dict(),
             "columns": [c for c in store._all.values() if c.id in df.columns],
+            # id, name, format spec,
             "store": {
                 "tables": store.tables.values(),
                 "metrics": store.suggest_metrics(query),
@@ -40,6 +44,18 @@ def resolve_store_query(obj, info, *, input: dict):
             },
         },
     }
+
+
+@Query.field("query")
+def resolve_store_query(obj, info, *, input: dict):
+    query = schema.Query.parse_obj(input)
+    return _exec(info, query)
+
+
+@Query.field("qlQuery")
+def resolve_ql_query(obj, info, *, input: str):
+    query = parse_query(input)
+    return _exec(info, query)
 
 
 @Metric.field("expr")
@@ -54,4 +70,4 @@ def resolve_column_type(obj, *_):
         return "Metric"
     if isinstance(obj, calculations.Dimension):
         return "Dimension"
-    raise TypeError("TEST")
+    raise TypeError(f"Unknown type of object {obj}")  # this shouldn't ever happen

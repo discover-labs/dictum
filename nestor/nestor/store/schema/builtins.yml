@@ -1,0 +1,30 @@
+filters:
+  atleast:
+    name: at least
+    args: [value]
+    expr: "@ >= value"
+  atmost:
+    name: at most
+    args: [value]
+    expr: "@ <= value"
+  inrange:
+    name: in range
+    args: [min, max]
+    expr: "@ >= min and @ <= max"
+  last:
+    name: last
+    args: [n, part]
+    expr: datediff(part, @, now()) < n and datediff(part, @, now()) >= 0
+transforms:
+  step:
+    name: step
+    args: [size]
+    expr: "@ // size * size"
+  datepart:
+    name: date part
+    args: [part]
+    expr: datepart(part, @)
+  datetrunc:
+    name: date trunc
+    args: [part]
+    expr: datetrunc(part, @)

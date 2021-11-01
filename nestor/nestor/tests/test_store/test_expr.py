@@ -161,3 +161,9 @@ def test_case_multi():
             Token("INTEGER", "0"),
         ],
     )
+
+
+def test_arg():
+    assert parse_expr("@ >= 10").children[0] == Tree(
+        "gte", [Token("ARG", "@"), Token("INTEGER", "10")]
+    )

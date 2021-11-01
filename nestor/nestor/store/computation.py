@@ -1,10 +1,9 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from lark import Tree
 
-from nestor.store.expr.parser import parse_expr
 from nestor.store.table import Table
 
 
@@ -51,7 +50,7 @@ class RelationalQuery:
     table: Table
     aggregate: Dict[str, Tree] = field(default_factory=dict)
     groupby: Dict[str, Tree] = field(default_factory=dict)
-    filters: List[str] = field(default_factory=list)
+    filters: List[Tree] = field(default_factory=list)
     joins: List[Join] = field(default_factory=list)
     subquery: bool = False
 
@@ -64,7 +63,7 @@ class RelationalQuery:
         self, dimension_id: str, _path: Tuple[str, ...] = ()
     ) -> Tuple["RelationalQuery", Tuple[str, ...]]:
         """Add the necessary joins for a dimension.
-        Returns innermost JoinTree.
+        Returns innermost RelationalQuery.
         """
         # termination: dimension is right here
         if dimension_id in self.table.dimensions:
@@ -106,25 +105,24 @@ class RelationalQuery:
             ref.children = [".".join([*prefix, *tables]), field]
         return result
 
-    def add_dimension(self, dimension_id: str):
-        tree, path = self.join_dimension(dimension_id)
-        dimension = tree.table.dimensions.get(dimension_id)
-        self.groupby[dimension_id] = self.prefix_columns(
+    def add_dimension(
+        self, dimension_id: str, transform: Optional[Callable[[Any], Tree]] = None
+    ):
+        query, path = self.join_dimension(dimension_id)
+        dimension = query.table.dimensions.get(dimension_id)
+        expr = self.prefix_columns(
             (self.table.id, *path),
             dimension.expr,
         )
+        if transform is not None:
+            expr = transform(expr)
+        self.groupby[dimension_id] = expr
 
-    def add_filter(self, filter: str):
-        expr = parse_expr(filter)
-        for ref in expr.find_data("dimension"):
-            dimension_id = ref.children[0]
-            tree, path = self.join_dimension(dimension_id)
-            dimension = tree.table.dimensions.get(dimension_id)
-            tree.joins.extend(dimension.joins)
-            ref.children = self.prefix_columns(
-                (self.table.id, *path), dimension.expr.children[0]
-            ).children
-            ref.data = "column"
+    def add_filter(self, dimension_id: str, filter: Callable[[Any], Tree]):
+        query, path = self.join_dimension(dimension_id)
+        dimension = query.table.dimensions.get(dimension_id)
+        expr = self.prefix_columns((self.table.id, *path), dimension.expr)
+        expr = filter(expr)
         self.filters.append(expr)
 
     def add_path(self, tables: List[str]):
@@ -200,4 +198,4 @@ class Computation:
 
     queries: List[RelationalQuery]
     metrics: Dict[str, Tree]
-    merge: List[str] = field(default_factory=lambda: [])
+    merge: List[str] = field(default_factory=list)

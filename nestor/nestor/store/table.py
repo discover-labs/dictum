@@ -36,14 +36,8 @@ class CalculationResolver(Transformer):
     in the expression.
     """
 
-    def __init__(
-        self,
-        dependencies: Dict[str, Tree],
-        ignore=None,
-        visit_tokens: bool = True,
-    ):
+    def __init__(self, dependencies: Dict[str, Tree], visit_tokens: bool = True):
         self._deps = dependencies
-        self._ignore = set(ignore) if ignore is not None else set()
         super().__init__(visit_tokens=visit_tokens)
 
     def _check_circular_refs(self, expr: Tree, path=()):
@@ -78,8 +72,6 @@ class CalculationResolver(Transformer):
                     f"'{key}' not found in dependencies. "
                     f"Valid values: {set(self._deps)}"
                 )
-            if dep is None:
-                return Tree(data, children)
             return self.resolve(dep).children[0]
 
         return transform
@@ -89,12 +81,7 @@ class CalculationResolver(Transformer):
 
 
 class MeasureResolver(CalculationResolver):
-    def dimension(self, children):
-        (ref,) = children
-        raise InvalidReferenceTypeError(
-            f"measure references '{ref}', which is a dimension. "
-            "Only calculations of the same type can reference each other."
-        )
+    pass
 
 
 class DimensionResolver(CalculationResolver):
@@ -121,15 +108,6 @@ class DimensionResolver(CalculationResolver):
         """
         field = children[0]
         return Tree("column", [f"__subquery__{field}", field])
-
-
-class FilterResolver(CalculationResolver):
-    def measure(self, children):
-        (ref,) = children
-        raise InvalidReferenceTypeError(
-            f"A filter references '{ref}', which is a measure. "
-            "Filters can only reference dimensions."
-        )
 
 
 @dataclass
@@ -229,7 +207,14 @@ class Table:
         return dims
 
     def resolve_measures(self):
-        resolver = MeasureResolver({m.id: m.expr for m in self.measures.values()})
+        exprs = {m.id: m.expr for m in self.measures.values()}
+        for dimension in self.allowed_dimensions.values():
+            if dimension.id not in self.dimensions:
+                dimension.table.resolve_dimensions()
+            exprs[dimension.id] = dimension.prefixed_expr(
+                self.dimension_join_paths[dimension.id][1:]
+            )
+        resolver = MeasureResolver(exprs)
         for measure in self.measures.values():
             try:
                 measure.expr = resolver.resolve(measure.expr)

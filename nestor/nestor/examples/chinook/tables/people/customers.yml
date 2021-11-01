@@ -1,0 +1,50 @@
+source: customers
+primary_key: CustomerId
+
+related:
+  employee:
+    table: employees
+    foreign_key: SupportRepId
+
+.usd: &USD
+  spec: $.2f
+  currency_prefix: $
+
+
+measures:
+  n_customers:
+    name: Number of Customers
+    expr: count()
+
+
+dimensions:
+  customer_country:
+    union: country
+    name: Customer Country
+    type: nominal
+    expr: Country
+
+  customer_city:
+    name: Customer City
+    type: nominal
+    expr: City
+
+  customer_orders_amount:
+    name: Customer's Total Orders Amount
+    type: ordinal
+    expr: $revenue
+    format:
+      <<: *USD
+
+  customer_orders_amount_10_bins:
+    name: Customer's Total Orders Amount ($10 bins)
+    type: ordinal
+    expr: :customer_orders_amount // 10 * 10
+    format:
+      <<: *USD
+
+  customer_first_sale_date:
+    name: Customer's First Sale Date
+    type: time
+    expr: $min_sale_date
+    format: "%d.%m.%Y"

@@ -2,9 +2,11 @@ from functools import cached_property
 from typing import List
 
 import pandas as pd
+import sqlparse
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.sql import Select, case, cast, func
 
+from nestor.backends.base import BackendResult
 from nestor.backends.mixins.datediff import DatediffCompilerMixin
 from nestor.backends.pandas import PandasColumnTransformer, PandasCompiler
 from nestor.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
@@ -34,7 +36,7 @@ part_formats = {
 }
 
 
-class SQLiteCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
+class SQLiteFunctionsMixin:
     def floor(self, args):
         arg = args[0]
         return case(
@@ -104,11 +106,22 @@ class SQLiteCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
         end_day = func.julianday(self.datetrunc(["day", end]))
         return cast(end_day - start_day, Integer)
 
+    def now(self, _):
+        return func.datetime()
+
+    def today(self, _):
+        return func.date()
+
+
+class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyCompiler):
+
+    # compile
+
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
         """SQLite doesn't support outer joins, so we have to materialize here and
         proceed with Pandas.
         """
-        dfs = [self.connection.execute(q.select()) for q in queries]
+        dfs = [self.connection.execute(q.select()).data for q in queries]
         if len(merge_on) > 0:
             dfs = [df.set_index(merge_on) for df in dfs]
         res = pd.concat(dfs, axis=1)
@@ -127,6 +140,12 @@ class SQLiteCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
         return merged[computation.merge + list(computation.metrics)]
 
 
+class SQLiteRawQueryCompiler(
+    SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyCompiler
+):
+    """To compile an equivalent SQL query"""
+
+
 class SQLiteConnection(SQLAlchemyConnection):
 
     type = "sqlite"
@@ -139,5 +158,12 @@ class SQLiteConnection(SQLAlchemyConnection):
     def engine(self):
         return create_engine(self.url)
 
-    def compute(self, computation: Computation) -> pd.DataFrame:
-        return self.compiler.compile(computation)
+    def compute(self, computation: Computation) -> BackendResult:
+        """Call SQLAlchemyCompiler's compile() to get a fake raw query."""
+        raw_query = sqlparse.format(
+            str(SQLiteRawQueryCompiler(self).compile(computation).compile()),
+            reindent=True,
+        )
+        return BackendResult(
+            data=self.compiler.compile(computation), raw_query=raw_query
+        )

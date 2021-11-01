@@ -14,11 +14,11 @@ month, year etc. So, let's add a time dimension to our model.
 ```
 
 Like measures, dimensions are added under a separate `dimensions` section. Each dimension
-has a unique id that you define (in this case, `order_time`). The expression is just a
+has a unique id that you define (in this case, `order_date`). The expression is just a
 reference to the `created_at` column on orders.
 
 In addition to `name` and `expr`, there's another field that's required for a dimension,
-and that is `type`. In this case, the type of `order_time` is `time`.
+and that is `type`. In this case, the type of `order_date` is `time`.
 
 
 ## Dimension types

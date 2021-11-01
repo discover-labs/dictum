@@ -1,7 +1,7 @@
 # Union Dimensions
 
 Oftentimes a dimension spans multiple tables. This is usually the case with `time` dimensions.
-If you think about it, `order_time` and `user_signup_date` are the same thing: just
+If you think about it, `order_date` and `user_signup_date` are the same thing: just
 an event time. In the current model, you can't calculate both signups and revenue by
 month: order's "month" and signup "month" are not connected.
 

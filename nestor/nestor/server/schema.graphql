@@ -4,6 +4,7 @@ schema {
 
 type Query {
     query(input: StoreQuery!): StoreQueryResult!
+    qlQuery(input: String!): StoreQueryResult!
     store: Store!
 }
 
@@ -86,6 +87,7 @@ type LocaleDefinition {
 union ResultColumn = Metric | Dimension
 
 type StoreQueryResultMetadata {
+    rawQuery: String!
     columns: [ResultColumn!]!
     locale: LocaleDefinition
     store: Store!

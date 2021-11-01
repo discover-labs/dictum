@@ -18,6 +18,7 @@ requests = "^2.26.0"
 aiofiles = "^0.7.0"
 ariadne = "^0.13.0"
 psycopg2-binary = "^2.9.1"
+sqlparse = "^0.4.2"
 
 [tool.poetry.extras]
 postgres = ["psycopg2-binary^2.9.1"]

@@ -16,7 +16,8 @@ markdown_extensions:
 nav:
   - Introduction: index.md
   - Data Model Guide:
-    - Gettings started: data_model/getting_started.md
+    - Getting Started: data_model/getting_started.md
+    - Query Intro: data_model/query_intro.md
     - Tables and Measures: data_model/tables.md
     - Dimensions: data_model/dimensions.md
     - Table Relationships: data_model/table_relationships.md
@@ -24,17 +25,24 @@ nav:
     - Union Dimensions: data_model/union_dimensions.md
     - Metrics and Measures: data_model/metrics_and_measures.md
     - Aggregate Dimensions: data_model/aggregate_dimensions.md
-    - Dimension Transforms -: index.md
-  - Recipes:
-    - Cohort Analysis: index.md
-    - Retention: index.md
-  - Live Demos:
-    - Tutorial Example: index.md
-    - Chinook Database: index.md
-    - AdventureWorks Data Warehouse: index.md
+    - Default Transforms and Filters: data_model/dimension_transforms.md
+    - Organizing a Larger Project with Multiple Files: data_model/multiple_files.md
+    # - Formatting -: index.md
+    # - Table Calculations -: index.md
+  # - Query Guide:
+  #   - Introduction: query/intro.md
+  #   - GraphQL API: index.md
+  #   - REST API: index.md
+  #   - Querying from Python: index.md
+  # - Recipes:
+  #   - Cohort Analysis: index.md
+  #   - Retention: index.md
+  # - Live Demos:
+  #   - Tutorial Example: index.md
+  #   - Chinook Database: index.md
+  #   - AdventureWorks Data Warehouse: index.md
   - Reference:
     - Expression Language: reference/expression_language.md
-    - reference/python_api.md
-    - Backends:
-      - reference/backends.md
-      - reference/plugins.md
+    - Query Language: reference/query_language.md
+    - Python API: reference/python_api.md
+    - Backends: reference/backends.md

@@ -20,6 +20,12 @@ class PostgresCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
         end = self.datetrunc(["day", args[1]])
         return self.datepart(["day", end - start])  # the argument is an interval
 
+    def now(self, _):
+        return func.now()
+
+    def today(self, _):
+        return self.todate(func.now())
+
 
 class PostgresConnection(SQLAlchemyConnection):
     compiler_cls = PostgresCompiler

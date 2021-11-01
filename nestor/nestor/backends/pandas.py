@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Dict, List
 
 import numpy as np
@@ -116,6 +117,12 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def datediff_day(self, args: list):
         start, end = args
         return (end - start).days
+
+    def now(self, _):
+        return datetime.now()
+
+    def today(self, _):
+        return datetime.today()
 
     # compilation
 

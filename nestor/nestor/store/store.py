@@ -1,12 +1,18 @@
 import dataclasses
 from collections import UserDict, defaultdict
 from functools import cached_property
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from lark import Tree
 
 from nestor.store import schema
-from nestor.store.calculations import Calculation, Dimension, Measure, Metric
+from nestor.store.calculations import (
+    Calculation,
+    Dimension,
+    DimensionQueryDefaults,
+    Measure,
+    Metric,
+)
 from nestor.store.computation import Computation, RelationalQuery
 from nestor.store.expr.parser import parse_expr
 from nestor.store.table import (
@@ -18,6 +24,7 @@ from nestor.store.table import (
     RelatedTable,
     Table,
 )
+from nestor.store.transforms import InFilter, Transform
 
 
 class CalculationDict(UserDict):
@@ -130,26 +137,26 @@ class Store:
     deduplicating the joins, arranging them in a tree and returning a Calculation object.
     """
 
-    aggregate = {
-        "sum",
-        "avg",
-        "max",
-        "min",
-        "distinct",
-    }
-    scalar = {
-        "abs",
-        "floor",
-        "ceil",
-        "round",
-    }
-    builtins = scalar | aggregate
-
     def __init__(self, config: schema.Config):
         self.tables: Dict[str, Table] = {}
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
+        self.filters = {}
+        self.transforms = {}
+
+        # add filters and transforms
+        for filter in config.filters.values():
+            self.filters[filter.id] = Transform(
+                expr=parse_expr(filter.expr),
+                **filter.dict(include={"id", "name", "description"}),
+            )
+        self.filters["in"] = InFilter()
+        for transform in config.transforms.values():
+            self.transforms[transform.id] = Transform(
+                expr=parse_expr(transform.expr),
+                **transform.dict(include={"id", "name", "args", "description"}),
+            )
 
         # add all tables and their relationships
         for config_table in config.tables.values():
@@ -180,6 +187,14 @@ class Store:
                     expr=parse_expr(dimension.expr),
                     str_expr=dimension.expr,
                     table=table,
+                    query_defaults=DimensionQueryDefaults(
+                        filter=schema.QueryTranformRequest.parse(
+                            dimension.query_defaults.filter
+                        ),
+                        transform=schema.QueryTranformRequest.parse(
+                            dimension.query_defaults.transform
+                        ),
+                    ),
                     **dimension.dict(
                         include={"id", "name", "type", "description", "format"}
                     ),
@@ -269,9 +284,13 @@ class Store:
         """Returns an object that can then be executed on a backend."""
         metrics = {m: self.metrics.get(m) for m in query.metrics}
         tables = defaultdict(lambda: [])
+
+        # group measures by anchor
         for metric in metrics.values():
             for measure in metric.measures:
                 tables[measure.table.id].append(measure.id)
+
+        # get queries for each anchor
         queries = []
         for measures in tables.values():
             queries.append(
@@ -279,6 +298,7 @@ class Store:
                     measures=measures,
                     dimensions=query.dimensions,
                     filters=query.filters,
+                    transforms=query.transforms,
                 )
             )
         return Computation(
@@ -346,7 +366,7 @@ class Store:
 
     @cached_property
     def _all(self):
-        return {**self.measures, **self.dimensions}
+        return {**self.metrics, **self.dimensions}
 
     def resolve_metrics(self):
         resolver = MetricResolver(
@@ -358,23 +378,33 @@ class Store:
     def get_relational_query(
         self,
         measures: List[str],
-        dimensions: Optional[List[str]] = None,
-        filters: Optional[List[str]] = None,
+        dimensions: List[str] = [],
+        transforms: Dict[str, schema.QueryTranformRequest] = {},
+        filters: Dict[str, schema.QueryTranformRequest] = {},
     ) -> RelationalQuery:
-        dimensions = [] if dimensions is None else dimensions
-        filters = [] if filters is None else filters
-
         measure_id, *measures = measures
         measure = self.measures.get(measure_id)
         anchor = measure.table
         query = RelationalQuery(table=anchor)
         query.add_measure(measure_id)
 
+        transform_compilers = {}
+        for dimension_id, request in transforms.items():
+            transform = self.transforms.get(request.id)
+            if transform is None:
+                raise KeyError(f"Transform function {request.id} doesn't exist")
+            transform_compilers[dimension_id] = transform.get_compiler(request.args)
+
         for measure_id in measures:
             query.add_measure(measure_id)
         for dimension_id in dimensions:
-            query.add_dimension(dimension_id)
-        for filter in filters:
-            query.add_filter(filter)
+            query.add_dimension(
+                dimension_id, transform=transform_compilers.get(dimension_id)
+            )
+        for dimension_id, request in filters.items():
+            filter = self.filters.get(request.id)
+            if filter is None:
+                raise KeyError(f"Filter function {request.id} doesn't exist")
+            query.add_filter(dimension_id, filter.get_compiler(request.args))
 
         return query

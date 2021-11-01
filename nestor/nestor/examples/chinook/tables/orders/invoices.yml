@@ -1,0 +1,57 @@
+source: invoices
+primary_key: InvoiceId
+
+related:
+  customer:
+    table: customers
+    foreign_key: CustomerId
+
+.usd: &USD
+  spec: $.2f
+  currency_prefix: $
+
+
+measures:
+  min_sale_date:
+    metric: false
+    name: First Sale Date
+    expr: min(InvoiceDate)
+    description: Not a metric, used in customers dimension.
+
+dimensions:
+  invoice_date:
+    name: Sale Date
+    expr: InvoiceDate
+    type: time
+    format: "%d.%m.%Y"
+    query_defaults:
+      filter: last(30, 'day')
+      transform: datetrunc('day')
+
+  order_amount:
+    name: Order Amount
+    expr: Total
+    type: continuous
+    format:
+      <<: *USD
+
+  order_amount_10_dollar_bins:
+    name: Total Order Amount ($10 bins)
+    expr: Total // 10 * 10
+    type: ordinal
+    format:
+      <<: *USD
+
+  invoice_year:
+    name: Invoice Year
+    type: ordinal
+    expr: datepart('year', :invoice_date)
+
+  leap_year:
+    name: Invoice Date is in Leap Year
+    expr: |
+      if(:invoice_year % 400 == 0, 'Yes',
+          :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
+          'No'
+        )
+    type: nominal

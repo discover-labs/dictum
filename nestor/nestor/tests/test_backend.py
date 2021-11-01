@@ -1,28 +1,31 @@
 import pytest
 from pandas.api.types import is_datetime64_any_dtype
 
+from nestor.backends.base import BackendResult
 from nestor.store import Computation, RelationalQuery, Store
 from nestor.store.expr.parser import parse_expr
-from nestor.store.schema import Query
+from nestor.store.schema import Query, QueryTranformRequest
 
 
 def test_groupby(chinook: Store, connection):
     q = Query(metrics=["track_count"], dimensions=["genre"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    result = connection.compute(comp)
+    assert isinstance(result, BackendResult)
+    df = result.data
     assert df[df["genre"] == "Rock"].iloc[0]["track_count"] == 1297
 
 
 def test_filter(chinook: Store, connection):
     q = Query(
         metrics=["items_sold"],
-        filters=[
-            ":genre = 'Rock'",
-            ":customer_country = 'USA'",
-        ],
+        filters={
+            "genre": QueryTranformRequest(id="in", args=["Rock"]),
+            "customer_country": QueryTranformRequest(id="in", args=["USA"]),
+        },
     )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert df.iloc[0][0] == 157
 
 
@@ -44,28 +47,28 @@ def _test_convert_datetime(chinook: Store, connection):
 def test_metric_not_measure(chinook: Store, connection):
     q = Query(metrics=["revenue", "track_count", "revenue_per_track"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 0.66)
 
 
 def test_metric_with_groupby(chinook: Store, connection):
     q = Query(metrics=["arppu", "track_count"], dimensions=["genre"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert df.shape == (25, 3)
 
 
 def test_multiple_facts(chinook: Store, connection):
     q = Query(metrics=["items_sold", "track_count"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert tuple(df.iloc[0]) == (2240, 3503)
 
 
 def test_multiple_facts_dimensions(chinook: Store, connection):
     q = Query(metrics=["items_sold", "track_count"], dimensions=["genre"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert tuple(df[df["genre"] == "Rock"].iloc[0][["items_sold", "track_count"]]) == (
         835,
         1297,
@@ -76,14 +79,14 @@ def test_if(chinook: Store, connection):
     """Test if() function and case when ... then ... else ... end constructs"""
     q = Query(metrics=["items_sold"], dimensions=["invoice_year", "leap_year"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert df[df["leap_year"] == "Yes"].iloc[0]["invoice_year"] == 2012
 
 
 def test_subquery_join(chinook: Store, connection):
     q = Query(metrics=["items_sold"], dimensions=["customer_orders_amount_10_bins"])
     comp = chinook.get_computation(q)
-    df = connection.compute(comp)
+    df = connection.compute(comp).data
     assert df.shape == (2, 2)
     assert df[df["customer_orders_amount_10_bins"] == 30].iloc[0].items_sold == 1708
 
@@ -101,7 +104,7 @@ def compute(chinook: Store, connection):
             merge=["value"],
             metrics={},
         )
-        df = connection.compute(comp)
+        df = connection.compute(comp).data
         return str(df.iloc[0, 0])
 
     return computer

@@ -8,9 +8,16 @@ Hyperplane is a semantic layer for your data. It translates questions like:
 
 into the language of data: tables, relationships and joins, aggregations and filters.
 
-Business users, domain experts and data analysts can ask these kinds of questions in a
+Hyperplane can be used in several ways:
+
+- Business users, domain experts and data analysts can ask these questions in a
 web interface, Hyperplane will translate them into database queries and present the
 results.
+- Developers can use it via a web API as a standalone service to power custom-built
+Business Intelligence tools or user-facing analytics.
+- Python programmers can use it as a library (without the server) to create whichever
+applications they want.
+- Data analysts can use it interactively in Jupyter to analyze and visualizae data.
 
 In addition to that, it can be used without the web server directly from Python to
 query data interactively and build data visualizations.

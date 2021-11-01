@@ -86,7 +86,7 @@ tables:
         shorthand: ARPPU
         description: Total sum of orders divided by number of unique users who made them
     dimensions:
-      order_time:
+      order_date:
         name: Order Time
         expr: created_at
         type: time

@@ -55,7 +55,7 @@ Now we can finally add `Percentage of Paying Users`.
 To better understand why there's a distinction between metrics and measures, let's
 consider how metrics like `PPU` are calculated.
 
-First, the Hyperplane computes measures on the requested level of detail. If we want to
+First, Hyperplane computes measures on the requested level of detail. If we want to
 see `PPU` and `AU` by month, it comes down to two SQL queries:
 
 ```sql

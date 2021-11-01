@@ -21,11 +21,11 @@ Before doing anything, it's good to look at your database and relationships betw
 tables.
 
 <figure markdown>
-  ![Example database schema](../assets/example_schema.png)
+  ![Example database schema](../assets/example_schema.jpg)
   <figcaption>Example database structure</figcaption>
 </figure>
 
-As you can see, there are only three tables. Each table has an `id` primary key.
+As you can see, there are only four tables. Each table has an `id` primary key.
 
 The most interesting table, `orders`, contains order amounts, time when the order was
 created, link to the user, category and a marketing channel that this order was
@@ -34,7 +34,10 @@ attributed to.
 The `users` table contains users, with just one meaningful attribute: the timestamp of
 when the user signed up (`created_at`).
 
-`categories` is just a mapping of category identifier to human-readable names.
+The `user_sessions` table contains information about user activity — when a session
+started and which user it was.
+
+`categories` is just a mapping of order category identifier to human-readable names.
 
 
 ## Define a measure

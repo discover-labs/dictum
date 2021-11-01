@@ -12,7 +12,7 @@ tables:
         description: Total amount of orders
         expr: sum(amount)
     dimensions:
-      order_time:
-        name: Time of Order
+      order_date:
+        name: Date of Order
         type: time
         expr: created_at

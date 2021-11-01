@@ -6,7 +6,7 @@ from nestor.store.schema.config import (
     Table,
 )
 from nestor.store.schema.metadata import CalculationMetadata
-from nestor.store.schema.query import Query
+from nestor.store.schema.query import Query, QueryTranformRequest
 
 __all__ = [
     "CalculationFormat",
@@ -16,4 +16,5 @@ __all__ = [
     "Table",
     "CalculationMetadata",
     "Query",
+    "QueryTranformRequest",
 ]

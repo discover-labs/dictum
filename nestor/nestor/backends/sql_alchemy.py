@@ -2,6 +2,7 @@ from functools import cached_property
 from typing import List, Optional
 
 import pandas as pd
+import sqlparse
 from lark import Transformer
 from sqlalchemy import (
     Date,
@@ -25,7 +26,7 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.functions import coalesce
 
-from nestor.backends.base import Compiler, Connection
+from nestor.backends.base import BackendResult, Compiler, Connection
 from nestor.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from nestor.store import Computation, RelationalQuery
 
@@ -242,8 +243,11 @@ class SQLAlchemyConnection(Connection):
     def metadata(self) -> MetaData:
         return MetaData(self.engine)
 
-    def execute(self, query) -> pd.DataFrame:
-        return pd.read_sql(query, self.engine)
+    def execute(self, query) -> BackendResult:
+        return BackendResult(
+            data=pd.read_sql(query, self.engine),
+            raw_query=sqlparse.format(str(query.compile()), reindent=True),
+        )
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
         return Table(name, self.metadata, schema=schema, autoload=True)

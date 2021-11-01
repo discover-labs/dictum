@@ -1,0 +1,12 @@
+orders:
+  ...
+  measures:
+    ...
+  dimensions:
+    order_date:
+      name: Time of Order
+      type: time
+      expr: created_at
+      query_defaults:
+        filter: last(30, 'day')
+        transform: datetrunc('day')

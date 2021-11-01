@@ -1,4 +1,5 @@
 import os
+from functools import cache
 from pathlib import Path
 
 from ariadne import gql, make_executable_schema, snake_case_fallback_resolvers
@@ -16,13 +17,18 @@ schema = make_executable_schema(gql(schema_text), *types, snake_case_fallback_re
 static = StaticFiles(directory=Path(static.__file__).parent)
 
 
-def get_context_value(request):
+@cache
+def get_ctx():
     path = os.getenv("NESTOR_PROFILES_CONFIG_PATH")
     profiles = ProfilesConfig.from_yaml(path)
     profile = os.getenv("NESTOR_PROFILE", None)
     connection = profiles.get_connection(profile)
     store = Store.from_yaml(os.environ["NESTOR_STORE_CONFIG_PATH"])
     return {"store": store, "connection": connection}
+
+
+def get_context_value(request):
+    return get_ctx()
 
 
 app = Starlette()

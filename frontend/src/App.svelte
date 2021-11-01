@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Components from "./pages/Components.svelte";
+    import QLPage from "./pages/QLPage.svelte";
 </script>
 
 <div>
@@ -8,7 +8,7 @@
     </nav>
     <div class="page">
         <div class="container">
-            <Components />
+            <QLPage />
         </div>
     </div>
 </div>

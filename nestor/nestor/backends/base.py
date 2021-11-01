@@ -1,10 +1,17 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import List
 
 import pandas as pd
 from lark import Token, Transformer
 
 from nestor.store import Computation, RelationalQuery
+
+
+@dataclass
+class BackendResult:
+    data: pd.DataFrame
+    raw_query: str
 
 
 class CallOwnerOp:
@@ -40,6 +47,12 @@ class ExpressionTransformer(Transformer):
     def __init__(self, compiler: "Compiler", visit_tokens: bool = True) -> None:
         self.compiler = compiler
         super().__init__(visit_tokens=visit_tokens)
+
+    def ARG(self, _):
+        raise ValueError(
+            "'@' is not allowed in calculation expressions —"
+            " only in user-defined filters and transforms"
+        )
 
     FLOAT = PassTokenValueToCompiler()
     INTEGER = PassTokenValueToCompiler()
@@ -285,6 +298,14 @@ class Compiler(ABC):
         date at the given level.
         """
 
+    @abstractmethod
+    def now(self, args: list):
+        """Current timestamp"""
+
+    @abstractmethod
+    def today(self, args: list):
+        """Today's date"""
+
     # compilation
 
     @abstractmethod
@@ -324,9 +345,12 @@ class Connection(ABC):
     def __init_subclass__(cls):
         cls.registry[cls.type] = cls
 
-    def compute(self, computation: Computation) -> pd.DataFrame:
-        return self.execute(self.compiler.compile(computation))
+    def compile(self, computation: Computation):
+        return self.compiler.compile(computation)
+
+    def compute(self, computation: Computation) -> BackendResult:
+        return self.execute(self.compile(computation))
 
     @abstractmethod
-    def execute(self, query) -> pd.DataFrame:
-        """Execute a computation, return DataFrame"""
+    def execute(self, query) -> BackendResult:
+        """Execute query, return BackendResult"""

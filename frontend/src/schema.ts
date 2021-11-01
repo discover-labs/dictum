@@ -56,6 +56,7 @@ interface LocaleDefinition {
 }
 
 export interface QueryResultMetadata {
+    rawQuery: string;
     columns: Calculation[];
     store: Store;
     locale: LocaleDefinition;

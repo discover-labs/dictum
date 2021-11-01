@@ -84,30 +84,20 @@ class TableCalculation(Calculation):
         for ref in self.expr.find_data("column"):
             *tables, _ = ref.children
             query.add_path(tables)
-            # if len(tables) > 0:
-            #     related = self.table.related.get(tables[0])
-            #     to = (
-            #         related.table
-            #         if isinstance(related.table, nestor.store.RelationalQuery)
-            #         else nestor.store.RelationalQuery(table=related.table)
-            #     )
-            #     join = nestor.store.Join(
-            #         foreign_key=related.foreign_key,
-            #         related_key=related.related_key,
-            #         alias=tables[0],
-            #         to=to,
-            #     )
-            #     join.to.add_path(tables[1:])
-            #     result.append(join)
-        if self.id == "first_order_cohort_month":
-            breakpoint()
         return query.joins
+
+
+@dataclass
+class DimensionQueryDefaults:
+    filter: Optional[schema.QueryTranformRequest] = None
+    transform: Optional[schema.QueryTranformRequest] = None
 
 
 @dataclass(eq=False, repr=False)
 class Dimension(TableCalculation):
     # not really a default, schema prevents that
     type: CalculationType = CalculationType.continuous
+    query_defaults: Optional[DimensionQueryDefaults] = None
 
     @property
     def related(self) -> Dict[str, "nestor.store.RelationalQuery"]:
@@ -148,59 +138,11 @@ class Dimension(TableCalculation):
             )
         return result
 
-    @cached_property
-    def _joins(self) -> List["nestor.store.Join"]:
-        joins = []
-        for ref in self.expr.find_data("measure"):  # add joins for aggregate dimensions
-            # figure out the subquery — group the measure by self.table.primary_key
-            measure_id = ref.children[0]
-            source_table = self.table.measure_backlinks[measure_id]
-            subquery = nestor.store.RelationalQuery(
-                table=source_table,
-                subquery=True,
-            )
-            subquery.add_measure(measure_id)
-            path = [p.alias for p in source_table.allowed_join_paths.get(self.table.id)]
-            subquery.add_path(path)
-            subquery.groupby[self.table.primary_key] = Tree(
-                "expr",
-                [
-                    Tree(
-                        "column",
-                        [
-                            ".".join([source_table.id, *path]),
-                            self.table.primary_key,
-                        ],
-                    )
-                ],
-            )
-
-            # add the join
-            join = nestor.store.Join(
-                foreign_key=self.table.primary_key,
-                related_key=self.table.primary_key,
-                alias=measure_id,
-                to=subquery,
-            )
-            joins.append(join)
-
-        query = nestor.store.RelationalQuery(table=self.table)
-        for ref in self.expr.find_data("dimension"):
-            dimension_id = ref.children[0]
-            query.join_dimension(dimension_id)
-        joins.extend(query.joins)
-
-        return [*super().joins, *joins]
-
     def prefixed_expr(self, path: List[str]) -> Tree:
         result = deepcopy(self.expr)
         for ref in result.find_data("column"):
             *tables, field = ref.children
             ref.children = [*path, *tables, field]
-        for ref in result.find_data("measure"):
-            *tables, field = ref.children
-            ref.data = "column"
-            ref.children = [*path, *tables, field, field]
         return result
 
 
@@ -224,7 +166,7 @@ class Measure(TableCalculation):
 
 @dataclass(repr=False)
 class Metric(Calculation):
-    measures: List[Measure] = field(default_factory=lambda: [])
+    measures: List[Measure] = field(default_factory=list)
     key: bool = False
 
     @cached_property

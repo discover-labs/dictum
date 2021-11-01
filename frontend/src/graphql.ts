@@ -1,7 +1,7 @@
 export class Server {
     request(query: string, variables?: object) {
         return fetch(
-            "/graphql",
+            "/graphql/",
             {
                 method: "POST",
                 headers: {
