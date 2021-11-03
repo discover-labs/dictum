@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field, validator
+from babel.numbers import list_currencies
+from pydantic import BaseModel, Field, root_validator, validator
 
 from nestor.store.schema.types import CalculationType, Expression, Identifier
 
@@ -17,17 +18,13 @@ class RelatedTable(Base):
     alias: str = Field(alias="id")
 
 
-class CalculationFormat(Base):
-    spec: str
-    currency_prefix: str = ""
-    currency_suffix: str = ""
-
-
 class Displayed(Base):
     id: str
     name: str
     description: Optional[str]
-    format: Optional[CalculationFormat]
+    format: Optional[str]
+    type: CalculationType
+    currency: Optional[str]
 
     @validator("format", pre=True)
     def validate_format(cls, value):
@@ -35,12 +32,49 @@ class Displayed(Base):
             return {"spec": value}
         return value
 
+    @validator("type")
+    def validate_type(cls, value):
+        values = {"number", "percent", "date", "datetime", "string", "currency"}
+        if value not in values:
+            raise ValueError(f"Calculation type must be one of {values}")
+        return value
+
+    @root_validator(skip_on_failure=True)
+    def validate_currency(cls, values):
+        if values["type"] != "currency":
+            return values
+        if values["currency"] is None:
+            raise ValueError(
+                "currency field is required for calculations of currency type"
+            )
+        if values["currency"] not in list_currencies():
+            raise ValueError(f"{values['currency']} is not a supported currency")
+        return values
+
 
 class Calculation(Displayed):
     expr: Expression
+    missing: Any
+
+    @root_validator
+    def set_default_missing(cls, values):
+        missing = values.get("missing")
+        if values["type"] in {"date", "datetime"} and missing is not None:
+            raise ValueError(
+                "Missing values for types date, datetime are not supported"
+            )
+        _type = values.get("type")
+        if missing is None:
+            if _type in {"number", "decimal", "percent", "currency"}:
+                missing = 0
+            elif _type == "string":
+                missing = "N/A"
+        values["missing"] = missing
+        return values
 
 
 class Measure(Calculation):
+    type: CalculationType = "number"
     metric: bool = True
 
 
@@ -54,7 +88,6 @@ class DimensionQueryDefaults(Base):
 
 
 class Dimension(Calculation):
-    type: CalculationType
     union: Optional[Identifier]
     query_defaults: DimensionQueryDefaults = DimensionQueryDefaults()
 
@@ -87,22 +120,26 @@ class Transform(Base):
     id: str
     name: str
     description: Optional[str]
-    args: list
+    args: list = []
     expr: str
+    return_type: Optional[str]
+    format: Optional[str]
 
 
 class Config(Base):
     name: str
     description: Optional[str]
+    locale: str = "en_US"
     metrics: Dict[Identifier, Metric] = {}
-    tables: Dict[Identifier, Table] = {}
     unions: Dict[Identifier, DimensionsUnion] = {}
-    filters: Dict[Identifier, Transform] = {}  # undocumented
-    transforms: Dict[Identifier, Transform] = {}  # undocumented
+    tables: Dict[Identifier, Table] = {}
+    filters: Dict[Identifier, Transform] = {}
+    transforms: Dict[Identifier, Transform] = {}
 
     @classmethod
     def from_yaml(cls, path: str):
-        config = yaml.load(Path(path).read_text(), Loader=yaml.SafeLoader)
+        path = Path(path)
+        config = yaml.load(path.read_text(), Loader=yaml.SafeLoader)
 
         # inject built-in transforms and filters
         builtins = yaml.load(

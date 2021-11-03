@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import cache, cached_property, reduce
+from functools import cached_property, reduce
 from typing import Dict, List, Optional, Tuple, Union
 
 from lark import Transformer, Tree
@@ -112,7 +112,7 @@ class DimensionResolver(CalculationResolver):
 
 @dataclass
 class RelatedTable:
-    table: Union["Table", "nestor.store.RelationalQuery"]
+    table: Union["Table", "nestor.store.AggregateQuery"]
     foreign_key: str
     related_key: str
     alias: str
@@ -154,7 +154,6 @@ class Table:
         default_factory=dict
     )  # measure_id -> table
 
-    @cache
     def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
         """Find all join paths from this table to other tables"""
         result = []
@@ -164,7 +163,8 @@ class Table:
             item = JoinPathItem(rel.table, alias)
             if item in path:
                 continue  # skip on cycle
-            result.extend(rel.table.find_all_paths(path + (item,)))
+            if isinstance(rel.table, Table):  # skip related subqueries
+                result.extend(rel.table.find_all_paths(path + (item,)))
         return result
 
     @cached_property

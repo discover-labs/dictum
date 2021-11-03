@@ -14,7 +14,7 @@ class Join:
     foreign_key: str
     related_key: str
     alias: str
-    to: "RelationalQuery"
+    to: "AggregateQuery"
 
     def __eq__(self, other: "Join"):
         return (
@@ -32,13 +32,13 @@ class UnnestedJoin:
     left_identity: str
     left_key: str
 
-    right: Union[str, "RelationalQuery"]
+    right: Union[str, "AggregateQuery"]
     right_identity: str
     right_key: str
 
 
 @dataclass
-class RelationalQuery:
+class AggregateQuery:
     """A table and an optional tree of joins. Which tables need to be joined
     to which. Keeps track of joins, so that no join is performed twice.
 
@@ -61,7 +61,7 @@ class RelationalQuery:
 
     def join_dimension(
         self, dimension_id: str, _path: Tuple[str, ...] = ()
-    ) -> Tuple["RelationalQuery", Tuple[str, ...]]:
+    ) -> Tuple["AggregateQuery", Tuple[str, ...]]:
         """Add the necessary joins for a dimension.
         Returns innermost RelationalQuery.
         """
@@ -92,7 +92,7 @@ class RelationalQuery:
             foreign_key=related.foreign_key,
             related_key=related.table.primary_key,
             alias=alias,
-            to=RelationalQuery(table=related.table),
+            to=AggregateQuery(table=related.table),
         )
         self.joins.append(join)
         return join.to.join_dimension(dimension_id, (*_path, alias))
@@ -135,8 +135,8 @@ class RelationalQuery:
         related = self.table.related[table_or_alias]
         to = (
             related.table
-            if isinstance(related.table, RelationalQuery)
-            else RelationalQuery(table=related.table)
+            if isinstance(related.table, AggregateQuery)
+            else AggregateQuery(table=related.table)
         )
         join = Join(
             foreign_key=related.foreign_key,
@@ -182,9 +182,9 @@ class RelationalQuery:
             result += join.to._paths()
         return result
 
-    def __eq__(self, other: "RelationalQuery"):
+    def __eq__(self, other: "AggregateQuery"):
         return (
-            isinstance(other, RelationalQuery)
+            isinstance(other, AggregateQuery)
             and self.table.id == other.table.id
             and self.groupby == other.groupby
             and self.aggregate == other.aggregate
@@ -196,6 +196,7 @@ class RelationalQuery:
 class Computation:
     """What the backend gets to compile and execute."""
 
-    queries: List[RelationalQuery]
+    types: Dict[str, str]
+    queries: List[AggregateQuery]
     metrics: Dict[str, Tree]
     merge: List[str] = field(default_factory=list)

@@ -15,26 +15,23 @@ month, year etc. So, let's add a time dimension to our model.
 
 Like measures, dimensions are added under a separate `dimensions` section. Each dimension
 has a unique id that you define (in this case, `order_date`). The expression is just a
-reference to the `created_at` column on orders.
+reference to the `created_at` column on `orders`.
 
 In addition to `name` and `expr`, there's another field that's required for a dimension,
-and that is `type`. In this case, the type of `order_date` is `time`.
+and that is `type`. In this case, the type of `order_date` is `date`.
 
+!!! important
+    All calculations (metrics, measures and dimensions) have a type. For dimensions you're
+    required to specify a type, metrics and measures have a default `number` type, but
+    you can change it.
 
-## Dimension types
+    Types together with formats affect how your data is displayed. There are
 
-- `time` — anytime you have a column of type `date` or `datetime`/`timestamp`, you should
-  use this type. You'll be able to view your metrics across time, at any level of detail
-  (months, days, years etc.)
-- `ordinal` — this means that the dimensions consists of a number of discrete values
-  that are intrinsically ordered. An example of ordinal values are bins. Each bin is a
-  discrete separate entity, but there's an order to bins, you can say which bin comes
-  "before" and which "after".
-- `nominal` — this is a discrete dimension that doesn't have any natural ordering. Think
-  user names, marketing channels, product categories etc.
-- `continuous` — this is a quantity that can take any numeric value, so it's continuous,
-  not discrete. Usually continuous dimensions are used with a `step` transformation,
-  which we'll discuss later.
+    - numeric types: `number`, `decimal`, `percent`, `currency`;
+    - time types: `date`, `datetime`;
+    - and a `string` type.
+
+    For a more thorough overview of formatting and types, see [Types and Formatting](./types_formatting.md).
 
 
 ## Add more dimensions
@@ -47,10 +44,9 @@ to.
 --8<-- "snippets/dimensions/other_dimensions.yml"
 ```
 
-Channel's type is `nominal`, because we can't give it an order. `facebook` doesn't come
-"before" `instagram` of vice versa.
+Channel's type is `string`.
 
-```{ .yaml title=project.yml hl_lines="23 24 25 26" }
+```{ .yaml title=project.yml hl_lines="23 24 25 26 27" }
 --8<-- "snippets/dimensions/other_dimensions.yml"
 ```
 
@@ -58,3 +54,31 @@ Another, less obvious candidate, is `amount`. Same columns can be used in both m
 and dimensions. You can calculate sum of order amounts and care about order size as a
 dimension at the same time. For example, you might want to know which orders — large or
 small — bring your company more revenue.
+
+Amount's type is `currency`. We can also make it `number`, but `currency` type will
+display the amount as money. When a calculation's type is `currency`, you have to specify
+which currency it is. Here, it's `USD`.
+
+!!! tip
+    Currencies are specified as a 3-letter code as defined by
+    [ISO-4217 standard](https://en.wikipedia.org/wiki/ISO_4217).
+
+Now that we know how to use `currency` type, we should also update `revenue`:
+
+```{ .yaml title=project.yml hl_lines="14 15" }
+--8<-- "snippets/dimensions/other_dimensions.yml"
+```
+
+To see which orders — large or small — gave you the most revenue:
+
+```sql
+select revenue
+by order_amount with step(100)
+```
+
+To see revenue in time:
+
+```sql
+select revenue
+by order_date with month
+```

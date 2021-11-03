@@ -8,8 +8,10 @@ TRUE: "TRUE"i
 FALSE: "FALSE"i
 ?literal: TRUE | FALSE | INTEGER | FLOAT | STRING
 
+QUOTED_IDENTIFIER: "\"" _STRING_ESC_INNER "\""
 IDENTIFIER: /[a-z_]\w*/i
-call: IDENTIFIER ["(" [ literal ("," literal)* ] ")"]
+identifier: IDENTIFIER | QUOTED_IDENTIFIER
+call: identifier ["(" [ literal ("," literal)* ] ")"]
 
 _SELECT: "SELECT"i
 _WHERE: "WHERE"i
@@ -17,8 +19,8 @@ _GROUPBY: /(GROUP\s+)?BY/i
 _WITH: "WITH"i
 _IS: "IS"i
 
-metric: IDENTIFIER
-dimension: IDENTIFIER
+metric: identifier
+dimension: identifier
 grouping: dimension [ with ]
 ?with: _WITH call
 condition: dimension _IS call

@@ -10,6 +10,6 @@ orders:
   dimensions:
     order_category:
       name: Order Category
-      type: nominal
+      type: string
       expr: category.name
     ...

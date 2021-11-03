@@ -3,21 +3,17 @@ description: |
   An example project based on Chinook sqlite database, use for testing, introductory
   tutorial and as a basic example of what can be done here.
 
-.usd: &USD
-  spec: $.2f
-  currency_prefix: $
-
 metrics:
   revenue_per_track:
     name: Revenue per Track in the Library
     expr: $revenue / $track_count
-    format:
-      <<: *USD
+    type: currency
+    currency: USD
 
 unions:
   country:
     name: Country
-    type: nominal
+    type: string
 
 tables:
   genres:
@@ -27,7 +23,7 @@ tables:
       genre:
         name: Genre
         expr: Name
-        type: nominal
+        type: string
 
   artists:
     source: artists
@@ -36,7 +32,7 @@ tables:
       artist:
         name: Artist
         expr: Name
-        type: nominal
+        type: string
 
   albums:
     source: albums
@@ -49,7 +45,7 @@ tables:
       album:
         name: Album Title
         expr: Title
-        type: nominal
+        type: string
 
   media_types:
     source: media_types
@@ -58,4 +54,4 @@ tables:
       media_type:
         name: Type of Media
         expr: Name
-        type: nominal
+        type: string

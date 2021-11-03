@@ -167,3 +167,9 @@ def test_arg():
     assert parse_expr("@ >= 10").children[0] == Tree(
         "gte", [Token("ARG", "@"), Token("INTEGER", "10")]
     )
+
+
+def test_coalesce():
+    assert parse_expr("test", missing=0).children[0] == Tree(
+        "call", ["coalesce", Tree("column", ["test"]), Token("INTEGER", "0")]
+    )

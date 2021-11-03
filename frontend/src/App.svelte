@@ -2,7 +2,7 @@
     import QLPage from "./pages/QLPage.svelte";
 </script>
 
-<div>
+<div class="root">
     <nav class="navbar">
         <div class="container">Hyperplane</div>
     </nav>
@@ -15,6 +15,11 @@
 
 <style lang="scss">
     @import "./styles/colors.scss";
+    .root {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
     .navbar {
         @include card-shadow;
         background-color: $blue;
@@ -24,6 +29,8 @@
         font-size: 18pt;
     }
     .page {
-        margin-top: 30pt;
+        margin-top: 2rem;
+        flex: 1;
+        min-height: 0;
     }
 </style>

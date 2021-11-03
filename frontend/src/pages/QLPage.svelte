@@ -6,30 +6,17 @@
     let value = "";
     let queryResult: QueryResult | null = null;
     let running = false;
+    let formatting = true;
     $: executeLabel = running ? "Running..." : "Execute";
 
     const qlQuery = `
-    query executeQuery($query: String!) {
-        result: qlQuery(input: $query) {
+    query executeQuery($query: String!, $formatting: Boolean!) {
+        result: qlQuery(input: $query, formatting: $formatting) {
             metadata {
                 rawQuery
                 columns {
-                    __typename
-                    ...on Calculation {
-                        id
-                        name
-                        format {
-                            spec
-                            currencyPrefix
-                            currencySuffix
-                        }
-                    }
-                    ...on Dimension { type }
-                }
-                locale { number time }
-                store {
-                    metrics { id name }
-                    dimensions { id name }
+                    id
+                    name
                 }
             }
             data
@@ -40,7 +27,7 @@
     function execute() {
         running = true;
         server
-            .request(qlQuery, { query: value })
+            .request(qlQuery, { query: value, formatting })
             .then((data) => {
                 queryResult = data.result;
                 running = false;
@@ -61,11 +48,19 @@
 </script>
 
 <div class="wrapper">
-    <div class="query card">
-        <textarea id="query" bind:value on:keydown={keydown} />
+    <div class="query card metric">
+        <textarea
+            id="query"
+            spellcheck="false"
+            bind:value
+            on:keydown={keydown}
+        />
         <button on:click={execute} disabled={running}>{executeLabel}</button>
+        <label
+            ><input type="checkbox" bind:checked={formatting} /> Formatting</label
+        >
     </div>
-    <div class="display">
+    <div class="card display">
         {#if queryResult !== null}
             <QueryResultDisplay {queryResult} />
         {/if}
@@ -76,17 +71,31 @@
     .wrapper {
         display: flex;
         flex-direction: column;
-        max-height: 100vh;
+        height: 100%;
+    }
+    .card > * {
+        margin-bottom: 10pt;
+    }
+    .card > *:last-child {
+        margin-bottom: 0;
     }
     textarea {
         width: 100%;
         height: 10em;
         border: 0;
         resize: none;
+        border: 1px solid lightgray;
+
+        &:focus {
+            outline: none;
+        }
     }
 
     .display {
-        width: 100%;
         overflow: scroll;
+        margin-top: 1rem;
+        flex-grow: 1;
+        max-height: 100%;
+        margin-bottom: 1rem;
     }
 </style>

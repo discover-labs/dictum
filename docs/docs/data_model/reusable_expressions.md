@@ -31,3 +31,10 @@ There are two limitations to this:
 !!! tip
     If you need to declare a calculation that involves measures from multiple tables,
     read about [Metrics](./metrics_and_measures.md).
+
+Now you can query ARPPU, for example, in time:
+
+```sql
+select revenue, unique_paying_users, arppu
+by order_date with month
+```

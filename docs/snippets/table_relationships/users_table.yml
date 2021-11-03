@@ -8,9 +8,9 @@ users:
   dimensions:
     user_signup_date:
       name: User Signup Date
-      type: time
+      type: date
       expr: created_at
     user_channel:
       name: User's Marketing Channel
-      type: nominal
+      type: string
       description: Marketing channel that the user's signup was attributed to

@@ -8,17 +8,12 @@ related:
     table: tracks
     foreign_key: TrackId
 
-.usd: &USD
-  spec: $.2f
-  currency_prefix: $
-
-
 measures:
   revenue:
     name: Revenue
     expr: sum(UnitPrice * Quantity)
-    format:
-      <<: *USD
+    type: currency
+    currency: USD
 
   unique_paying_customers:
     name: Unique Paying Customers
@@ -29,30 +24,29 @@ measures:
   items_sold:
     name: Number of Items Sold
     expr: sum(Quantity)
-    format: .0f
 
   arppu:
     name: Average Revenue per Paying Customer
     expr: $revenue / $unique_paying_customers
-    format:
-      <<: *USD
+    type: currency
+    currency: USD
 
   avg_sold_unit_price:
     name: Averate Sold Unit Price
     description: Average price of a track that we sold.
     expr: $revenue / $items_sold
-    format:
-      <<: *USD
+    type: currency
+    currency: USD
 
 
 dimensions:
   order_customer_country:
     name: Order's Customer Country
     description: Duplicate of Customer Country, used for tests
-    type: nominal
+    type: string
     expr: :customer_country
 
   first_order_cohort_month:
       name: Month After First Order
-      type: ordinal
+      type: number
       expr: datediff('month', :customer_first_sale_date, :invoice_date)

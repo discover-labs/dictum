@@ -13,6 +13,9 @@ class Preprocessor(Transformer):
     def IDENTIFIER(self, token: Token):
         return token.value
 
+    def isnotnull(self, children):
+        return Tree("NOT", [Tree("isnull", children)])
+
     def not_(self, children):
         return Tree("NOT", children)
 
@@ -49,5 +52,21 @@ parser = Lark(grammar.read_text(), start="expr", lexer="standard")
 preprocessor = Preprocessor()
 
 
-def parse_expr(expr: str):
-    return preprocessor.transform(parser.parse(expr))
+def missing_token(value):
+    if isinstance(value, int):
+        return Token("INTEGER", str(value))
+    if isinstance(value, float):
+        return Token("NUMBER", str(value))
+    if isinstance(value, str):
+        return Token("STRING", value)
+    raise ValueError("Missing values must by integers, floats or strings")
+
+
+def parse_expr(expr: str, missing=None):
+    result = preprocessor.transform(parser.parse(expr))
+    if missing is not None:
+        return Tree(
+            "expr",
+            [Tree("call", ["coalesce", result.children[0], missing_token(missing)])],
+        )
+    return result

@@ -1,7 +1,13 @@
 from lark import Transformer
 
 from nestor.ql.parser import parse_ql
-from nestor.store.schema import Query, QueryTranformRequest
+from nestor.store.schema.query import (
+    Query,
+    QueryDimensionFilter,
+    QueryDimensionRequest,
+    QueryDimensionTransform,
+    QueryMetricRequest,
+)
 
 
 class QlTransformer(Transformer):
@@ -9,7 +15,7 @@ class QlTransformer(Transformer):
 
     def metric(self, children: list):
         """Return metric name as a string"""
-        return children[0]
+        return QueryMetricRequest(metric=children[0])
 
     def select(self, children: list):
         """Just return a list of metric names"""
@@ -20,49 +26,41 @@ class QlTransformer(Transformer):
 
     def call(self, children: list):
         id, *args = children
-        return QueryTranformRequest(id=id, args=args)
+        return QueryDimensionTransform(id=id, args=args)
 
     def condition(self, children: list):
-        return children
+        dimension, filter = children
+        return QueryDimensionFilter(dimension=dimension, filter=filter)
 
     def where(self, conditions: list):
-        result = {}
-        for dimension, request in conditions:
-            if dimension in result:
-                raise KeyError(f"Duplicate dimension in condition: {dimension}")
-            result[dimension] = request
-        return result
+        return conditions
 
     def grouping(self, children: list):
         return children
 
     def groupby(self, children: list):
         dimensions = []
-        transforms = {}
         for grouping in children:
-            dimension = grouping[0]
-            if dimension in dimensions:
-                raise KeyError(f"Duplicate dimension in GROUP BY: {dimension}")
-            if len(grouping) == 2:
-                transforms[dimension] = grouping[1]
-            dimensions.append(dimension)
-        return dimensions, transforms
+            transform = None if len(grouping) == 1 else grouping[1]
+            dimensions.append(
+                QueryDimensionRequest(dimension=grouping[0], transform=transform)
+            )
+        return dimensions
 
     def query(self, children: list):
         metrics, *rest = children
-        filters, dimensions, transforms = {}, [], {}
+        filters, dimensions = [], []
         if len(rest) > 0:
             if len(rest) == 2:
-                filters, (dimensions, transforms) = rest
-            elif isinstance(rest[0], dict):
+                filters, dimensions = rest
+            elif isinstance(rest[0][0], QueryDimensionFilter):
                 filters = rest[0]
             else:
-                dimensions, transforms = rest[0]
+                dimensions = rest[0]
         return Query(
             metrics=metrics,
             dimensions=dimensions,
             filters=filters,
-            transforms=transforms,
         )
 
 

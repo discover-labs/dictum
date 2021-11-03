@@ -4,14 +4,8 @@ schema {
 
 type Query {
     query(input: StoreQuery!): StoreQueryResult!
-    qlQuery(input: String!): StoreQueryResult!
+    qlQuery(input: String!, formatting: Boolean): StoreQueryResult!
     store: Store!
-}
-
-type CalculationFormat {
-    spec: String!
-    currencyPrefix: String!
-    currencySuffix: String!
 }
 
 interface Calculation {
@@ -19,7 +13,8 @@ interface Calculation {
     name: String!
     description: String
     expr: String!
-    format: CalculationFormat
+    type: String!
+    format: String
 }
 
 type Metric implements Calculation {
@@ -27,33 +22,21 @@ type Metric implements Calculation {
     name: String!
     description: String
     expr: String!
-    format: CalculationFormat
+    type: String!
+    format: String
     dimensions: [Dimension!]!
-}
-
-enum DimensionType {
-    time
-    continuous
-    ordinal
-    nominal
 }
 
 scalar Range
 scalar Values
-
-type DimensionInfo {
-    range: Range
-    values: Values
-}
 
 type Dimension implements Calculation {
     id: String!
     name: String!
     description: String
     expr: String!
-    format: CalculationFormat
-    type: DimensionType!
-    info: DimensionInfo
+    type: String!
+    format: String
 }
 
 type Store {
@@ -66,6 +49,7 @@ input StoreQuery {
     metrics: [String!]!
     dimensions: [String!]!
     filters: [String!]!
+    formatting: Boolean!
 }
 
 scalar Record
@@ -75,20 +59,10 @@ type StoreQueryResult {
     data: [Record!]!
 }
 
-scalar Columns
-scalar NumberLocaleDefinition
-scalar TimeLocaleDefinition
-
-type LocaleDefinition {
-    number: NumberLocaleDefinition
-    time: TimeLocaleDefinition
-}
-
-union ResultColumn = Metric | Dimension
-
 type StoreQueryResultMetadata {
     rawQuery: String!
-    columns: [ResultColumn!]!
-    locale: LocaleDefinition
+    columns: [Calculation!]!
+    locale: String!
+    formatting: Boolean!
     store: Store!
 }

@@ -1,13 +1,13 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from lark import Transformer, Tree
 
 import nestor.store
 from nestor.store import schema
-from nestor.store.schema.types import CalculationType
+from nestor.store.expr.parser import missing_token
 
 
 class ColumnReferenceTransformer(Transformer):
@@ -31,7 +31,10 @@ class Calculation:
     description: Optional[str]
     expr: Tree
     str_expr: str
-    format: Optional[schema.CalculationFormat]
+    type: str
+    format: Optional[str]
+    currency: Optional[str]
+    missing: Optional[Any]
 
     @cached_property
     def join_paths(self) -> List[List[str]]:
@@ -80,7 +83,7 @@ class TableCalculation(Calculation):
 
     @cached_property
     def joins(self) -> List["nestor.store.Join"]:
-        query = nestor.store.RelationalQuery(table=self.table)
+        query = nestor.store.AggregateQuery(table=self.table)
         for ref in self.expr.find_data("column"):
             *tables, _ = ref.children
             query.add_path(tables)
@@ -89,18 +92,17 @@ class TableCalculation(Calculation):
 
 @dataclass
 class DimensionQueryDefaults:
-    filter: Optional[schema.QueryTranformRequest] = None
-    transform: Optional[schema.QueryTranformRequest] = None
+    filter: Optional[schema.QueryDimensionTransform] = None
+    transform: Optional[schema.QueryDimensionTransform] = None
 
 
 @dataclass(eq=False, repr=False)
 class Dimension(TableCalculation):
     # not really a default, schema prevents that
-    type: CalculationType = CalculationType.continuous
     query_defaults: Optional[DimensionQueryDefaults] = None
 
-    @property
-    def related(self) -> Dict[str, "nestor.store.RelationalQuery"]:
+    @cached_property
+    def related(self) -> Dict[str, "nestor.store.AggregateQuery"]:
         """Virtual related tables that need to be added to the user-defined related
         tables. Will be joined as a subquery. Aggregate dimensions are implemented this
         way.
@@ -111,7 +113,7 @@ class Dimension(TableCalculation):
             # figure out the subquery — group the measure by self.table.primary_key
             measure_id = ref.children[0]
             source_table = self.table.measure_backlinks[measure_id]
-            subquery = nestor.store.RelationalQuery(
+            subquery = nestor.store.AggregateQuery(
                 table=source_table,
                 subquery=True,
             )
@@ -153,21 +155,27 @@ class Measure(TableCalculation):
         return self.table.allowed_dimensions.values()
 
     def metric(self) -> "Metric":
+        expr = Tree("measure", [self.id])
+        if self.missing is not None:
+            expr = Tree("call", ["coalesce", expr, missing_token(self.missing)])
+        expr = Tree("expr", [expr])
         return Metric(
             self.id,
             name=self.name,
             description=self.description,
-            expr=Tree("expr", [Tree("measure", [self.id])]),
+            expr=expr,
             str_expr=self.str_expr,
+            type=self.type,
             format=self.format,
+            currency=self.currency,
             measures=[self],
+            missing=self.missing,
         )
 
 
 @dataclass(repr=False)
 class Metric(Calculation):
     measures: List[Measure] = field(default_factory=list)
-    key: bool = False
 
     @cached_property
     def dimensions(self) -> Dict[str, Dimension]:

@@ -9,6 +9,7 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
+  - tables
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences
@@ -25,9 +26,9 @@ nav:
     - Union Dimensions: data_model/union_dimensions.md
     - Metrics and Measures: data_model/metrics_and_measures.md
     - Aggregate Dimensions: data_model/aggregate_dimensions.md
-    - Default Transforms and Filters: data_model/dimension_transforms.md
+    - Types and Formatting: data_model/types_formatting.md
     - Organizing a Larger Project with Multiple Files: data_model/multiple_files.md
-    # - Formatting -: index.md
+    - Default Transforms and Filters: data_model/dimension_transforms.md
     # - Table Calculations -: index.md
   # - Query Guide:
   #   - Introduction: query/intro.md

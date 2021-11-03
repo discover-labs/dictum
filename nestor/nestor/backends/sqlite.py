@@ -121,7 +121,7 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
         """SQLite doesn't support outer joins, so we have to materialize here and
         proceed with Pandas.
         """
-        dfs = [self.connection.execute(q.select()).data for q in queries]
+        dfs = [pd.DataFrame(self.connection.execute(q.select())) for q in queries]
         if len(merge_on) > 0:
             dfs = [df.set_index(merge_on) for df in dfs]
         res = pd.concat(dfs, axis=1)
@@ -159,11 +159,18 @@ class SQLiteConnection(SQLAlchemyConnection):
         return create_engine(self.url)
 
     def compute(self, computation: Computation) -> BackendResult:
-        """Call SQLAlchemyCompiler's compile() to get a fake raw query."""
+        """Call SQLAlchemyCompiler's compile() to get a fake raw query. Coerce types."""
         raw_query = sqlparse.format(
             str(SQLiteRawQueryCompiler(self).compile(computation).compile()),
             reindent=True,
         )
-        return BackendResult(
-            data=self.compiler.compile(computation), raw_query=raw_query
-        )
+        df: pd.DataFrame = self.compiler.compile(computation)
+
+        for col, T in computation.types.items():
+            if T == "date":
+                df[col] = pd.to_datetime(df[col]).dt.date
+            elif T == "datetime":
+                df[col] = pd.to_datetime(df[col]).dt.to_pydatetime()
+
+        data = df.to_dict(orient="records")
+        return BackendResult(data=data, raw_query=raw_query)

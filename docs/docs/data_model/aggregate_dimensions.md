@@ -23,7 +23,7 @@ this measure will be calculated at the level of the table's primary key.
 
 First, we need to create the measures that will support them.
 
-```{ .yaml hl_lines="3 4 5 6 7 8 9" }
+```{ .yaml hl_lines="4 5 6 7 8 9 10 11" }
 --8<-- "snippets/aggregate_dimensions/measures.yml"
 ```
 
@@ -56,3 +56,9 @@ join path to it. To reference a dimensions, prefix it's ID with a colon (`:`).
 
 Now users can do basic cohort analysis. For example, they can view how much revenue a
 particular user cohort brings over time, or compare between those cohorts.
+
+```sql
+select revenue, unique_paying_users
+by first_order_date with month,
+   months_since_first_order
+```

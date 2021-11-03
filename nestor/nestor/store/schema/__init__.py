@@ -1,20 +1,20 @@
-from nestor.store.schema.config import (
-    CalculationFormat,
-    Config,
-    Dimension,
-    Measure,
-    Table,
-)
+from nestor.store.schema.config import Config, Dimension, Measure, Table
 from nestor.store.schema.metadata import CalculationMetadata
-from nestor.store.schema.query import Query, QueryTranformRequest
+from nestor.store.schema.query import (
+    Query,
+    QueryDimensionFilter,
+    QueryDimensionRequest,
+    QueryDimensionTransform,
+)
 
 __all__ = [
-    "CalculationFormat",
     "Config",
     "Dimension",
     "Measure",
     "Table",
     "CalculationMetadata",
     "Query",
-    "QueryTranformRequest",
+    "QueryDimensionTransform",
+    "QueryDimensionRequest",
+    "QueryDimensionFilter",
 ]

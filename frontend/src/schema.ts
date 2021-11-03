@@ -1,19 +1,17 @@
-import type { FormatLocaleDefinition } from "d3-format";
-import type { TimeLocaleDefinition } from "d3-time-format";
-
 export interface Store {
     measures: Measure[];
     dimensions: Dimension[];
 }
 
-type CalculationType = "time" | "continuous" | "ordinal" | "nominal";
+type CalculationType = "number" | "decimal" | "percent" | "currency" | "date" | "datetime" | "string";
 
 export interface Calculation {
     id: string;
     name: string;
     description: string | null;
     type: CalculationType;
-    format: CalculationFormat;
+    format: String;
+    currency: String | null;
 }
 
 export interface Measure extends Calculation { }
@@ -44,20 +42,9 @@ export interface QueryResult {
     metadata: QueryResultMetadata;
 }
 
-export interface CalculationFormat {
-    spec: string;
-    currencyPrefix: string;
-    currencySuffix: string;
-}
-
-interface LocaleDefinition {
-    number: FormatLocaleDefinition;
-    time: TimeLocaleDefinition;
-}
-
 export interface QueryResultMetadata {
     rawQuery: string;
     columns: Calculation[];
     store: Store;
-    locale: LocaleDefinition;
+    locale: String;
 }

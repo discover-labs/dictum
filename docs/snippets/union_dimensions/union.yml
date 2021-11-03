@@ -6,6 +6,7 @@ unions:
   date:
     name: Date
     description: User signup date, order date etc.
+    type: date
 
 tables:
   ...

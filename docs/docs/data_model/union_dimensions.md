@@ -1,6 +1,6 @@
 # Union Dimensions
 
-Oftentimes a dimension spans multiple tables. This is usually the case with `time` dimensions.
+Oftentimes a dimension spans multiple tables. This is usually the case with time dimensions.
 If you think about it, `order_date` and `user_signup_date` are the same thing: just
 an event time. In the current model, you can't calculate both signups and revenue by
 month: order's "month" and signup "month" are not connected.
@@ -13,15 +13,16 @@ an replacing the values in `orders` and `users` with a surrogate key. It's also 
 practice to create a `calendar` dimension table and linking all the dates to it.
 
 This is a good approach and would work here, but it's also very tedious. Hyperplane
-allows you to declare "virtual" dimensions called _Unions_. Just like normal dimensions, they have an
-ID, a name and an optional description.
+allows you to declare "virtual" dimensions called _Unions_. Just like normal dimensions,
+they have an ID, a name and an optional description.
 
 
 ## Declare a union
 
-Let's declare a union for time dimensions. Unions are declared at the root of the file.
+Let's declare a union for time dimensions. Unions are declared at the root of the model
+file.
 
-```{ .yaml title=project.yml hl_lines="5 6 7 8" }
+```{ .yaml title=project.yml hl_lines="5 6 7 8 9" }
 --8<-- "snippets/union_dimensions/union.yml"
 ```
 
@@ -29,6 +30,13 @@ To add a dimension to the union, you need to set the `union` attribute on that d
 
 ```{ .yaml title=project.yml hl_lines="9 19" }
 --8<-- "snippets/union_dimensions/dimensions.yml"
+```
+
+Now you can just use `date` dimension to query both metrics:
+
+```sql
+select revenue, n_users
+by date with month
 ```
 
 
@@ -53,4 +61,11 @@ end-user.
 
 ```{ .yaml hl_lines="5 9 10 11" }
 --8<-- "snippets/union_dimensions/n_users.yml"
+```
+
+And the query:
+
+```sql
+select user_signups
+by date with month
 ```

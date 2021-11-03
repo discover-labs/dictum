@@ -4,8 +4,12 @@ The goal of Hyperplane is to give it's users an opportunity to ask questions abo
 various business metrics on an arbitrary level of detail. To better understand the
 context the data model exists in, let's first see how these questions are formulated.
 
-Hyperplane queries are structured objects. Here we concentrate on the structure and
-meaning, not actual APIs. We'll use pseudo-SQL code to show what can be queried.
+Hyperplane queries are structured objects. There are many ways to query Hyperplane store,
+including [GraphQL API](../reference/graphql.md),
+[Python code](../reference/python_api.md) and a special
+[SQL-like query language](../reference/query_language.md). Here we'll use the latter as
+an example. The query language is especially useful when you're developing you data
+model and need to test that things are working as expected.
 
 
 ## Metrics and dimensions
@@ -29,7 +33,7 @@ dimensions that are compatible with the metrics. Metric-dimension compatibility 
 on your data schema and business domain. For example, revenue by product category or
 customer city makes sense. Number of user signups by product category does not — there's
 no connection. Hyperplane tracks these dependencies and will let the client know which
-dimensions and measures can be added to the query next.
+metrics and dimensions can be added to the query next.
 
 
 ## Filters
@@ -68,6 +72,10 @@ group by
          "date" with datetrunc('month'),
    order_amount with step(10)
 ```
+
+The `step` transform is used to discretize continuous dimensions — think of it as putting
+values into bins. You give it the step size and get results like `0` for `[0; 10)`, `10`
+for `[10;20)` etc.
 
 !!! tip
     You may have noticed that these queries are missing the `FROM` clause. This is because

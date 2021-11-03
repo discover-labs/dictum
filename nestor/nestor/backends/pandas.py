@@ -8,7 +8,7 @@ from lark import Transformer
 from nestor.backends.base import Compiler
 from nestor.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from nestor.backends.mixins.datediff import DatediffCompilerMixin
-from nestor.store import RelationalQuery
+from nestor.store import AggregateQuery
 
 
 class PandasColumnTransformer(Transformer):
@@ -43,6 +43,9 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
 
     def OR(self, a, b):
         return a | b
+
+    def isnull(self, value):
+        return value.isna()
 
     def case(self, *whens, else_=None):
         return pd.Series(
@@ -81,6 +84,12 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
 
     def ceil(self, args: list):
         return args[0].ceil()
+
+    def coalesce(self, args: list):
+        result, *rest = args
+        for item in rest:
+            result = result.fillna(item)
+        return result
 
     # type casting
 
@@ -126,7 +135,7 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
 
     # compilation
 
-    def compile_query(self, query: RelationalQuery):
+    def compile_query(self, query: AggregateQuery):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 

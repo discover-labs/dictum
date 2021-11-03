@@ -49,6 +49,13 @@ Now we can finally add `Percentage of Paying Users`.
 --8<--- "snippets/metrics_and_measures/ppu.yml"
 ```
 
+And query it:
+
+```sql
+select unique_active_users, unique_paying_users, ppu
+by date with month
+```
+
 
 ## Understand how queries are executed
 
@@ -74,7 +81,7 @@ This is done with a `FULL OUTER JOIN`.
     backend.
 
     SQLite doesn't support `FULL OUTER JOIN` construct, so the backend will materialize
-    the above queries into a Pandas DataFrame and calculate everything in Pandas.
+    the above two queries into a Pandas DataFrame and calculate the metrics in Pandas.
 
 So, aggregations calculated at the first step are measures, and metrics are just calculations
 on measures done after the merge step.

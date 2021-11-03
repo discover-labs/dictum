@@ -1,31 +1,38 @@
+import datetime
+
 import pytest
 from pandas.api.types import is_datetime64_any_dtype
 
 from nestor.backends.base import BackendResult
-from nestor.store import Computation, RelationalQuery, Store
+from nestor.store import AggregateQuery, Computation, Store
 from nestor.store.expr.parser import parse_expr
-from nestor.store.schema import Query, QueryTranformRequest
+from nestor.store.schema import Query
 
 
 def test_groupby(chinook: Store, connection):
-    q = Query(metrics=["track_count"], dimensions=["genre"])
+    q = Query.parse_obj(
+        {"metrics": [{"metric": "track_count"}], "dimensions": [{"dimension": "genre"}]}
+    )
     comp = chinook.get_computation(q)
-    result = connection.compute(comp)
-    assert isinstance(result, BackendResult)
-    df = result.data
+    df = connection.compute_df(comp)
     assert df[df["genre"] == "Rock"].iloc[0]["track_count"] == 1297
 
 
 def test_filter(chinook: Store, connection):
-    q = Query(
-        metrics=["items_sold"],
-        filters={
-            "genre": QueryTranformRequest(id="in", args=["Rock"]),
-            "customer_country": QueryTranformRequest(id="in", args=["USA"]),
-        },
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "items_sold"}],
+            "filters": [
+                {"dimension": "genre", "filter": {"id": "in", "args": ["Rock"]}},
+                {
+                    "dimension": "customer_country",
+                    "filter": {"id": "in", "args": ["USA"]},
+                },
+            ],
+        }
     )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert df.iloc[0][0] == 157
 
 
@@ -45,30 +52,50 @@ def _test_convert_datetime(chinook: Store, connection):
 
 
 def test_metric_not_measure(chinook: Store, connection):
-    q = Query(metrics=["revenue", "track_count", "revenue_per_track"])
+    q = Query.parse_obj(
+        {
+            "metrics": [
+                {"metric": "revenue"},
+                {"metric": "track_count"},
+                {"metric": "revenue_per_track"},
+            ]
+        }
+    )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 0.66)
 
 
 def test_metric_with_groupby(chinook: Store, connection):
-    q = Query(metrics=["arppu", "track_count"], dimensions=["genre"])
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "arppu"}, {"metric": "track_count"}],
+            "dimensions": [{"dimension": "genre"}],
+        }
+    )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert df.shape == (25, 3)
 
 
 def test_multiple_facts(chinook: Store, connection):
-    q = Query(metrics=["items_sold", "track_count"])
+    q = Query.parse_obj(
+        {"metrics": [{"metric": "items_sold"}, {"metric": "track_count"}]}
+    )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert tuple(df.iloc[0]) == (2240, 3503)
 
 
 def test_multiple_facts_dimensions(chinook: Store, connection):
-    q = Query(metrics=["items_sold", "track_count"], dimensions=["genre"])
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "items_sold"}, {"metric": "track_count"}],
+            "dimensions": [{"dimension": "genre"}],
+        }
+    )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert tuple(df[df["genre"] == "Rock"].iloc[0][["items_sold", "track_count"]]) == (
         835,
         1297,
@@ -77,34 +104,45 @@ def test_multiple_facts_dimensions(chinook: Store, connection):
 
 def test_if(chinook: Store, connection):
     """Test if() function and case when ... then ... else ... end constructs"""
-    q = Query(metrics=["items_sold"], dimensions=["invoice_year", "leap_year"])
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "items_sold"}],
+            "dimensions": [{"dimension": "invoice_year"}, {"dimension": "leap_year"}],
+        }
+    )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert df[df["leap_year"] == "Yes"].iloc[0]["invoice_year"] == 2012
 
 
 def test_subquery_join(chinook: Store, connection):
-    q = Query(metrics=["items_sold"], dimensions=["customer_orders_amount_10_bins"])
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "items_sold"}],
+            "dimensions": [{"dimension": "customer_orders_amount_10_bins"}],
+        }
+    )
     comp = chinook.get_computation(q)
-    df = connection.compute(comp).data
+    df = connection.compute_df(comp)
     assert df.shape == (2, 2)
     assert df[df["customer_orders_amount_10_bins"] == 30].iloc[0].items_sold == 1708
 
 
 @pytest.fixture(scope="module")
 def compute(chinook: Store, connection):
-    def computer(expr: str):
+    def computer(expr: str, type="datetime"):
         expr = parse_expr(expr)
         comp = Computation(
             queries=[
-                RelationalQuery(
+                AggregateQuery(
                     table=chinook.tables.get("media_types"), groupby={"value": expr}
                 )
             ],
             merge=["value"],
             metrics={},
+            types={"value": type},
         )
-        df = connection.compute(comp).data
+        df = connection.compute_df(comp)
         return str(df.iloc[0, 0])
 
     return computer
@@ -139,12 +177,12 @@ def test_datepart(compute):
     dt = "2021-12-19 14:05:38"
 
     def datepart(part: str):
-        return int(compute(f"datepart('{part}', toDatetime('{dt}'))"))
+        return int(compute(f"datepart('{part}', toDatetime('{dt}'))", type="number"))
 
     assert datepart("year") == 2021
     assert datepart("quarter") == 4
-    assert compute("datepart('quarter', toDatetime('2021-12-31'))") == "4"
-    assert compute("datepart('quarter', toDatetime('2022-01-01'))") == "1"
+    assert compute("datepart('quarter', toDatetime('2021-12-31'))", "number") == "4"
+    assert compute("datepart('quarter', toDatetime('2022-01-01'))", "number") == "1"
     assert datepart("month") == 12
     assert datepart("week") == 50
     assert datepart("day") == 19
@@ -155,7 +193,11 @@ def test_datepart(compute):
 
 def test_datediff(compute):
     def datediff(part, s, e):
-        return int(compute(f"datediff('{part}', toDatetime('{s}'), toDatetime('{e}'))"))
+        return int(
+            compute(
+                f"datediff('{part}', toDatetime('{s}'), toDatetime('{e}'))", "number"
+            )
+        )
 
     assert datediff("year", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
     assert datediff("quarter", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1
@@ -174,3 +216,33 @@ def test_datediff(compute):
     assert datediff("hour", "2021-12-31 04:00:00", "2021-12-31 04:59:59") == 0
     assert datediff("minute", "2021-12-31 04:59:00", "2021-12-31 04:59:59") == 0
     assert datediff("second", "2021-12-31 04:59:59", "2021-12-31 04:59:59") == 0
+
+
+def test_date(chinook: Store, connection):
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "revenue"}],
+            "dimensions": [{"dimension": "invoice_date"}],
+        }
+    )
+    comp = chinook.get_computation(q)
+    result = connection.compute(comp)
+    assert isinstance(result, BackendResult)
+    assert isinstance(result.data, list)
+    assert isinstance(result.data[0], dict)
+    assert isinstance(result.data[0]["invoice_date"], datetime.date)
+
+
+def test_datetime(chinook: Store, connection):
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "revenue"}],
+            "dimensions": [{"dimension": "invoice_datetime"}],
+        }
+    )
+    comp = chinook.get_computation(q)
+    result = connection.compute(comp)
+    assert isinstance(result, BackendResult)
+    assert isinstance(result.data, list)
+    assert isinstance(result.data[0], dict)
+    assert isinstance(result.data[0]["invoice_datetime"], datetime.datetime)

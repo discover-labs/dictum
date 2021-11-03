@@ -12,6 +12,7 @@ user_sessions:
       expr: distinct(user_id)
   dimensions:
     session_start_date:
-      union: date
       name: Session Start Date
       expr: started_at
+      type: date
+      union: date

@@ -1,18 +1,10 @@
 <script lang="ts">
     import BigNumber from "./BigNumber.svelte";
 
-    export let data: object[];
-    export let formatters: object;
-    export let meta: object;
-    let values = [];
+    export let data: object;
+    export let meta: { id: string; name: string }[];
 
-    $: if (data.length === 1) {
-        const row = data[0];
-        values = Object.keys(row).map((k) => ({
-            name: meta[k].name,
-            value: formatters[k](row[k]),
-        }));
-    }
+    $: values = meta.map(({ id, name }) => ({ name, value: data[id] }));
 </script>
 
 <div class="big-numbers">

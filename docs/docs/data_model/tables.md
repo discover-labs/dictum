@@ -90,3 +90,11 @@ about it, it makes sense: revenue is just the sum of order amounts.
     defining _measures_. There is a subtle difference between measures and metrics, but
     all measures are automatically promoted to metrics by default. So, for the time being,
     you can think of them as the same thing.
+
+Now you can query your store in the web interface:
+
+```sql
+select revenue
+```
+
+This should give you a single number — total revenue from the `orders` table.

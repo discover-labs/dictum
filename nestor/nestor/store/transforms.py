@@ -27,6 +27,8 @@ class Transform:
     expr: Tree
     args: List[str] = field(default_factory=list)
     description: Optional[str] = None
+    return_type: Optional[str] = None
+    format: Optional[str] = None
 
     def compile(self, arg, args: list):
         if len(args) != len(self.args):

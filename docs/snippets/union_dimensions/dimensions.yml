@@ -3,8 +3,8 @@ tables:
     ...
     dimensions:
       order_date:
-        name: Time of Order
-        type: time
+        name: Date of Order
+        type: date
         expr: created_at
         union: date
       order_channel:
@@ -14,7 +14,7 @@ tables:
     dimensions:
       user_signup_date:
         name: User Signup Date
-        type: time
+        type: date
         expr: created_at
         union: date
       user_channel:

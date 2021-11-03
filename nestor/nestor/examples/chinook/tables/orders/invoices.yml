@@ -6,45 +6,44 @@ related:
     table: customers
     foreign_key: CustomerId
 
-.usd: &USD
-  spec: $.2f
-  currency_prefix: $
-
 
 measures:
   min_sale_date:
     metric: false
     name: First Sale Date
-    expr: min(InvoiceDate)
     description: Not a metric, used in customers dimension.
+    type: date
+    expr: min(InvoiceDate)
+
 
 dimensions:
-  invoice_date:
+  invoice_date: &date
     name: Sale Date
     expr: InvoiceDate
-    type: time
-    format: "%d.%m.%Y"
+    type: date
     query_defaults:
       filter: last(30, 'day')
       transform: datetrunc('day')
 
+  invoice_datetime:
+    <<: *date
+    name: Sale Datetime
+    type: datetime
+
   order_amount:
     name: Order Amount
     expr: Total
-    type: continuous
-    format:
-      <<: *USD
+    type: number
 
   order_amount_10_dollar_bins:
     name: Total Order Amount ($10 bins)
     expr: Total // 10 * 10
-    type: ordinal
-    format:
-      <<: *USD
+    type: currency
+    currency: USD
 
   invoice_year:
     name: Invoice Year
-    type: ordinal
+    type: number
     expr: datepart('year', :invoice_date)
 
   leap_year:
@@ -54,4 +53,4 @@ dimensions:
           :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
           'No'
         )
-    type: nominal
+    type: string

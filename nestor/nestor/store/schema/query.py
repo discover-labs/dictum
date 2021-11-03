@@ -1,10 +1,9 @@
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from lark import Transformer
 from pydantic import BaseModel, Field
 
 from nestor.store.expr import parse_expr
-from nestor.store.schema.types import Identifier
 
 
 class TransformExprTransformer(Transformer):
@@ -25,7 +24,7 @@ class TransformExprTransformer(Transformer):
 
     def call(self, args: list):
         id, *args = args
-        return QueryTranformRequest(id=id.lower(), args=args)
+        return QueryDimensionTransform(id=id.lower(), args=args)
 
     def __default__(self, _, data, *__):
         raise ValueError(
@@ -36,12 +35,12 @@ class TransformExprTransformer(Transformer):
 transformer = TransformExprTransformer()
 
 
-class QueryTranformRequest(BaseModel):
+class QueryDimensionTransform(BaseModel):
     id: str
     args: List
 
     @classmethod
-    def parse(self, call: Optional[str]) -> Optional["QueryTranformRequest"]:
+    def parse(self, call: Optional[str]) -> Optional["QueryDimensionTransform"]:
         if call is None:
             return None
         expr = parse_expr(call).children[0]
@@ -52,6 +51,20 @@ class QueryTranformRequest(BaseModel):
         return transformer.transform(expr)
 
 
+class QueryDimensionRequest(BaseModel):
+    dimension: str
+    transform: Optional[QueryDimensionTransform]
+
+
+class QueryDimensionFilter(BaseModel):
+    dimension: str
+    filter: QueryDimensionTransform
+
+
+class QueryMetricRequest(BaseModel):
+    metric: str
+
+
 class Query(BaseModel):
     """A query object that a store understands. Represents a request for metrics
     from a user.
@@ -60,7 +73,7 @@ class Query(BaseModel):
     filters: list of boolean expressions. will be concatenated with AND
     """
 
-    metrics: List[Identifier] = Field(..., min_items=1)
-    dimensions: List[Identifier] = []
-    transforms: Dict[str, QueryTranformRequest] = {}
-    filters: Dict[str, QueryTranformRequest] = {}
+    metrics: List[QueryMetricRequest] = Field(..., min_items=1)
+    dimensions: List[QueryDimensionRequest] = []
+    filters: List[QueryDimensionFilter] = []
+    formatting: bool = False

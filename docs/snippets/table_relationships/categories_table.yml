@@ -4,5 +4,5 @@ categories:
   dimensions:
     category:
       name: Category
-      type: nominal
+      type: string
       expr: name

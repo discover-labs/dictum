@@ -13,7 +13,7 @@ from nestor.store.calculations import (
     Measure,
     Metric,
 )
-from nestor.store.computation import Computation, RelationalQuery
+from nestor.store.computation import AggregateQuery, Computation
 from nestor.store.expr.parser import parse_expr
 from nestor.store.table import (
     CalculationResolver,
@@ -138,12 +138,17 @@ class Store:
     """
 
     def __init__(self, config: schema.Config):
+        self.name = config.name
+        self.description = config.description
+        self.locale = config.locale
+
         self.tables: Dict[str, Table] = {}
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
-        self.filters = {}
-        self.transforms = {}
+        self.filters: Dict[str, Transform] = {}
+        self.transforms: Dict[str, Transform] = {}
+        self.unions = {}
 
         # add filters and transforms
         for filter in config.filters.values():
@@ -155,8 +160,21 @@ class Store:
         for transform in config.transforms.values():
             self.transforms[transform.id] = Transform(
                 expr=parse_expr(transform.expr),
-                **transform.dict(include={"id", "name", "args", "description"}),
+                **transform.dict(
+                    include={
+                        "id",
+                        "name",
+                        "args",
+                        "description",
+                        "return_type",
+                        "format",
+                    }
+                ),
             )
+
+        # add unions
+        for union in config.unions.values():
+            self.unions[union.id] = union
 
         # add all tables and their relationships
         for config_table in config.tables.values():
@@ -184,19 +202,27 @@ class Store:
             table = self.tables.get(config_table.id)
             for dimension in config_table.dimensions.values():
                 _dimension = Dimension(
-                    expr=parse_expr(dimension.expr),
+                    expr=parse_expr(dimension.expr, missing=dimension.missing),
                     str_expr=dimension.expr,
                     table=table,
                     query_defaults=DimensionQueryDefaults(
-                        filter=schema.QueryTranformRequest.parse(
+                        filter=schema.QueryDimensionTransform.parse(
                             dimension.query_defaults.filter
                         ),
-                        transform=schema.QueryTranformRequest.parse(
+                        transform=schema.QueryDimensionTransform.parse(
                             dimension.query_defaults.transform
                         ),
                     ),
                     **dimension.dict(
-                        include={"id", "name", "type", "description", "format"}
+                        include={
+                            "id",
+                            "name",
+                            "description",
+                            "type",
+                            "format",
+                            "currency",
+                            "missing",
+                        }
                     ),
                 )
                 table.dimensions[dimension.id] = _dimension
@@ -237,10 +263,19 @@ class Store:
         # add and resolve metrics
         for metric in config.metrics.values():
             self.metrics[metric.id] = Metric(
-                expr=parse_expr(metric.expr),
+                expr=parse_expr(metric.expr, metric.missing),
                 str_expr=metric.expr,
-                format=metric.format,
-                **metric.dict(include={"id", "name", "description"}),
+                **metric.dict(
+                    include={
+                        "id",
+                        "name",
+                        "description",
+                        "type",
+                        "format",
+                        "currency",
+                        "missing",
+                    }
+                ),
             )
         metric_resolver = MetricResolver(
             dependencies={k: v.expr for k, v in self.metrics.items()},
@@ -262,7 +297,7 @@ class Store:
             str_expr=measure.expr,
             format=measure.format,
             table=table,
-            **measure.dict(include={"id", "name", "description"}),
+            **measure.dict(include={"id", "name", "description", "type", "currency", "missing"}),
         )
         if measure.metric:
             self.metrics.add(_measure.metric())
@@ -282,13 +317,27 @@ class Store:
 
     def get_computation(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
-        metrics = {m: self.metrics.get(m) for m in query.metrics}
+        types = {}
+        metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}
         tables = defaultdict(lambda: [])
 
         # group measures by anchor
         for metric in metrics.values():
+            types[metric.id] = metric.type
             for measure in metric.measures:
                 tables[measure.table.id].append(measure.id)
+
+        # process dimensions
+        for request in query.dimensions:
+            union = self.unions.get(request.dimension)
+            if union is not None:
+                types[request.dimension] = union.type
+            else:
+                types[request.dimension] = self.dimensions.get(request.dimension).type
+            if request.transform is not None:
+                transform = self.transforms[request.transform.id]
+                if transform.return_type is not None:
+                    types[request.dimension] = transform.return_type
 
         # get queries for each anchor
         queries = []
@@ -298,21 +347,50 @@ class Store:
                     measures=measures,
                     dimensions=query.dimensions,
                     filters=query.filters,
-                    transforms=query.transforms,
                 )
             )
+
         return Computation(
+            types=types,
             metrics={k: v.expr for k, v in metrics.items()},
             queries=queries,
-            merge=query.dimensions,
+            merge=[d.dimension for d in query.dimensions],
         )
+
+    def get_metadata(self, query: schema.Query) -> Dict[str, Calculation]:
+        """Returns a dict of metadata relevant to the query (mostly having to do with
+        updated formats).
+        """
+        result = {}
+        for request in query.dimensions:
+            dimension = self.dimensions.get(request.dimension)
+            _type = dimension.type
+            _format = dimension.format
+            if request.transform is not None:
+                transform = self.transforms[request.transform.id]
+                _type = (
+                    dimension.type
+                    if transform.return_type is None
+                    else transform.return_type
+                )
+                _format = (
+                    transform.format
+                    if transform.format is not None
+                    else dimension.format
+                )
+            result[request.dimension] = dataclasses.replace(
+                dimension, type=_type, format=_format
+            )
+        for request in query.metrics:
+            result[request.metric] = self.metrics.get(request.metric)
+        return result
 
     def suggest_metrics(self, query: schema.Query) -> List[Measure]:
         """Suggest a list of possible metrics based on a query.
         Only metrics that can be used with all the dimensions from the query
         """
         result = []
-        query_dims = set(query.dimensions)
+        query_dims = set(r.dimension for r in query.dimensions)
         for metric in self.metrics.values():
             if metric.id in query.metrics:
                 continue
@@ -325,9 +403,9 @@ class Store:
         """Suggest a list of possible dimensions based on a query. Only dimensions
         shared by all measures that are already in the query.
         """
-        dims = set(self.dimensions) - set(query.dimensions)
-        for metric_id in query.metrics:
-            metric = self.metrics.get(metric_id)
+        dims = set(self.dimensions) - set(r.dimension for r in query.dimensions)
+        for request in query.metrics:
+            metric = self.metrics.get(request.metric)
             for measure in metric.measures:
                 dims = dims & set(measure.table.allowed_dimensions)
         return sorted([self.dimensions[d] for d in dims], key=lambda x: x.name)
@@ -342,8 +420,8 @@ class Store:
         min_, max_ = dimension.prepare_range_expr([table.id])
         return Computation(
             queries=[
-                RelationalQuery(
-                    join_tree=RelationalQuery(table=table, identity=table.id),
+                AggregateQuery(
+                    join_tree=AggregateQuery(table=table, identity=table.id),
                     aggregate={"min": min_, "max": max_},
                 )
             ]
@@ -357,16 +435,16 @@ class Store:
         table = dimension.table
         return Computation(
             queries=[
-                RelationalQuery(
-                    join_tree=RelationalQuery(table=table, identity=table.id),
+                AggregateQuery(
+                    join_tree=AggregateQuery(table=table, identity=table.id),
                     groupby={"values": dimension.prepare_expr([table.id])},
                 )
             ]
         )
 
     @cached_property
-    def _all(self):
-        return {**self.metrics, **self.dimensions}
+    def metadata(self):
+        return {**self.metrics, **self.dimensions, **self.unions}
 
     def resolve_metrics(self):
         resolver = MetricResolver(
@@ -378,33 +456,39 @@ class Store:
     def get_relational_query(
         self,
         measures: List[str],
-        dimensions: List[str] = [],
-        transforms: Dict[str, schema.QueryTranformRequest] = {},
-        filters: Dict[str, schema.QueryTranformRequest] = {},
-    ) -> RelationalQuery:
+        dimensions: List[schema.QueryDimensionRequest] = [],
+        filters: List[schema.QueryDimensionFilter] = {},
+    ) -> AggregateQuery:
         measure_id, *measures = measures
         measure = self.measures.get(measure_id)
         anchor = measure.table
-        query = RelationalQuery(table=anchor)
+        query = AggregateQuery(table=anchor)
         query.add_measure(measure_id)
 
         transform_compilers = {}
-        for dimension_id, request in transforms.items():
-            transform = self.transforms.get(request.id)
-            if transform is None:
-                raise KeyError(f"Transform function {request.id} doesn't exist")
-            transform_compilers[dimension_id] = transform.get_compiler(request.args)
+        for request in dimensions:
+            if request.transform is not None:
+                transform = self.transforms.get(request.transform.id)
+                if transform is None:
+                    raise KeyError(
+                        f"Transform function {request.transform.id} doesn't exist"
+                    )
+                transform_compilers[request.dimension] = transform.get_compiler(
+                    request.transform.args
+                )
 
         for measure_id in measures:
             query.add_measure(measure_id)
-        for dimension_id in dimensions:
+        for request in dimensions:
             query.add_dimension(
-                dimension_id, transform=transform_compilers.get(dimension_id)
+                request.dimension, transform=transform_compilers.get(request.dimension)
             )
-        for dimension_id, request in filters.items():
-            filter = self.filters.get(request.id)
+        for request in filters:
+            filter = self.filters.get(request.filter.id)
             if filter is None:
                 raise KeyError(f"Filter function {request.id} doesn't exist")
-            query.add_filter(dimension_id, filter.get_compiler(request.args))
+            query.add_filter(
+                request.dimension, filter.get_compiler(request.filter.args)
+            )
 
         return query

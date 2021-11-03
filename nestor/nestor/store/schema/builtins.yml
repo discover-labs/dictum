@@ -24,7 +24,34 @@ transforms:
     name: date part
     args: [part]
     expr: datepart(part, @)
+    return_type: number
+    format: "0000"
   datetrunc:
     name: date trunc
     args: [part]
     expr: datetrunc(part, @)
+  year:
+    name: date year
+    expr: datetrunc('year', @)
+    format: yyyy
+  quarter:
+    name: date quarter
+    expr: datetrunc('quarter', @)
+    format: qqq yyyy
+  month:
+    name: date month
+    expr: datetrunc('month', @)
+    format: MMM yyyy
+  week:
+    name: date week
+    expr: datetrunc('week', @)
+    format: ww YYYY
+  day:
+    name: date day
+    expr: datetrunc('day', @)
+  hour:
+    name: date hour
+    expr: datetrunc('hour', @)
+  minute:
+    name: date minute
+    expr: datetrunc('minute', @)

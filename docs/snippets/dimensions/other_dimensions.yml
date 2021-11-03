@@ -11,16 +11,19 @@ tables:
         name: Revenue
         description: Total amount of orders
         expr: sum(amount)
+        type: currency
+        currency: USD
     dimensions:
       order_date:
-        name: Time of Order
-        type: time
+        name: Date of Order
+        type: date
         expr: created_at
       order_channel:
         name: Order Marketing Channel
-        type: nominal
+        type: string
         expr: channel
       order_amount:
         name: Order Amount
-        type: continuous
+        type: currency
+        currency: USD
         expr: amount

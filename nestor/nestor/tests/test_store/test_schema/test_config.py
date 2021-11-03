@@ -1,14 +1,4 @@
-from nestor.store.schema.config import Calculation, Table
-
-
-def test_calculation_format():
-    """Test that a shorthand for the format (just a str) is replaced with a
-    CalculationFormat object.
-    """
-    calc = Calculation.parse_obj(
-        {"id": "test", "name": "name", "expr": "expr", "format": ".0f"}
-    )
-    assert calc.format.spec == ".0f"
+from nestor.store.schema.config import Table
 
 
 def test_set_related_ids():
@@ -38,7 +28,9 @@ def test_set_dimensions_ids():
         {
             "id": "test",
             "source": "test",
-            "dimensions": {"test": {"name": "test", "expr": "expr", "type": "time"}},
+            "dimensions": {
+                "test": {"name": "test", "expr": "expr", "type": "datetime"}
+            },
         }
     )
     table.dimensions["test"].id == "test"

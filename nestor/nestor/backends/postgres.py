@@ -28,6 +28,7 @@ class PostgresCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
 
 
 class PostgresConnection(SQLAlchemyConnection):
+    type = "postgres"
     compiler_cls = PostgresCompiler
 
     def __init__(

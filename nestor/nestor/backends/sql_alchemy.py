@@ -28,7 +28,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from nestor.backends.base import BackendResult, Compiler, Connection
 from nestor.backends.mixins.arithmetic import ArithmeticCompilerMixin
-from nestor.store import Computation, RelationalQuery
+from nestor.store import AggregateQuery, Computation
 
 
 def get_case_insensitive_column(table: Table, column: str):
@@ -81,6 +81,9 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def OR(self, a, b):
         return or_(a, b)
 
+    def isnull(self, value):
+        return value == None  # noqa: E711
+
     def case(self, whens, else_=None):
         return case(whens, else_=else_)
 
@@ -111,6 +114,9 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def abs(self, args):
         return func.abs(*args)
 
+    def coalesce(self, args: list):
+        return func.coalesce(*args)
+
     def tointeger(self, args: list):
         return cast(args[0], Integer)
 
@@ -131,7 +137,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             schema = schema[0]
         return self.connection.table(tablename, schema=schema)
 
-    def compile_query(self, query: RelationalQuery):
+    def compile_query(self, query: AggregateQuery):
         table: Table = self._table(query.table.source)
 
         tables = {query.table.id: table}
@@ -243,11 +249,13 @@ class SQLAlchemyConnection(Connection):
     def metadata(self) -> MetaData:
         return MetaData(self.engine)
 
-    def execute(self, query) -> BackendResult:
-        return BackendResult(
-            data=pd.read_sql(query, self.engine),
-            raw_query=sqlparse.format(str(query.compile()), reindent=True),
-        )
+    def compute(self, computation: Computation) -> BackendResult:
+        query = self.compile(computation)
+        raw_query = sqlparse.format(str(query.compile()), reindent=True)
+        return BackendResult(data=self.execute(query), raw_query=raw_query)
+
+    def execute(self, query) -> List[dict]:
+        return pd.read_sql(query, self.engine).to_dict(orient="records")
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
         return Table(name, self.metadata, schema=schema, autoload=True)

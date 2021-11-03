@@ -1,14 +1,16 @@
 from lark import Tree
 
-from nestor.store import RelationalQuery, Store
+from nestor.store import AggregateQuery, Store
+from nestor.store.schema import QueryDimensionRequest
 
 
 def test_relational_query_add_dimension(chinook: Store):
-    q = RelationalQuery(table=chinook.tables.get("invoice_items"))
+    q = AggregateQuery(table=chinook.tables.get("invoice_items"))
 
     q.add_dimension("album")
     assert q.groupby["album"].children[0] == Tree(
-        "column", ["invoice_items.track.album", "Title"]
+        "call",
+        ["coalesce", Tree("column", ["invoice_items.track.album", "Title"]), "N/A"],
     )
     assert q.joins[0].foreign_key == "TrackId"
     assert q.joins[0].alias == "track"
@@ -41,7 +43,8 @@ def test_relational_query_add_dimension(chinook: Store):
 
 def test_relational_query_measure_dimension(chinook: Store):
     q = chinook.get_relational_query(
-        measures=["items_sold"], dimensions=["customer_orders_amount"]
+        measures=["items_sold"],
+        dimensions=[QueryDimensionRequest(dimension="customer_orders_amount")],
     )
     joins = list(q._unnested_joins())
     assert len(joins) == 3

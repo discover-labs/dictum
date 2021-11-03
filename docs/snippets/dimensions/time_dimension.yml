@@ -14,5 +14,5 @@ tables:
     dimensions:
       order_date:
         name: Date of Order
-        type: time
+        type: date
         expr: created_at

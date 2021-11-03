@@ -16,26 +16,26 @@ measures:
 dimensions:
   manager_title:
     name: Support Rep's Manager's Title
-    type: nominal
+    type: string
     expr: manager.Title
 
   manager_name:
     name: Support Rep's Manager's Name
-    type: nominal
+    type: string
     expr: manager.LastName
 
   employee_name:
     name: Support Rep's Name
-    type: nominal
+    type: string
     expr: LastName
 
   employee_title:
     name: Support Rep's Title
-    type: nominal
+    type: string
     expr: Title
 
   employee_country:
     union: country
     name: Employee Country
-    type: nominal
+    type: string
     expr: Country

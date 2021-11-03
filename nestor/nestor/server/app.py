@@ -14,10 +14,9 @@ from nestor.store import Store
 
 schema_text = (Path(__file__).parent / "schema.graphql").read_text()
 schema = make_executable_schema(gql(schema_text), *types, snake_case_fallback_resolvers)
-static = StaticFiles(directory=Path(static.__file__).parent)
+static = StaticFiles(directory=Path(static.__file__).parent, html=True)
 
 
-@cache
 def get_ctx():
     path = os.getenv("NESTOR_PROFILES_CONFIG_PATH")
     profiles = ProfilesConfig.from_yaml(path)
@@ -27,10 +26,10 @@ def get_ctx():
     return {"store": store, "connection": connection}
 
 
-def get_context_value(request):
+def get_context_value(_):
     return get_ctx()
 
 
 app = Starlette()
 app.mount("/graphql", GraphQL(schema, context_value=get_context_value))
-# app.mount("/", static)
+app.mount("/", static)

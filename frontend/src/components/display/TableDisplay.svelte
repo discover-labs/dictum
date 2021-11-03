@@ -1,10 +1,9 @@
 <script lang="ts">
     export let data: object[];
-    export let formatters: object;
-    export let meta: object;
+    export let meta: { id: string; name: string }[];
 
-    $: keys = Object.keys(formatters);
-    $: names = keys.map((k) => meta[k].name);
+    $: keys = meta.map((m) => m.id);
+    $: names = meta.map((m) => m.name);
 </script>
 
 <div class="table-wrapper">
@@ -20,7 +19,7 @@
             {#each data as row}
                 <tr>
                     {#each keys as k (k)}
-                        <td> {formatters[k](row[k])}</td>
+                        <td>{row[k]}</td>
                     {/each}
                 </tr>
             {/each}
@@ -33,12 +32,22 @@
         overflow: scroll;
     }
     table {
-        margin: 0 auto 0 auto;
+        margin: 0;
+        border-spacing: 0;
+        font-size: 12pt;
     }
     th,
     td {
+        text-decoration: none;
         padding: 0.5rem;
         text-align: right;
         margin-left: 1rem;
+    }
+    th {
+        font-weight: 400;
+        border-bottom: 1px solid gray;
+    }
+    td {
+        border-bottom: 1px solid lightgray;
     }
 </style>

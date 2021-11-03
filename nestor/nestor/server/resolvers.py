@@ -1,18 +1,17 @@
-import json
+from ariadne import InterfaceType, ObjectType, QueryType
 
-from ariadne import ObjectType, QueryType, UnionType
-
+from nestor.backends.base import Connection
 from nestor.ql import parse_query
-from nestor.server.schema import LocaleDefinition
-from nestor.store import calculations, schema
+from nestor.store import Store, schema
+from nestor.store.formatting import Formatter
 
 Query = QueryType()
-Store = ObjectType("Store")
-Metric = ObjectType("Metric")
-Dimension = ObjectType("Dimension")
-ResultColumn = UnionType("ResultColumn")
+StoreType = ObjectType("Store")
+MetricType = ObjectType("Metric")
+DimensionType = ObjectType("Dimension")
+CalculationInterface = InterfaceType("Calculation")
 
-types = [Store, Metric, Dimension, Query, ResultColumn]
+types = [StoreType, CalculationInterface, MetricType, DimensionType, Query]
 
 
 @Query.field("store")
@@ -24,19 +23,21 @@ def resolve_store(_, info):
     }
 
 
-def _exec(info, query: Query):
-    store = info.context["store"]
-    connection = info.context["connection"]
+def _exec(info, query: schema.Query):
+    store: Store = info.context["store"]
+    connection: Connection = info.context["connection"]
     computation = store.get_computation(query)
     result = connection.compute(computation)
-    df = result.data
+    metadata = store.get_metadata(query)
+    formatter = Formatter(store.locale, fields=metadata, formatting=query.formatting)
+    data = formatter.format(result.data)
     return {
-        "data": json.loads(df.to_json(orient="records")),
+        "data": data,
         "metadata": {
+            "formatting": query.formatting,
+            "locale": store.locale,
             "raw_query": result.raw_query,
-            "locale": LocaleDefinition.from_locale_name("en-US").dict(),
-            "columns": [c for c in store._all.values() if c.id in df.columns],
-            # id, name, format spec,
+            "columns": list(metadata.values()),
             "store": {
                 "tables": store.tables.values(),
                 "metrics": store.suggest_metrics(query),
@@ -53,21 +54,21 @@ def resolve_store_query(obj, info, *, input: dict):
 
 
 @Query.field("qlQuery")
-def resolve_ql_query(obj, info, *, input: str):
+def resolve_ql_query(obj, info, *, input: str, formatting: bool = True):
     query = parse_query(input)
+    query.formatting = formatting
     return _exec(info, query)
 
 
-@Metric.field("expr")
-@Dimension.field("expr")
+@MetricType.field("expr")
+@DimensionType.field("expr")
 def resolve_expr(obj, *_):
     return obj.str_expr
 
 
-@ResultColumn.type_resolver
-def resolve_column_type(obj, *_):
-    if isinstance(obj, calculations.Metric):
-        return "Metric"
-    if isinstance(obj, calculations.Dimension):
-        return "Dimension"
-    raise TypeError(f"Unknown type of object {obj}")  # this shouldn't ever happen
+@CalculationInterface.type_resolver
+def resolve_calculation_type(obj, *_):
+    name = obj.__class__.__name__
+    if name in {"Metric", "Dimension"}:
+        return name
+    return None

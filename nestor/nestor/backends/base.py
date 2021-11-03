@@ -5,12 +5,12 @@ from typing import List
 import pandas as pd
 from lark import Token, Transformer
 
-from nestor.store import Computation, RelationalQuery
+from nestor.store import AggregateQuery, Computation
 
 
 @dataclass
 class BackendResult:
-    data: pd.DataFrame
+    data: List[dict]
     raw_query: str
 
 
@@ -81,6 +81,8 @@ class ExpressionTransformer(Transformer):
     eq = PassChildrenToCompiler()
     neq = PassChildrenToCompiler()
 
+    isnull = PassChildrenToCompiler()
+
     def IN(self, children: list):
         value, *values = children
         return self.compiler.IN(value, values)
@@ -128,6 +130,10 @@ class Compiler(ABC):
     @abstractmethod
     def FALSE(self):
         """False boolean literal"""
+
+    @abstractmethod
+    def isnull(self, value):
+        """Missing value check"""
 
     @abstractmethod
     def column(self, table: str, name: str):
@@ -262,6 +268,10 @@ class Compiler(ABC):
     def ceil(self, args: list):
         """Numeric ceiling"""
 
+    @abstractmethod
+    def coalesce(self, args: list):
+        """NULL-coalescing"""
+
     # type casting
 
     @abstractmethod
@@ -309,7 +319,7 @@ class Compiler(ABC):
     # compilation
 
     @abstractmethod
-    def compile_query(self, query: RelationalQuery):
+    def compile_query(self, query: AggregateQuery):
         """Compile a single relation query into connection query."""
 
     @abstractmethod
@@ -349,8 +359,13 @@ class Connection(ABC):
         return self.compiler.compile(computation)
 
     def compute(self, computation: Computation) -> BackendResult:
-        return self.execute(self.compile(computation))
+        query = self.compile(computation)
+        return BackendResult(data=self.execute(query), raw_query=query)
+
+    def compute_df(self, computation: Computation) -> pd.DataFrame:
+        result = self.compute(computation)
+        return pd.DataFrame(result.data)
 
     @abstractmethod
-    def execute(self, query) -> BackendResult:
+    def execute(self, query) -> List[dict]:
         """Execute query, return BackendResult"""
