@@ -1,9 +1,9 @@
 # Getting Started
 
-Hyperplane was designed for an easy start. You can create a minimal data model in just
+Dictum was designed for an easy start. You can create a minimal data model in just
 a dozen of lines of code and then build from there.
 
-## Install Hyperplane
+## Install Dictum
 
 Just install with `pip`:
 
@@ -27,7 +27,7 @@ optional `description` field.
 
 ## Create the example database
 
-Hyperplane ships with a really simple example SQLite database unimaginatively called
+Dictum ships with a really simple example SQLite database unimaginatively called
 `example`.  It's used in tests, and here we'll use it to showcase all the important
 features.
 
@@ -37,7 +37,7 @@ features.
 
 ## Create the profiles file
 
-In addition to the data model, Hyperplane needs to know where your data is stored.
+In addition to the data model, Dictum needs to know where your data is stored.
 The connection information is stored separately in a file that's usually called
 `profiles.yml`.
 
@@ -45,7 +45,7 @@ You can have several profiles and switch between them. One use case for several 
 is when you have a separate environment for developing and testing you data transformations
 and want to see how your metrics work with the next version of your data warehouse.
 
-Here's a `profiles.yml` file that Hyperplane will use to connect to the `example.db`
+Here's a `profiles.yml` file that Dictum will use to connect to the `example.db`
 database that we just created:
 
 ```{ .yaml title=profiles.yml }
@@ -59,7 +59,7 @@ requested.
 Next, we define our profiles. All profiles must have a `type`. This is the name of either
 a [built-in backend](../reference/backends.md) or a backend provided by a [plugin](../reference/plugins.md).
 
-Currently Hyperplane ships with two backends: `sqlite` and `postgres`. Many other backends
+Currently Dictum ships with two backends: `sqlite` and `postgres`. Many other backends
 are supported by official plugins.
 
 Each backend type requires it's own set of parameters, which can be looked up in the
@@ -74,6 +74,6 @@ To start the server, run this command:
 --8<-- "snippets/getting_started/start_server.sh"
 ```
 
-In a couple of seconds the local Hyperplane server will start and you can go to
+In a couple of seconds the local Dictum server will start and you can go to
 [http://localhost:8000](http://localhost:8000). Right now our data model is empty, so
 we don't see anything there yet.

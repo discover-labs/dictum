@@ -1,10 +1,10 @@
-site_name: Hyperplane
+site_name: Dictum
 theme:
   name: material
   icon:
     repo: fontawesome/brands/github
-repo_url: https://github.com/rad-data-labs/hyperplane
-repo_name: rad-data-labs/hyperplane
+repo_url: https://github.com/rad-data-labs/dictum
+repo_name: Source code
 markdown_extensions:
   - admonition
   - attr_list
@@ -14,6 +14,7 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.superfences
   - pymdownx.snippets
+  - pymdownx.tabbed
 nav:
   - Introduction: index.md
   - Data Model Guide:

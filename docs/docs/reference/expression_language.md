@@ -1,6 +1,6 @@
 # Expression language reference
 
-Hyperplane expression language is used to define calculations — Measures, Dimensions and
+Dictum expression language is used to define calculations — Measures, Dimensions and
 Metrics. It's designed to be as similar as possible to SQL, but we should stress that it
 is __not__ SQL. It's transformed to SQL by the database connection, but it's not passed
 as-is to your database.
@@ -30,7 +30,7 @@ You can reference columns and other calculations in calculation expressions.
 To reference a column by name, just use that name: `amount`, `created_at`.
 
 Measure and Metric references are prepended by `$`: `$revenue`. Because the line between
-them is blurry, the notation is the same — Hyperplane will figure out what you mean.
+them is blurry, the notation is the same — Dictum will figure out what you mean.
 
 Dimension references are prepended by `:` — `:sale_date`, `:channel`.
 
@@ -76,7 +76,7 @@ Ternary expression `case when x then y else z end` is supported both with and wi
 These are the functions that are used in measures to define aggregations.
 
 !!! info
-    To produce correct SQL, measure expressions need to produce an aggregate. Hyperplane
+    To produce correct SQL, measure expressions need to produce an aggregate. Dictum
     doesn't check the expressions you wrote, so they may fail at runtime if they fail to
     produce an aggregation.
 

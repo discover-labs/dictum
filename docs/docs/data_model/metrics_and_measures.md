@@ -62,14 +62,14 @@ by date with month
 To better understand why there's a distinction between metrics and measures, let's
 consider how metrics like `PPU` are calculated.
 
-First, Hyperplane computes measures on the requested level of detail. If we want to
+First, Dictum computes measures on the requested level of detail. If we want to
 see `PPU` and `AU` by month, it comes down to two SQL queries:
 
 ```sql
 --8<-- "snippets/metrics_and_measures/ppu_base.sql"
 ```
 
-Now Hyperplane needs to merge them on the `date` column and calculate the metrics.
+Now Dictum needs to merge them on the `date` column and calculate the metrics.
 This is done with a `FULL OUTER JOIN`.
 
 ```sql
@@ -77,7 +77,7 @@ This is done with a `FULL OUTER JOIN`.
 ```
 
 !!! warning
-    Generally, Hyperplane tries to leave as much calculation as possible to the database
+    Generally, Dictum tries to leave as much calculation as possible to the database
     backend.
 
     SQLite doesn't support `FULL OUTER JOIN` construct, so the backend will materialize

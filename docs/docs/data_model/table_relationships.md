@@ -1,6 +1,6 @@
 # Table Relationships
 
-The real power of Hyperplane's declarative approach comes from being able to describe
+The real power of Dictum's declarative approach comes from being able to describe
 table relationships and have the tool figure out the joins on it's own.
 
 
@@ -62,7 +62,7 @@ as the SQL count, but when you want to do `count(*)`, you just call it without a
 `count()`. It will calculate the number of rows in the table it's declared on.
 
 !!! tip
-    You don't have to do `distinct` here. Because Hyperplane only allows foreign key to
+    You don't have to do `distinct` here. Because Dictum only allows foreign key to
     primary key joins, relationships never produce duplicates, given that your data are
     correct.
 

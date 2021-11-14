@@ -1,7 +1,7 @@
 # Default Transforms and Filters
 
 Most of the calculations should be defined in your data model, but in some cases it's
-better to have more flexibility at query time. Hyperplane allows users to define
+better to have more flexibility at query time. Dictum allows users to define
 additional transformations for dimensions when requesting them.
 
 
@@ -23,6 +23,6 @@ a sensible default to start from.
 !!! info
     Default transforms (and filters, which you'll learn about later) exist to protect
     users and are not enforced on the server-side. The client interacting with the API
-    is free to use or ignore them. Hyperplane web interface automatically adds them
+    is free to use or ignore them. Dictum web interface automatically adds them
     when a dimension is added, but the users of GraphQL and Python APIs are expected to
     know what they're doing.

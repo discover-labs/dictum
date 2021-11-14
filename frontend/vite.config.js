@@ -7,7 +7,7 @@ export default defineConfig({
         svelte()
     ],
     build: {
-        outDir: "../nestor/nestor/server/static/",
+        outDir: "../dictum/dictum/server/static/",
     },
     server: {
         cors: {

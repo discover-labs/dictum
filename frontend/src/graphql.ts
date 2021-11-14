@@ -11,6 +11,12 @@ export class Server {
             }
         )
             .then((res) => res.json())
-            .then((res) => res.data);
+            .then((res) => {
+                console.log(res);
+                if (res.errors) {
+                    throw res.errors;
+                }
+                return res.data;
+            });
     }
 }

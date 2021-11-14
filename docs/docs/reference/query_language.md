@@ -1,6 +1,6 @@
 # Query Language Reference
 
-Hyperplane query language allows human programmers to request information from the data
+Dictum query language allows human programmers to request information from the data
 model. Text queries are compiled into the same `Query` object that can be sent to the
 server's web API.
 

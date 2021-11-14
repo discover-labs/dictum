@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "dictum"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^1.8.2"
+lark = "^0.11.3"
+PyYAML = "^5.4.1"
+SQLAlchemy = "^1.4.25"
+pandas = "^1.3.3"
+uvicorn = "^0.15.0"
+typer = "^0.4.0"
+Jinja2 = "^3.0.1"
+requests = "^2.26.0"
+aiofiles = "^0.7.0"
+ariadne = "^0.13.0"
+psycopg2-binary = "^2.9.1"
+sqlparse = "^0.4.2"
+Babel = "^2.9.1"
+mkdocstrings = "^0.16.2"
+
+[tool.poetry.extras]
+postgres = ["psycopg2-binary^2.9.1"]
+
+[tool.poetry.dev-dependencies]
+black = "^21.9b0"
+flake8 = "^3.9.2"
+isort = "^5.9.3"
+pytest = "^6.2.5"
+pytest-cov = {extras = ["toml"], version = "^3.0.0"}
+mkdocs = "^1.2.3"
+mkdocs-material = "^7.3.4"
+
+[tool.poetry.scripts]
+dictum = "dictum.cli:app"
+
+[tool.pytest.ini_options]
+addopts = "--cov-report=xml --cov=dictum"
+
+[tool.isort]
+profile = "black"
+known_first_party = ["dictum"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

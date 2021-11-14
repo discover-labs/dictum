@@ -12,7 +12,7 @@ In a classic dimensional warehouse this would be solved by creating the `channel
 an replacing the values in `orders` and `users` with a surrogate key. It's also a common
 practice to create a `calendar` dimension table and linking all the dates to it.
 
-This is a good approach and would work here, but it's also very tedious. Hyperplane
+This is a good approach and would work here, but it's also very tedious. Dictum
 allows you to declare "virtual" dimensions called _Unions_. Just like normal dimensions,
 they have an ID, a name and an optional description.
 

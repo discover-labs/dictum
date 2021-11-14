@@ -10,7 +10,7 @@ In SQL, it would be something like this:
 --8<-- "snippets/reusable_expressions/sql.sql"
 ```
 
-That's a lot of repetition. In Hyperplane, you don't have to repeat the expressions:
+That's a lot of repetition. In Dictum, you don't have to repeat the expressions:
 they can reference each other.
 
 ```{ .yaml title=project.yml hl_lines="12 15" }

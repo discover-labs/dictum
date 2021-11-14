@@ -5,6 +5,7 @@
 
     let value = "";
     let queryResult: QueryResult | null = null;
+    let errors: { message: string }[] | null = null;
     let running = false;
     let formatting = true;
     $: executeLabel = running ? "Running..." : "Execute";
@@ -30,10 +31,12 @@
             .request(qlQuery, { query: value, formatting })
             .then((data) => {
                 queryResult = data.result;
+                errors = null;
                 running = false;
             })
             .catch((err) => {
-                console.log(err);
+                errors = err;
+                queryResult = null;
                 running = false;
             });
     }
@@ -64,6 +67,11 @@
         {#if queryResult !== null}
             <QueryResultDisplay {queryResult} />
         {/if}
+        {#if errors !== null}
+            {#each errors as err}
+                {err.message}
+            {/each}
+        {/if}
     </div>
 </div>
 
@@ -72,12 +80,6 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-    }
-    .card > * {
-        margin-bottom: 10pt;
-    }
-    .card > *:last-child {
-        margin-bottom: 0;
     }
     textarea {
         width: 100%;

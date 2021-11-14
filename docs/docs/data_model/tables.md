@@ -53,7 +53,17 @@ This is an internal name, so you can name your tables anything — think of a va
 name in a programming language or an SQL alias.
 
 Each table must have a `source` — in our case this is the name of the actual database
-table. This is a string that will tell your backend where this table is stored.
+table. This is a string or a `dict` that will tell your backend where this table is stored.
+
+How table source should be specified is backend-dependent. For most SQL backends it will
+be either just a table name as a string, or a mapping with two keys: `schema` and `table`.
+You must use the `dict` form if table is in a non-standard schema:
+
+```yaml
+source:
+    table: mytable
+    schema: myschema
+```
 
 !!! info
 

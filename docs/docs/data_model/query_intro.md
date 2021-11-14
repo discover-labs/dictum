@@ -1,10 +1,10 @@
 # Query Introduction
 
-The goal of Hyperplane is to give it's users an opportunity to ask questions about
+The goal of Dictum is to give it's users an opportunity to ask questions about
 various business metrics on an arbitrary level of detail. To better understand the
 context the data model exists in, let's first see how these questions are formulated.
 
-Hyperplane queries are structured objects. There are many ways to query Hyperplane store,
+Dictum queries are structured objects. There are many ways to query Dictum store,
 including [GraphQL API](../reference/graphql.md),
 [Python code](../reference/python_api.md) and a special
 [SQL-like query language](../reference/query_language.md). Here we'll use the latter as
@@ -14,7 +14,7 @@ model and need to test that things are working as expected.
 
 ## Metrics and dimensions
 
-A query needs is at least one metric to calculate. The simplest query looks
+A query needs at least one metric to calculate. The simplest query looks
 something like `give me Revenue`, so:
 
 ```sql
@@ -32,7 +32,7 @@ Things you group your metrics by are called `dimensions`. You can request any nu
 dimensions that are compatible with the metrics. Metric-dimension compatibility depends
 on your data schema and business domain. For example, revenue by product category or
 customer city makes sense. Number of user signups by product category does not — there's
-no connection. Hyperplane tracks these dependencies and will let the client know which
+no connection. Dictum tracks these dependencies and will let you know which
 metrics and dimensions can be added to the query next.
 
 
@@ -46,8 +46,8 @@ where order_size is atleast(100)
 group by channel
 ```
 
-Filters have parameters, so they're presented as function calls. Unlike with normal functions,
-we don't _pass_ dimensions as arguments, we _apply_ them to a dimension.
+Filters have parameters, so they're presented as function calls. Unlike with normal
+functions, we don't _pass_ dimensions as arguments, we _apply_ them to a dimension.
 
 
 ## Dimension transforms
@@ -62,7 +62,7 @@ where order_size is atleast(100)
 group by "date" with datetrunc('month')
 ```
 
-We're telling Hyperplane that we want to request `date` by month. Let's add another dimension
+We're telling Dictum that we want to request `date` by month. Let's add another dimension
 and another transform.
 
 ```sql

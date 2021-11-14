@@ -4,7 +4,7 @@
 
 <div class="root">
     <nav class="navbar">
-        <div class="container">Hyperplane</div>
+        <div class="container">Dictum</div>
     </nav>
     <div class="page">
         <div class="container">

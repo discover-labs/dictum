@@ -1,0 +1,34 @@
+// Dictum Query Language
+
+%import common.SIGNED_FLOAT  -> FLOAT
+%import common.SIGNED_INT    -> INTEGER
+%import common._STRING_ESC_INNER
+STRING: "'" _STRING_ESC_INNER "'"
+TRUE: "TRUE"i
+FALSE: "FALSE"i
+?literal: TRUE | FALSE | INTEGER | FLOAT | STRING
+
+QUOTED_IDENTIFIER: "\"" _STRING_ESC_INNER "\""
+IDENTIFIER: /[a-z_]\w*/i
+identifier: IDENTIFIER | QUOTED_IDENTIFIER
+call: identifier ["(" [ literal ("," literal)* ] ")"]
+
+_SELECT: "SELECT"i
+_WHERE: "WHERE"i
+_GROUPBY: /(GROUP\s+)?BY/i
+_WITH: "WITH"i
+_IS: "IS"i
+
+metric: identifier
+dimension: identifier
+grouping: dimension [ with ]
+?with: _WITH call
+condition: dimension _IS call
+
+select: _SELECT metric ( "," metric )*
+where: _WHERE condition ( "," condition )*
+groupby: _GROUPBY grouping ( "," grouping )*
+
+query: select [ where ] [ groupby ]
+
+%ignore /\s/

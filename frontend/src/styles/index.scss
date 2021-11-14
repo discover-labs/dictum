@@ -23,6 +23,12 @@ body {
         border-top: 2px solid $green;
     }
     padding: 10pt 15pt;
+    * {
+        margin-bottom: 1rem;
+    }
+    *:last-child {
+        margin-bottom: 0;
+    }
 }
 
 .container {

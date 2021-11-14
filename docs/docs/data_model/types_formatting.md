@@ -1,10 +1,10 @@
 # Types and Formatting
 
-When it comes to generating queries on the backend, Hyperplane is naive about data types.
+When it comes to generating queries on the backend, Dictum is naive about data types.
 It will let you subtract a date from a number if you write such an expression, and it
 will fail at query time.
 
-At the same time, each calculation has a type. Type information allows Hyperplane to
+At the same time, each calculation has a type. Type information allows Dictum to
 achieve two things:
 
 - Establish expectations about which Python types will be returned from the backend.

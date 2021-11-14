@@ -1,13 +1,13 @@
 # Organizing a Larger Project with Multiple Files
 
 As your project grows, so does your config file. Most real-life projects contain dozens
-of tables, which are hard to navigate between in a single file. Fortunately, Hyperplane
+of tables, which are hard to navigate between in a single file. Fortunately, Dictum
 allows you to put each table's config into a separate file.
 
 
 ## Create `tables` folder
 
-Hyperplane expects your table configs to be in YAML files inside `tables` folder, at the
+Dictum expects your table configs to be in YAML files inside `tables` folder, at the
 same path as your `project.yml` file. This folder's expected name is controlled by
 `tables_dir` option in your `project.yml`. The default is `tables`, but you can set it to
 whatever you want.
@@ -31,7 +31,7 @@ root
     Regardless of subfolder structure, table filenames must be unique — the part before
     the extension will become your table's ID.
 
-    Hyperplane will give you an error if you have a duplicate table ID in your project.
+    Dictum will give you an error if you have a duplicate table ID in your project.
 
 
 ##  Move your tables into separate files

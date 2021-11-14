@@ -1,6 +1,6 @@
-name: Hyperplane Tutorial
+name: Dictum Tutorial
 description: |
-  A tutorial project for Hyperplane docs. The `description` field is optional.
+  A tutorial project for Dictum docs. The `description` field is optional.
 
 unions:
   date:
