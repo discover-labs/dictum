@@ -1,2 +1,2 @@
 cd tutorial
-hyperplane create-example-db example.db
+dictum create-example-db example.db

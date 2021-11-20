@@ -197,3 +197,61 @@ def test_quoted_identifier():
     assert parse_ql('select "revenue something"').children[0] == Tree(
         "select", [Tree("metric", ["revenue something"])]
     )
+
+
+def test_dimension_alias():
+    assert parse_ql("select metric by dim as dim1") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["metric"])]),
+            Tree(
+                "groupby",
+                [
+                    Tree(
+                        "grouping",
+                        [
+                            Tree("dimension", ["dim"]),
+                            Tree("alias", ["dim1"]),
+                        ],
+                    )
+                ],
+            ),
+        ],
+    )
+
+
+def test_dimension_transform_alias():
+    assert parse_ql("select metric by dim with test as dim1") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["metric"])]),
+            Tree(
+                "groupby",
+                [
+                    Tree(
+                        "grouping",
+                        [
+                            Tree("dimension", ["dim"]),
+                            Tree("call", ["test"]),
+                            Tree("alias", ["dim1"]),
+                        ],
+                    )
+                ],
+            ),
+        ],
+    )
+
+
+def test_parse_dimension_alias():
+    assert parse_query("select metric by dim with test as dim1") == Query.parse_obj(
+        {
+            "metrics": [{"metric": "metric"}],
+            "dimensions": [
+                {
+                    "dimension": "dim",
+                    "transform": {"id": "test", "args": []},
+                    "alias": "dim1",
+                }
+            ],
+        }
+    )

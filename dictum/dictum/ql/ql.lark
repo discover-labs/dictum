@@ -13,16 +13,19 @@ IDENTIFIER: /[a-z_]\w*/i
 identifier: IDENTIFIER | QUOTED_IDENTIFIER
 call: identifier ["(" [ literal ("," literal)* ] ")"]
 
+// keywords
 _SELECT: "SELECT"i
 _WHERE: "WHERE"i
 _GROUPBY: /(GROUP\s+)?BY/i
 _WITH: "WITH"i
 _IS: "IS"i
+_AS: "AS"i
 
 metric: identifier
 dimension: identifier
-grouping: dimension [ with ]
+grouping: dimension [ with ] [ alias ]
 ?with: _WITH call
+alias: _AS IDENTIFIER
 condition: dimension _IS call
 
 select: _SELECT metric ( "," metric )*

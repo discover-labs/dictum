@@ -207,3 +207,26 @@ def test_transform_compile(chinook: Store):
     assert chinook.transforms.get("datepart").compile(
         Tree("column", ["dt"]), ["year"]
     ) == Tree("call", ["datepart", "year", Tree("column", ["dt"])])
+
+
+def test_alias(chinook: Store):
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "revenue"}],
+            "dimensions": [
+                {
+                    "dimension": "invoice_date",
+                    "transform": {"id": "datepart", "args": ["year"]},
+                    "alias": "year",
+                },
+                {
+                    "dimension": "invoice_date",
+                    "transform": {"id": "datepart", "args": ["month"]},
+                    "alias": "month",
+                },
+            ],
+        }
+    )
+    comp = chinook.get_computation(q)
+    assert comp.dimensions[0].name == "year"
+    assert comp.dimensions[1].name == "month"

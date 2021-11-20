@@ -7,7 +7,7 @@ import sqlparse
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.sql import Select, case, cast, func
 
-from dictum.backends.base import BackendResult
+from dictum.backends.base import BackendResult, Timer
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
@@ -164,15 +164,15 @@ class SQLiteConnection(SQLAlchemyConnection):
 
     def compute(self, computation: Computation) -> BackendResult:
         """Call SQLAlchemyCompiler's compile() to get a fake raw query. Coerce types."""
-        raw_query = sqlparse.format(
-            str(SQLiteRawQueryCompiler(self).compile(computation).compile()),
-            reindent=True,
-        )
-        df = self.compiler.compile(computation)
-        df = self.coerce_types(df, computation)
-
-        data = df.to_dict(orient="records")
-        return BackendResult(data=data, raw_query=raw_query)
+        with Timer() as timer:
+            raw_query = sqlparse.format(
+                str(SQLiteRawQueryCompiler(self).compile(computation).compile()),
+                reindent=True,
+            )
+            df = self.compiler.compile(computation)
+            df = self.coerce_types(df, computation)
+            data = df.to_dict(orient="records")
+        return BackendResult(data=data, raw_query=raw_query, duration=timer.duration)
 
     def coerce_types(
         self, data: pd.DataFrame, computation: Computation

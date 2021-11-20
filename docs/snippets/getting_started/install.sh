@@ -1,1 +1,1 @@
-pip install hyperplane
+pip install dictum

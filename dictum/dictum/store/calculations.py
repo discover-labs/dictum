@@ -85,7 +85,7 @@ class TableCalculation(Calculation):
     table: "dictum.store.Table"
 
     def __post_init__(self):
-        """add: prefix column names with table id"""
+        """add prefix column names with table id"""
         if isinstance(self.expr, str):
             self._parse_expr()
             self._prepend_columns()
@@ -130,8 +130,7 @@ class Dimension(TableCalculation):
     def related(self) -> Dict[str, "dictum.store.AggregateQuery"]:
         """Virtual related tables that need to be added to the user-defined related
         tables. Will be joined as a subquery. Aggregate dimensions are implemented this
-        way.
-        Run before resolving the expression.
+        way. Run before resolving the expression.
         """
         result = {}
         for ref in self.expr.find_data("column"):

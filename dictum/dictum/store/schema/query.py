@@ -60,6 +60,7 @@ class DimensionTopK(BaseModel):
 class QueryDimensionRequest(BaseModel):
     dimension: str
     transform: Optional[QueryDimensionTransform]
+    alias: Optional[str]
 
 
 class QueryDimensionFilter(BaseModel):

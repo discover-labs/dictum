@@ -28,6 +28,9 @@ class QlTransformer(Transformer):
         id, *args = children
         return QueryDimensionTransform(id=id, args=args)
 
+    def alias(self, children: list):
+        return children[0]
+
     def condition(self, children: list):
         dimension, filter = children
         return QueryDimensionFilter(dimension=dimension, filter=filter)
@@ -36,16 +39,21 @@ class QlTransformer(Transformer):
         return conditions
 
     def grouping(self, children: list):
-        return children
+        dimension, *rest = children
+        transform = None
+        alias = None
+        if len(rest) == 2:
+            transform, alias = rest
+        elif len(rest) == 1 and isinstance(rest[0], QueryDimensionTransform):
+            transform = rest[0]
+        elif len(rest) == 1:
+            alias = rest[0]
+        return QueryDimensionRequest(
+            dimension=dimension, transform=transform, alias=alias
+        )
 
     def groupby(self, children: list):
-        dimensions = []
-        for grouping in children:
-            transform = None if len(grouping) == 1 else grouping[1]
-            dimensions.append(
-                QueryDimensionRequest(dimension=grouping[0], transform=transform)
-            )
-        return dimensions
+        return children
 
     def query(self, children: list):
         metrics, *rest = children

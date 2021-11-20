@@ -247,3 +247,26 @@ def test_datetime(chinook: Store, connection):
     assert isinstance(result.data, list)
     assert isinstance(result.data[0], dict)
     assert isinstance(result.data[0]["invoice_datetime"], datetime.datetime)
+
+
+def test_alias(chinook: Store, connection):
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "revenue"}],
+            "dimensions": [
+                {
+                    "dimension": "invoice_date",
+                    "transform": {"id": "datepart", "args": ["year"]},
+                    "alias": "year",
+                },
+                {
+                    "dimension": "invoice_date",
+                    "transform": {"id": "datepart", "args": ["month"]},
+                    "alias": "month",
+                },
+            ],
+        }
+    )
+    comp = chinook.get_computation(q)
+    result = connection.compute(comp)
+    assert set(result.data[0]) == {"revenue", "year", "month"}

@@ -130,6 +130,7 @@ class AggregateQuery:
     def add_dimension(
         self,
         dimension_id: str,
+        name: str,
         type: str,
         compiler: Optional[Callable[[Tree], Tree]] = None,
     ):
@@ -138,7 +139,7 @@ class AggregateQuery:
         expr = dimension.prepare_expr([self.table.id, *path])
         if compiler is not None:
             expr = compiler(expr)
-        column = ColumnCalculation(expr=expr, name=dimension.id, type=type)
+        column = ColumnCalculation(expr=expr, name=name, type=type)
         self.groupby.append(column)
 
     def add_filter(self, dimension_id: str, filter: Callable[[Tree], Tree]):

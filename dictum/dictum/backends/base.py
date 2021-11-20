@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from time import perf_counter
 from typing import List
 
 import pandas as pd
@@ -8,9 +9,27 @@ from lark import Token, Transformer
 from dictum.store import AggregateQuery, Computation
 
 
+class Timer:
+    def __init__(self):
+        self.start = None
+        self.end = None
+
+    def __enter__(self):
+        self.start = perf_counter()
+        return self
+
+    def __exit__(self, *_):
+        self.end = perf_counter()
+
+    @property
+    def duration(self):
+        return int((self.end - self.start) * 1000)
+
+
 @dataclass
 class BackendResult:
     data: List[dict]
+    duration: float  # ms
     raw_query: str
 
 
@@ -365,9 +384,12 @@ class Connection(ABC):
 
     def compute(self, computation: Computation) -> BackendResult:
         query = self.compile(computation)
-        data = self.execute(query)
-        data = self.coerce_types(data, computation)
-        return BackendResult(data=data, raw_query=self.get_raw_query(query))
+        with Timer() as t:
+            data = self.execute(query)
+            data = self.coerce_types(data, computation)
+        return BackendResult(
+            data=data, raw_query=self.get_raw_query(query), duration=t.duration
+        )
 
     def compute_df(self, computation: Computation) -> pd.DataFrame:
         result = self.compute(computation)

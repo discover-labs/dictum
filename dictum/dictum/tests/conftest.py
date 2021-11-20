@@ -1,10 +1,8 @@
 import shlex
-import shutil
 import subprocess
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from tempfile import mkdtemp
 
 import psycopg2
 import pytest
@@ -70,20 +68,16 @@ def postgres():
 
 @contextmanager
 def sqlite():
-    import sqlite3
+    from dictum.examples.chinook.generate import generate
 
-    from dictum.backends.sqlite import SQLiteConnection
+    yield generate().connection
 
-    script = chinook_path / "chinook.sqlite.sql"
-    tempdir = Path(mkdtemp())
-    database = tempdir / "chinook.db"
-    with sqlite3.connect(database) as conn:
-        conn.executescript(script.read_text())
 
-    try:
-        yield SQLiteConnection(str(database))
-    finally:
-        shutil.rmtree(tempdir)
+@pytest.fixture(scope="session")
+def project():
+    from dictum import Project
+
+    yield Project.example("chinook")
 
 
 @pytest.fixture(scope="session", params=[sqlite, postgres])

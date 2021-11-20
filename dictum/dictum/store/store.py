@@ -174,7 +174,7 @@ class Store:
         # add filters and transforms
         for filter in config.filters.values():
             self.filters[filter.id] = Transform(
-                **filter.dict(include={"id", "name", "description", "expr"})
+                **filter.dict(include={"id", "name", "description", "expr", "args"})
             )
         self.filters["in"] = InFilter()
         for transform in config.transforms.values():
@@ -354,7 +354,8 @@ class Store:
             if request.transform is not None:
                 transform = self.transforms[request.transform.id]
                 type_ = transform.return_type
-            column = Column(name=dimension.id, type=type_)
+            name = dimension.id if request.alias is None else request.alias
+            column = Column(name=name, type=type_)
             dimensions.append(column)
 
         metrics = [
@@ -463,7 +464,7 @@ class Store:
         self,
         measures: List[str],
         dimensions: List[schema.QueryDimensionRequest] = [],
-        filters: List[schema.QueryDimensionFilter] = {},
+        filters: List[schema.QueryDimensionFilter] = [],
     ) -> AggregateQuery:
         measure_id, *measures = measures
 
@@ -485,7 +486,8 @@ class Store:
                 transform = self.transforms[request.transform.id]
                 compiler = transform.get_compiler(request.transform.args)
                 type_ = transform.return_type
-            query.add_dimension(dimension.id, type_, compiler=compiler)
+            name = request.alias if request.alias is not None else request.dimension
+            query.add_dimension(dimension.id, name, type_, compiler=compiler)
 
         for request in filters:
             filter = self.filters.get(request.filter.id)
