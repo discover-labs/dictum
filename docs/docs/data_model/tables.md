@@ -45,7 +45,7 @@ started and which user it was.
 Remember that `project.yml` file? Let's edit it.
 
 ```{ .yaml title=project.yml hl_lines="5 6 7 8" }
---8<-- "snippets/first_model/first_measure.yml"
+--8<-- "snippets/tables/first_measure.yml"
 ```
 
 We define our tables under a `tables` key. The first table we define is called "orders".
@@ -101,10 +101,18 @@ about it, it makes sense: revenue is just the sum of order amounts.
     all measures are automatically promoted to metrics by default. So, for the time being,
     you can think of them as the same thing.
 
-Now you can query your store in the web interface:
+Now you can query your project in Jupyter:
 
-```sql
-select revenue
+```py
+tutorial.select("revenue").execute()
 ```
 
-This should give you a single number — total revenue from the `orders` table.
+--8<-- "snippets/tables/query_revenue.html"
+
+`Project.select` method returns a `Select` object, which can then be executed.
+`Select.execute` method returns a Pandas DataFrame.
+
+!!! tip
+    In Jupyter, if you just want to see the data and don't need to store the resulting
+    DataFrame in a variable, you can skip the `execute()` call. Dictum is integrated
+    with Jupyter and will display the results for you.

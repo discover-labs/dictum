@@ -35,7 +35,7 @@ otherwise skip the rest of this page.
 You can clone the tutorial projects' empty template to follow along with this command:
 
 ```sh
-git clone https://github.com/rad-data-labs/dictum-example-template tutorial
+git clone https://github.com/rad-data-labs/dictum-tutorial-template tutorial
 ```
 
 ### `project.yml` file
@@ -85,7 +85,7 @@ a path to the database file we want to use.
 
 ### Instantiate a Project
 
-You can interact with you project by calling methods of an instance of `Project` class.
+You can interact with your project by calling methods on an instance of `Project` class.
 The `Project` needs to know where to look for the data model and profiles definition.
 There are several ways to specify them.
 

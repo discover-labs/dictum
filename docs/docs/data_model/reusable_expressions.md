@@ -17,7 +17,7 @@ they can reference each other.
 --8<-- "snippets/reusable_expressions/measures.yml"
 ```
 
-In the expression language, we use the `distinct` function instead of SQL
+In the expression language, we use the `countd` function instead of SQL
 `count(distinct x)` syntax.
 
 You can reference measures by their ID prepended with a `$` symbol, like this: `$revenue`.
@@ -26,7 +26,7 @@ constants and columns.
 There are two limitations to this:
 
 - You can only reference measures that are declared on the same table.
-- Obviously, a measure can't reference itself, so circular references will result in an error.
+- A measure can't reference itself, so circular references will result in an error.
 
 !!! tip
     If you need to declare a calculation that involves measures from multiple tables,
@@ -34,7 +34,11 @@ There are two limitations to this:
 
 Now you can query ARPPU, for example, in time:
 
-```sql
-select revenue, unique_paying_users, arppu
-by order_date with month
+```py
+(
+    tutorial.select("revenue", "unique_paying_users", "arppu")
+    .by("order_created_at", "datepart('year')", "year")
+)
 ```
+
+--8<-- "snippets/reusable_expressions/arppu.html"

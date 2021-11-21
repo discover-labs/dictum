@@ -1,12 +1,12 @@
 orders:
   ...
   measures:
-    n_orders:
+    orders:
       name: Number of Orders
       expr: count()
     min_order_date:
       metric: false
       name: Min Order Date
       description: Not a metric, used for calculating aggregate dimensions
-      expr: min(order_date)
+      expr: min(order_created_at)
     ...

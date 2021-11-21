@@ -51,10 +51,14 @@ Now we can finally add `Percentage of Paying Users`.
 
 And query it:
 
-```sql
-select unique_active_users, unique_paying_users, ppu
-by date with month
+```py
+(
+    tutorial.select("ppu")
+    .by("user_channel")
+)
 ```
+
+--8<-- "snippets/metrics_and_measures/ppu_by_channel.html"
 
 
 ## Understand how queries are executed

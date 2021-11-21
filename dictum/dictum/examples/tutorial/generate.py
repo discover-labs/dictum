@@ -109,6 +109,6 @@ def generate():
         generate_orders(rng).to_sql("orders", conn)
         generate_categories().to_sql("categories", conn)
         generate_users(rng).to_sql("users", conn)
-        generate_sessions(rng).to_sql("session", conn)
+        generate_sessions(rng).to_sql("user_sessions", conn)
 
     return project

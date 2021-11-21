@@ -1,7 +1,7 @@
 source: users
 primary_key: id
 measures:
-  n_users:
+  users:
     name: Number of Users
     expr: count()
 dimensions:
@@ -18,7 +18,7 @@ dimensions:
     name: User's Order Count
     type: continuous
     description: Number of orders that a user made
-    expr: $n_orders
+    expr: $orders
   user_first_order_date:
     name: User's First Order Date
     type: time

@@ -19,7 +19,7 @@ nav:
   - Introduction: index.md
   - Data Model Guide:
     - Getting Started: data_model/getting_started.md
-    - Query Intro: data_model/query_intro.md
+    # - Query Intro: data_model/query_intro.md
     - Tables and Measures: data_model/tables.md
     - Dimensions: data_model/dimensions.md
     - Table Relationships: data_model/table_relationships.md

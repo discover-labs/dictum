@@ -42,12 +42,6 @@ consists of a `table` — this is the name of the table that we defined, _not_ 
 After the relationship is declared, we can access the related table's columns by
 prefixing them with related table's name, like this: `category.name`
 
-To query revenue by order category:
-
-```sql
-select revenue
-by order_category
-```
 
 ## Add another relationship
 
@@ -79,10 +73,3 @@ and the result would be just the same.
 !!! tip
     If you have a single direct chain of relationships from a measure's "host" table to a
     dimension's "host" table, that dimension can be used with the measure.
-
-To view revenue by user's sign-up channel:
-
-```sql
-select revenue
-by user_channel
-```

@@ -9,7 +9,7 @@ orders:
     unique_paying_users:
       name: Unique Paying Users
       description: Number of unique users who made an order
-      expr: distinct(user_id)
+      expr: countd(user_id)
     arppu:
       name: Average Revenue per Paying User (ARPPU)
       expr: $revenue / $unique_paying_users

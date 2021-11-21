@@ -9,7 +9,7 @@ user_sessions:
     unique_active_users:
       name: Unique Active Users (AU)
       description: Unique number of users that had at least one session
-      expr: distinct(user_id)
+      expr: countd(user_id)
   dimensions:
     session_start_date:
       name: Session Start Date

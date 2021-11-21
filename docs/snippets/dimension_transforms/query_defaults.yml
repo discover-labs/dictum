@@ -3,7 +3,7 @@ orders:
   measures:
     ...
   dimensions:
-    order_date:
+    order_created_at:
       name: Time of Order
       type: time
       expr: created_at

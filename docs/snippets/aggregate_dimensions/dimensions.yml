@@ -8,7 +8,7 @@ users:
       name: User's Order Count
       type: number
       description: Number of orders that a user made
-      expr: $n_orders
+      expr: $orders
     user_first_order_date:
       name: User's First Order Date
       type: date

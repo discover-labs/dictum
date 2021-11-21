@@ -271,3 +271,6 @@ class SQLAlchemyConnection(Connection):
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
         return Table(name, self.metadata, schema=schema, autoload=True)
+
+    def __str__(self):
+        return str(self.engine.url)

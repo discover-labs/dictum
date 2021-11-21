@@ -1,5 +1,9 @@
 # Aggregate Dimensions
 
+Let's think about how the `users` table in a traditional data warehouse looks. Usually
+data teams calculate various metrics per-user. How many orders did this user make?
+
+
 Some dimensions you might want to have in your model can be derived from measures.
 For example, you might want to see the distrubution of users by how many orders they
 made.
@@ -28,7 +32,7 @@ First, we need to create the measures that will support them.
 ```
 
 `min_sale_date` doesn't make sense as a metric, so we set `metric: false` to hide it from
-users. `n_orders` on the other hand is absolutely useful.
+users. `orders` on the other hand is absolutely useful.
 
 
 ## Create aggregate dimensions

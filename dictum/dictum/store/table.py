@@ -167,6 +167,8 @@ class Table:
         default_factory=dict
     )  # measure_id -> table
 
+    _resolved: bool = False
+
     def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
         """Find all join paths from this table to other tables"""
         result = []
@@ -235,29 +237,32 @@ class Table:
                 raise e.__class__(f"Error processing {measure}: {e}")
 
     def resolve_dimensions_and_filters(self):
-        exprs = {d.id: d.expr for d in self.dimensions.values()}
-        for dimension in self.allowed_dimensions.values():
-            if dimension.id not in exprs:
-                # related dimensions must be resolved first
-                dimension.table.resolve_dimensions_and_filters()
-                exprs[dimension.id] = dimension.prefixed_expr(
-                    self.dimension_join_paths[dimension.id]
-                )
-        resolver = DimensionResolver(exprs)
+        if not self._resolved:
+            exprs = {d.id: d.expr for d in self.dimensions.values()}
+            for dimension in self.allowed_dimensions.values():
+                if dimension.id not in exprs:
+                    # related dimensions must be resolved first
+                    dimension.table.resolve_dimensions_and_filters()
+                    exprs[dimension.id] = dimension.prefixed_expr(
+                        self.dimension_join_paths[dimension.id]
+                    )
+            resolver = DimensionResolver(exprs)
 
-        # dimensions
-        for dimension in self.dimensions.values():
-            try:
-                dimension.expr = resolver.resolve(dimension.expr)
-            except ResolverError as e:
-                raise e.__class__(f"Error processing {dimension}: {e}")
+            # dimensions
+            for dimension in self.dimensions.values():
+                try:
+                    dimension.expr = resolver.resolve(dimension.expr)
+                except ResolverError as e:
+                    raise e.__class__(f"Error processing {dimension}: {e}")
 
-        # use the same resolver for filters
-        for f in self.filters:
-            try:
-                f.expr = resolver.resolve(f.expr)
-            except ResolverError as e:
-                raise e.__class__(f"Error processing filters for {self}: {e}")
+            # use the same resolver for filters
+            for f in self.filters:
+                try:
+                    f.expr = resolver.resolve(f.expr)
+                except ResolverError as e:
+                    raise e.__class__(f"Error processing filters for {self}: {e}")
+
+            self._resolved = True
 
     def resolve_calculations(self):
         self.resolve_measures()

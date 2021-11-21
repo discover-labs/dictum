@@ -124,13 +124,13 @@ class Select:
         )
         return self
 
-    def execute(self) -> BackendResult:
+    def _execute(self) -> BackendResult:
         return self.client.execute(self.query)
 
     def _get_df(self, data: List[dict]) -> pd.DataFrame:
         return pd.DataFrame(data)
 
-    def df(self) -> pd.DataFrame:
+    def execute(self) -> pd.DataFrame:
         result = self.client.execute(self.query)
         return self._get_df(result.data)
 

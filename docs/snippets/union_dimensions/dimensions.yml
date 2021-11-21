@@ -2,7 +2,7 @@ tables:
   orders:
     ...
     dimensions:
-      order_date:
+      order_created_at:
         name: Date of Order
         type: date
         expr: created_at

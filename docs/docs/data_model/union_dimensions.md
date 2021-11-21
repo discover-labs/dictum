@@ -34,10 +34,14 @@ To add a dimension to the union, you need to set the `union` attribute on that d
 
 Now you can just use `date` dimension to query both metrics:
 
-```sql
-select revenue, n_users
-by date with month
+```py
+(
+    tutorial.select("revenue", "users")
+    .by("date", "datepart('year')", "year")
+)
 ```
+
+--8<-- "snippets/union_dimensions/select_by_union.html"
 
 
 ## Think about how you name the metrics
@@ -52,20 +56,6 @@ A good solution to that is to create a different metric that's basically a copy 
 `Number of Users`, but named as an event. `User Signups by Date` is much clearer to the
 end-user.
 
-!!! tip
-    The syntax used below is called YAML anchors. It allows you to reuse parts of your
-    YAML config to avoid duplication.
-
-    You can read more about YAML anchors
-    [here](https://medium.com/@kinghuang/docker-compose-anchors-aliases-extensions-a1e4105d70bd).
-
-```{ .yaml hl_lines="5 9 10 11" }
---8<-- "snippets/union_dimensions/n_users.yml"
-```
-
-And the query:
-
-```sql
-select user_signups
-by date with month
+```{ .yaml hl_lines="8 9 10 11" }
+--8<-- "snippets/union_dimensions/users.yml"
 ```
