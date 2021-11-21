@@ -4,104 +4,11 @@ from dataclasses import dataclass, field
 from functools import cached_property, reduce
 from typing import Dict, List, Optional, Tuple, Union
 
-from lark import Transformer, Tree
+from lark import Tree
 
 import dictum.store
 from dictum.store.calculations import Dimension, Measure
 from dictum.store.expr.parser import parse_expr
-
-
-class ResolverError(Exception):
-    pass
-
-
-class ReferenceResolutionError(ResolverError):
-    pass
-
-
-class ReferenceNotFoundError(ReferenceResolutionError):
-    pass
-
-
-class InvalidReferenceTypeError(ReferenceResolutionError):
-    pass
-
-
-class CircularReferenceError(ReferenceResolutionError):
-    pass
-
-
-class CalculationResolver(Transformer):
-    """Given a Dict[str, Tree] of dependencies in the constructor and an expression
-    in .resolve() method, recursively replaces each reference to a different expression
-    with the actual expression. In the end, only references to columns should be left
-    in the expression.
-    """
-
-    def __init__(self, dependencies: Dict[str, Tree], visit_tokens: bool = True):
-        self._deps = dependencies
-        super().__init__(visit_tokens=visit_tokens)
-
-    def _check_circular_refs(self, expr: Tree, path=()):
-        measures = expr.find_data("measure")
-        dimensions = expr.find_data("dimension")
-        for ref in list(measures) + list(dimensions):
-            key = ref.children[0]
-            if key in path:
-                path_str = " -> ".join(path + (key,))
-                raise CircularReferenceError(
-                    f"circular reference in calculation: {path_str}"
-                )
-            dep = self._deps.get(key)
-            if dep is None:
-                raise ReferenceNotFoundError(
-                    f"'{key}' not found in dependencies. "
-                    f"Valid values: {set(self._deps)}"
-                )
-            self._check_circular_refs(dep, path=path + (key,))
-
-    def resolve(self, expr: Tree):
-        self._check_circular_refs(expr)
-        return self.transform(expr)
-
-    def _transform(data: str):
-        def transform(self, children: list):
-            (key,) = children
-            dep = self._deps.get(key)
-            if dep is None:
-                raise ReferenceNotFoundError(
-                    f"'{key}' not found in dependencies. "
-                    f"Valid values: {set(self._deps)}"
-                )
-            return self.resolve(dep).children[0]
-
-        return transform
-
-    measure = _transform("measure")
-    dimension = _transform("dimension")
-
-
-class MeasureResolver(CalculationResolver):
-    pass
-
-
-class DimensionResolver(CalculationResolver):
-    def _check_circular_refs(self, expr: Tree, path=()):
-        for ref in expr.find_data("dimension"):
-            key = ref.children[0]
-            if key in path:
-                path_str = " -> ".join(path + (key,))
-                raise CircularReferenceError(
-                    f"circular reference in calculation: {path_str}"
-                )
-            dep = self._deps.get(key)
-            if dep is None:
-                raise ReferenceNotFoundError(
-                    f"'{key}' not found in dependencies. "
-                    f"Valid values: {set(self._deps)}"
-                )
-            if dep is not None:
-                self._check_circular_refs(dep, path=path + (key,))
 
 
 @dataclass
@@ -220,53 +127,6 @@ class Table:
                 counts[dimension] += 1
         dims.update({d.id: d for d, paths in counts.items() if paths == 1})
         return dims
-
-    def resolve_measures(self):
-        exprs = {m.id: m.expr for m in self.measures.values()}
-        for dimension in self.allowed_dimensions.values():
-            if dimension.id not in self.dimensions:
-                dimension.table.resolve_dimensions_and_filters()
-            exprs[dimension.id] = dimension.prefixed_expr(
-                self.dimension_join_paths[dimension.id]
-            )
-        resolver = MeasureResolver(exprs)
-        for measure in self.measures.values():
-            try:
-                measure.expr = resolver.resolve(measure.expr)
-            except ResolverError as e:
-                raise e.__class__(f"Error processing {measure}: {e}")
-
-    def resolve_dimensions_and_filters(self):
-        if not self._resolved:
-            exprs = {d.id: d.expr for d in self.dimensions.values()}
-            for dimension in self.allowed_dimensions.values():
-                if dimension.id not in exprs:
-                    # related dimensions must be resolved first
-                    dimension.table.resolve_dimensions_and_filters()
-                    exprs[dimension.id] = dimension.prefixed_expr(
-                        self.dimension_join_paths[dimension.id]
-                    )
-            resolver = DimensionResolver(exprs)
-
-            # dimensions
-            for dimension in self.dimensions.values():
-                try:
-                    dimension.expr = resolver.resolve(dimension.expr)
-                except ResolverError as e:
-                    raise e.__class__(f"Error processing {dimension}: {e}")
-
-            # use the same resolver for filters
-            for f in self.filters:
-                try:
-                    f.expr = resolver.resolve(f.expr)
-                except ResolverError as e:
-                    raise e.__class__(f"Error processing filters for {self}: {e}")
-
-            self._resolved = True
-
-    def resolve_calculations(self):
-        self.resolve_measures()
-        self.resolve_dimensions_and_filters()
 
     def __eq__(self, other: "Table"):
         return isinstance(other, Table) and self.id == other.id

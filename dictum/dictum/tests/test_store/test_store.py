@@ -114,7 +114,14 @@ def test_dimension_same_table_as_measures(chinook: Store):
 
 def test_resolve_metrics(chinook: Store):
     assert chinook.metrics.get("revenue_per_track").expr.children[0] == Tree(
-        "div", [Tree("measure", ["revenue"]), Tree("measure", ["track_count"])]
+        "div",
+        [
+            Tree(
+                "call",
+                ["coalesce", Tree("measure", ["revenue"]), Token("INTEGER", "0")],
+            ),
+            Tree("measure", ["track_count"]),
+        ],
     )
 
 

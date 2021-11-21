@@ -46,7 +46,7 @@ class Displayed(Base):
 
 
 class Calculation(Displayed):
-    expr: str
+    str_expr: str = Field(..., alias="expr")
 
 
 class Measure(Calculation):

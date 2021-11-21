@@ -1,13 +1,17 @@
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple
 
-from lark import Tree
+from lark import Transformer, Tree
 
 import dictum.store
 from dictum.store import schema
 from dictum.store.expr.parser import missing_token, parse_expr
+
+
+class ResolutionError(Exception):
+    pass
 
 
 @dataclass
@@ -25,15 +29,29 @@ class Displayed:
 class Calculation(Displayed):
     """Parent class for measures and dimensions."""
 
-    expr: Tree
+    str_expr: str
 
-    def __post_init__(self):
-        """Parse expr, fill in missing"""
-        if isinstance(self.expr, str):
-            self._parse_expr()
+    @cached_property
+    def expr(self) -> Tree:
+        raise NotImplementedError
 
-    def _parse_expr(self):
-        self.expr = parse_expr(self.expr, missing=self.missing)
+    @cached_property
+    def parsed_expr(self):
+        return parse_expr(self.str_expr)
+
+    def check_references(self, path=tuple()):
+        if self.id in path:
+            raise RecursionError(f"Circular reference in {self}: {path}")
+        self.check_measure_references(path + (self.id,))
+        self.check_dimension_references(path + (self.id,))
+
+    def check_measure_references(self, path):
+        raise NotImplementedError
+
+    def check_dimension_references(self, path):
+        for ref in self.parsed_expr.find_data("dimension"):
+            dimension = self.table.allowed_dimensions.get(ref.children[0])
+            dimension.check_references(path)
 
     @cached_property
     def join_paths(self) -> List[List[str]]:
@@ -84,16 +102,6 @@ class Calculation(Displayed):
 class TableCalculation(Calculation):
     table: "dictum.store.Table"
 
-    def __post_init__(self):
-        """add prefix column names with table id"""
-        if isinstance(self.expr, str):
-            self._parse_expr()
-            self._prepend_columns()
-
-    def _prepend_columns(self):
-        for ref in self.expr.find_data("column"):
-            ref.children = [self.table.id, *ref.children]
-
     @cached_property
     def joins(self) -> List["dictum.store.Join"]:
         query = dictum.store.AggregateQuery(table=self.table)
@@ -109,22 +117,65 @@ class DimensionQueryDefaults:
     transform: Optional[schema.QueryDimensionTransform] = None
 
 
+class DimensionTransformer(Transformer):
+    def __init__(
+        self,
+        table: "dictum.store.Table",
+        measures: Dict[str, "Measure"],
+        dimensions: Dict[str, "Dimension"],
+        visit_tokens: bool = True,
+    ) -> None:
+        self._table = table
+        self._measures = measures
+        self._dimensions = dimensions
+        super().__init__(visit_tokens=visit_tokens)
+
+    def column(self, children: list):
+        return Tree("column", [self._table.id, *children])
+
+    def measure(self, children: list):
+        measure_id = children[0]
+        return Tree("column", [self._table.id, f"__subquery__{measure_id}", measure_id])
+
+    def dimension(self, children: list):
+        dimension_id = children[0]
+        dimension = self._dimensions[dimension_id]
+        path = self._table.dimension_join_paths.get(dimension_id, [])
+        return dimension.prefixed_expr(path).children[0]
+
+
 @dataclass(eq=False, repr=False)
 class Dimension(TableCalculation):
     # not really a default, schema prevents that
     query_defaults: Optional[DimensionQueryDefaults] = None
 
-    def __post_init__(self):
-        if isinstance(self.expr, str):
-            self._parse_expr()
-            self._replace_measures()
-            self._prepend_columns()
+    @cached_property
+    def expr(self) -> Tree:
+        self.check_references()
+        transformer = DimensionTransformer(
+            self.table, self.table.measure_backlinks, self.table.allowed_dimensions
+        )
+        return transformer.transform(self.parsed_expr)
 
-    def _replace_measures(self):
-        for ref in self.expr.find_data("measure"):
-            measure = ref.children[0]
-            ref.data = "column"
-            ref.children = [f"__subquery__{measure}", measure]
+    def check_measure_references(self, path=tuple()):
+        for ref in self.parsed_expr.find_data("measure"):
+            measure_id = ref.children[0]
+            measure = self.table.measure_backlinks.get(measure_id).measures.get(
+                measure_id
+            )
+            measure.check_references(path)
+
+    # def __post_init__(self):
+    #     if isinstance(self.expr, str):
+    #         self._parse_expr()
+    #         self._replace_measures()
+    #         self._prepend_columns()
+
+    # def _replace_measures(self):
+    #     for ref in self.expr.find_data("measure"):
+    #         measure = ref.children[0]
+    #         ref.data = "column"
+    #         ref.children = [f"__subquery__{measure}", measure]
 
     @cached_property
     def related(self) -> Dict[str, "dictum.store.AggregateQuery"]:
@@ -178,33 +229,123 @@ class DimensionsUnion(Displayed):
     pass
 
 
+class MeasureTransformer(Transformer):
+    def __init__(
+        self,
+        table: "dictum.store.Table",
+        measures: Dict[str, "Measure"],
+        dimensions: Dict[str, "Dimension"],
+        visit_tokens: bool = True,
+    ) -> None:
+        self._table = table
+        self._measures = measures
+        self._dimensions = dimensions
+        super().__init__(visit_tokens=visit_tokens)
+
+    def column(self, children: list):
+        return Tree("column", [self._table.id, *children])
+
+    def measure(self, children: list):
+        measure_id = children[0]
+        return self._measures[measure_id].expr.children[0]
+
+    def dimension(self, children: list):
+        dimension_id = children[0]
+        path = self._table.dimension_join_paths[dimension_id]
+        return self._dimensions[dimension_id].prefixed_expr(path).children[0]
+
+
 @dataclass(repr=False)
 class Measure(TableCalculation):
+    @cached_property
+    def expr(self) -> Tree:
+        self.check_references()
+        transformer = MeasureTransformer(
+            self.table, self.table.measures, self.table.allowed_dimensions
+        )
+        return transformer.transform(self.parsed_expr)
+
     @cached_property
     def dimensions(self):
         return self.table.allowed_dimensions.values()
 
-    def metric(self) -> "Metric":
-        expr = Tree("measure", [self.id])
-        if self.missing is not None:
-            expr = Tree("call", ["coalesce", expr, missing_token(self.missing)])
-        expr = Tree("expr", [expr])
-        return Metric(
-            self.id,
-            name=self.name,
-            description=self.description,
-            expr=expr,
-            type=self.type,
-            format=self.format,
-            currency=self.currency,
-            measures=[self],
-            missing=self.missing,
-        )
+    def check_measure_references(self, path=tuple()):
+        for ref in self.parsed_expr.find_data("measure"):
+            measure = self.table.measures.get(ref.children[0])
+            measure.check_references(path)
+
+
+class MetricTransformer(Transformer):
+    def __init__(
+        self,
+        metrics: Dict[str, "Metric"],
+        measures: Dict[str, "Measure"],
+        visit_tokens: bool = True,
+    ) -> None:
+        self._metrics = metrics
+        self._measures = measures
+        super().__init__(visit_tokens=visit_tokens)
+
+    def column(self, children: list):
+        raise ValueError("Column references are not allowed in metrics")
+
+    def dimension(self, children: list):
+        raise ValueError("Dimension references are not allowed in metrics")
+
+    def measure(self, children: list):
+        ref_id = children[0]
+        if ref_id in self._metrics:
+            return self._metrics[ref_id].expr.children[0]
+        if ref_id in self._measures:
+            return Tree("measure", children)
+        raise KeyError(f"reference {ref_id} not found")
 
 
 @dataclass(repr=False)
 class Metric(Calculation):
-    measures: List[Measure] = field(default_factory=list)
+    store: "dictum.store.Store"
+
+    @classmethod
+    def from_measure(cls, measure: Measure, store: "dictum.store.Store") -> "Metric":
+        return cls(
+            store=store,
+            id=measure.id,
+            name=measure.name,
+            description=measure.description,
+            str_expr=f"${measure.id}",
+            type=measure.type,
+            format=measure.format,
+            currency=measure.currency,
+            missing=measure.missing,
+        )
+
+    @cached_property
+    def expr(self) -> Tree:
+        metrics = self.store.metrics.copy()
+        del metrics[self.id]
+        transformer = MetricTransformer(metrics, self.store.measures)
+        try:
+            expr = transformer.transform(self.parsed_expr)
+        except Exception as e:
+            raise ResolutionError(f"Error resolving expression of {self}: {e}")
+        if self.missing is not None:
+            expr = Tree(
+                "expr",
+                [
+                    Tree(
+                        "call",
+                        ["coalesce", expr.children[0], missing_token(self.missing)],
+                    )
+                ],
+            )
+        return expr
+
+    @cached_property
+    def measures(self):
+        result = []
+        for ref in self.expr.find_data("measure"):
+            result.append(self.store.measures.get(ref.children[0]))
+        return result
 
     @cached_property
     def dimensions(self) -> Dict[str, Dimension]:

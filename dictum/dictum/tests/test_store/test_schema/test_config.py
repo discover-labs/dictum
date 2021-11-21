@@ -1,4 +1,4 @@
-from dictum.store.schema.config import Table
+from dictum.store.schema.config import Calculation, Table
 
 
 def test_set_related_ids():
@@ -34,3 +34,10 @@ def test_set_dimensions_ids():
         }
     )
     table.dimensions["test"].id == "test"
+
+
+def test_expr_alias():
+    calc = Calculation.parse_obj(
+        {"id": "test", "name": "test", "type": "number", "expr": "str_expr"}
+    )
+    assert calc.str_expr == "str_expr"

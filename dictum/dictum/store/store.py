@@ -2,8 +2,6 @@ import dataclasses
 from collections import UserDict, defaultdict
 from typing import Dict, List
 
-from lark import Transformer, Tree
-
 from dictum.store import schema
 from dictum.store.calculations import (
     Calculation,
@@ -19,15 +17,7 @@ from dictum.store.computation import (
     ColumnCalculation,
     Computation,
 )
-from dictum.store.table import (
-    CircularReferenceError,
-    InvalidReferenceTypeError,
-    ReferenceNotFoundError,
-    ReferenceResolutionError,
-    RelatedTable,
-    Table,
-    TableFilter,
-)
+from dictum.store.table import RelatedTable, Table, TableFilter
 from dictum.store.transforms import InFilter, Transform
 
 
@@ -74,55 +64,6 @@ class MetricDict(CalculationDict):
         return super().get(key)
 
 
-class MetricResolver(Transformer):
-    def __init__(
-        self,
-        dependencies: Dict[str, Tree],
-        allowed_measures: set,
-        visit_tokens: bool = True,
-    ):
-        self._measures = allowed_measures
-        self._deps = dependencies
-        super().__init__(visit_tokens=visit_tokens)
-
-    def _check_circular_refs(self, expr: Tree, path=()):
-        for ref in expr.find_data("measure"):
-            key = ref.children[0]
-            if key in self._measures:
-                continue
-            if key in path:
-                path_str = " -> ".join(path + (key,))
-                raise CircularReferenceError(
-                    f"circular reference in calculation: {path_str}"
-                )
-            dep = self._deps.get(key)
-            if dep is None and key not in (self._measures):
-                raise ReferenceNotFoundError(
-                    f"Measure {key} does not exist. "
-                    f"Valid values: {', '.join(self._measures)}"
-                )
-            elif dep is None:
-                return
-            self._check_circular_refs(dep, path=path + (key,))
-
-    def resolve(self, expr: Tree):
-        self._check_circular_refs(expr)
-        return self.transform(expr)
-
-    def measure(self, children: list):
-        (ref,) = children
-        if ref in self._measures:
-            return Tree("measure", children)
-        dep = self._deps.get(ref)
-        return self.resolve(dep)
-
-    def dimension(self, children: list):
-        (ref,) = children
-        raise InvalidReferenceTypeError(
-            f"Can't reference dimension {ref} from a metric"
-        )
-
-
 displayed_fields = {
     "id",
     "name",
@@ -133,7 +74,7 @@ displayed_fields = {
     "missing",
 }
 
-table_calc_fields = displayed_fields | {"expr"}
+table_calc_fields = displayed_fields | {"str_expr"}
 
 
 class Store:
@@ -267,28 +208,17 @@ class Store:
             if isinstance(dimension, Dimension):
                 dimension.table.related.update(dimension.related)
 
-        # resolve calculations
-        for table in self.tables.values():
-            table.resolve_calculations()
-
-        # add and resolve metrics
+        # add metrics
         for metric in config.metrics.values():
             self.metrics[metric.id] = Metric(
+                store=self,
                 **metric.dict(include=table_calc_fields),
             )
-        metric_resolver = MetricResolver(
-            dependencies={k: v.expr for k, v in self.metrics.items()},
-            allowed_measures=set(self.measures),
-        )
-        for metric in self.metrics.values():
-            try:
-                metric.expr = metric_resolver.resolve(metric.expr)
-                metric.measures = [
-                    self.measures.get(m.children[0])
-                    for m in metric.expr.find_data("measure")
-                ]
-            except ReferenceResolutionError as e:
-                raise e.__class__(f"Error resolving {metric}: {e}")
+
+    @classmethod
+    def from_yaml(cls, path: str):
+        config = schema.Config.from_yaml(path)
+        return cls(config)
 
     def build_measure(self, measure: schema.Measure, table: Table) -> Measure:
         _measure = Measure(
@@ -298,7 +228,7 @@ class Store:
                     "id",
                     "name",
                     "description",
-                    "expr",
+                    "str_expr",
                     "type",
                     "format",
                     "currency",
@@ -307,13 +237,8 @@ class Store:
             ),
         )
         if measure.metric:
-            self.metrics.add(_measure.metric())
+            self.metrics.add(Metric.from_measure(measure, self))
         return _measure
-
-    @classmethod
-    def from_yaml(cls, path: str):
-        config = schema.Config.from_yaml(path)
-        return cls(config)
 
     def ensure_table(self, table: schema.Table) -> Table:
         if table.id not in self.tables:
@@ -323,50 +248,6 @@ class Store:
             t.filters = [TableFilter(expr=f, table=t) for f in table.filters]
             self.tables[table.id] = t
         return self.tables[table.id]
-
-    def get_computation(self, query: schema.Query) -> Computation:
-        """Returns an object that can then be executed on a backend."""
-
-        metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}
-        tables = defaultdict(lambda: [])
-
-        # group measures by anchor
-        for metric in metrics.values():
-            for measure in metric.measures:
-                tables[measure.table.id].append(measure.id)
-
-        # get queries for each anchor
-        queries = []
-        for measures in tables.values():
-            queries.append(
-                self.get_aggregate_query(
-                    measures=measures,
-                    dimensions=query.dimensions,
-                    filters=query.filters,
-                )
-            )
-
-        # get dimensions for the top level
-        dimensions = []
-        for request in query.dimensions:
-            dimension = self.dimensions.get(request.dimension)
-            type_ = dimension.type
-            if request.transform is not None:
-                transform = self.transforms[request.transform.id]
-                type_ = transform.return_type
-            name = dimension.id if request.alias is None else request.alias
-            column = Column(name=name, type=type_)
-            dimensions.append(column)
-
-        metrics = [
-            ColumnCalculation(expr=m.expr, name=id, type=m.type)
-            for id, m in metrics.items()
-        ]
-        return Computation(
-            metrics=metrics,
-            queries=queries,
-            dimensions=dimensions,
-        )
 
     def get_metadata(self, query: schema.Query) -> Dict[str, Calculation]:
         """Returns a dict of metadata relevant to the query (mostly having to do with
@@ -453,13 +334,6 @@ class Store:
             ]
         )
 
-    def resolve_metrics(self):
-        resolver = MetricResolver(
-            {k: v.expr for k, v in self.metrics.items()}, set(self.measures)
-        )
-        for m in self.metrics.values():
-            resolver.resolve(m.expr)
-
     def get_aggregate_query(
         self,
         measures: List[str],
@@ -501,3 +375,47 @@ class Store:
             query.add_literal_filter(f.expr)
 
         return query
+
+    def get_computation(self, query: schema.Query) -> Computation:
+        """Returns an object that can then be executed on a backend."""
+
+        metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}
+        tables = defaultdict(lambda: [])
+
+        # group measures by anchor
+        for metric in metrics.values():
+            for measure in metric.measures:
+                tables[measure.table.id].append(measure.id)
+
+        # get queries for each anchor
+        queries = []
+        for measures in tables.values():
+            queries.append(
+                self.get_aggregate_query(
+                    measures=measures,
+                    dimensions=query.dimensions,
+                    filters=query.filters,
+                )
+            )
+
+        # get dimensions for the top level
+        dimensions = []
+        for request in query.dimensions:
+            dimension = self.dimensions.get(request.dimension)
+            type_ = dimension.type
+            if request.transform is not None:
+                transform = self.transforms[request.transform.id]
+                type_ = transform.return_type
+            name = dimension.id if request.alias is None else request.alias
+            column = Column(name=name, type=type_)
+            dimensions.append(column)
+
+        metrics = [
+            ColumnCalculation(expr=m.expr, name=id, type=m.type)
+            for id, m in metrics.items()
+        ]
+        return Computation(
+            metrics=metrics,
+            queries=queries,
+            dimensions=dimensions,
+        )
