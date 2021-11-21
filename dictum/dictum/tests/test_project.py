@@ -7,6 +7,6 @@ def test_pivot_aliases(project: Project):
         .rows("invoice_date", func.datepart("year"), "year")
         .columns("invoice_date", func.datepart("quarter"), "quarter")
     )
-    df = pivot.df()
+    df = pivot.execute()
     assert df.index.names == ["year", "$"]
     assert df.columns.names == ["quarter"]
