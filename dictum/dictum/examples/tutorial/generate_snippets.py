@@ -78,3 +78,18 @@ generate(
     tutorial.select("ppu").by("user_channel"),
     "metrics_and_measures/ppu_by_channel.html",
 )
+
+generate(
+    tutorial.select("users").by("user_order_count"),
+    "aggregate_dimensions/user_order_count.html",
+)
+
+generate(
+    (
+        tutorial.pivot("orders")
+        .rows("user_first_order_date", "datetrunc('month')", "cohort_month")
+        .columns("months_since_first_order")
+        .where("user_first_order_date", "atleast('2021-11-01')")
+    ),
+    "aggregate_dimensions/order_cohorts.html",
+)

@@ -44,7 +44,7 @@ tutorial.select("revenue").by("order_created_at")
 
 --8<-- "snippets/dimensions/query_revenue_by_date.html"
 
-Oops, this doesn't look like what we wanted to achieve. `order_created_at` dimensions
+Oops, this doesn't look like what we wanted to achieve. `order_created_at` dimension
 is very granular: each value is a timestamp, including seconds. We probably want to
 aggregate this at some other level, like, for example, years or quarters.
 

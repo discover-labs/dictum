@@ -155,7 +155,18 @@ class Dimension(TableCalculation):
         transformer = DimensionTransformer(
             self.table, self.table.measure_backlinks, self.table.allowed_dimensions
         )
-        return transformer.transform(self.parsed_expr)
+        expr = transformer.transform(self.parsed_expr)
+        if self.missing is not None:
+            expr = Tree(
+                "expr",
+                [
+                    Tree(
+                        "call",
+                        ["coalesce", expr.children[0], missing_token(self.missing)],
+                    )
+                ],
+            )
+        return expr
 
     def check_measure_references(self, path=tuple()):
         for ref in self.parsed_expr.find_data("measure"):
@@ -164,18 +175,6 @@ class Dimension(TableCalculation):
                 measure_id
             )
             measure.check_references(path)
-
-    # def __post_init__(self):
-    #     if isinstance(self.expr, str):
-    #         self._parse_expr()
-    #         self._replace_measures()
-    #         self._prepend_columns()
-
-    # def _replace_measures(self):
-    #     for ref in self.expr.find_data("measure"):
-    #         measure = ref.children[0]
-    #         ref.data = "column"
-    #         ref.children = [f"__subquery__{measure}", measure]
 
     @cached_property
     def related(self) -> Dict[str, "dictum.store.AggregateQuery"]:

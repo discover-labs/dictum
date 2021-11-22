@@ -17,7 +17,7 @@ don't belong with the data model.
 
 There are `string`, `integer` and `float` literals.
 
-Strings are enclosed in a single quote symbol (`'`): `'this is a string'`.
+Strings are enclosed by single quotes (`'`): `'this is a string'`.
 
 Integers are numbers without a floating point part: `12`, `42`, `9876` are all integers.
 Floats are numbers with a floating point part, for example, `3.14`.
@@ -27,7 +27,9 @@ Floats are numbers with a floating point part, for example, `3.14`.
 
 You can reference columns and other calculations in calculation expressions.
 
-To reference a column by name, just use that name: `amount`, `created_at`.
+To reference a column by name, just use that name: `amount`, `created_at`. If your column
+is not a valid identifier, you can, like in SQL, surround it with double-quotes `"` to
+escape: `"Column Identifier"`.
 
 Measure and Metric references are prepended by `$`: `$revenue`. Because the line between
 them is blurry, the notation is the same — Dictum will figure out what you mean.
@@ -44,8 +46,7 @@ Dimension references are prepended by `:` — `:sale_date`, `:channel`.
 
 ### Arithmetic
 
-There are normal arithmetical operators present in any other language, which respect
-operator precedence: `+`, `-`, `*`, `/`, `%` (division remainder),
+Standard arithmetic operators are supported: `+`, `-`, `*`, `/`, `%` (division remainder),
 `//` (floor division, or integer division), `**` (exponentiation, or power).
 
 ### Comparison
@@ -53,7 +54,7 @@ operator precedence: `+`, `-`, `*`, `/`, `%` (division remainder),
 `>`, `<`, `>=`, `<=` are supported. Equals operator can be written as `=` or `==`. Not
 equals is `!=` or `<>`.
 
-### Boolean and ternary
+### Boolean operators and ternary expressions
 
 Boolean operators are `not`, `and`, `or`
 
@@ -63,7 +64,7 @@ Ternary expression `case when x then y else z end` is supported both with and wi
 `else` part.
 
 !!! info
-    `case x when y then z else p end` for is not suppoted yet.
+    `case x when y then z else p end` form is not suppoted yet.
 
 !!! info
     There's no string concatenation operator (`||`) yet.

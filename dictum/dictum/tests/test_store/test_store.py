@@ -99,7 +99,7 @@ def test_suggest_dimensions_with_union(chinook: Store):
         }
     )
     dimensions = chinook.suggest_dimensions(q)
-    assert len(dimensions) == 10
+    assert len(dimensions) == 11
 
 
 def test_dimension_same_table_as_measures(chinook: Store):
@@ -237,3 +237,17 @@ def test_alias(chinook: Store):
     comp = chinook.get_computation(q)
     assert comp.dimensions[0].name == "year"
     assert comp.dimensions[1].name == "month"
+
+
+def test_missing_join_for_aggregate_dimension(chinook: Store):
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "items_sold"}],
+            "dimensions": [
+                {"dimension": "customer_country"},
+                {"dimension": "first_order_cohort_month"},
+            ],
+        }
+    )
+    comp = chinook.get_computation(q)
+    assert len(comp.queries[0].unnested_joins) == 3

@@ -5,6 +5,15 @@ theme:
     repo: fontawesome/brands/github
 repo_url: https://github.com/rad-data-labs/dictum
 repo_name: Source code
+plugins:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          rendering:
+            show_root_heading: true
+            show_source: false
+            show_signature_annotations: true
 markdown_extensions:
   - admonition
   - attr_list
@@ -30,6 +39,10 @@ nav:
     - Types and Formatting: data_model/types_formatting.md
     - Organizing a Larger Project with Multiple Files: data_model/multiple_files.md
     - Default Transforms and Filters: data_model/dimension_transforms.md
+  - Interactive Analytics Guide:
+    - Selecting and Grouping Metrics: analysis/metrics.md
+    - Pivot Tables: analysis/pivot.md
+    - Data Visualization: analysis/dataviz.md
     # - Table Calculations -: index.md
   # - Query Guide:
   #   - Introduction: query/intro.md

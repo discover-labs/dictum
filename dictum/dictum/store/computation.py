@@ -94,9 +94,10 @@ class AggregateQuery:
         # termination: dimension is right here
         if dimension_id in self.table.dimensions:
             dimension = self.table.dimensions.get(dimension_id)
-            for join in dimension.joins:
-                if join not in self.joins:
-                    self.joins.append(join)
+            self.merge_joins(dimension.joins)
+            # for join in dimension.joins:
+            #     if join not in self.joins:
+            #         self.joins.append(join)
             return self, _path  # terminate
 
         path = self.table.dimension_join_paths.get(dimension_id)
@@ -184,6 +185,16 @@ class AggregateQuery:
         self.joins.append(join)
         join.to.add_path(tables)  # add and go further down
 
+    def merge_joins(self, joins: List[Join]):
+        """Merge a list of joins into the existing joins, avoiding duplication."""
+        for join in joins:
+            if join not in self.joins:
+                self.joins.append(join)
+                continue
+            for existing_join in self.joins:
+                if join == existing_join:
+                    existing_join.to.merge_joins(join.to.joins)
+
     @property
     def unnested_joins(self):
         """Unnested joins in the correct order, depth-first"""
@@ -205,14 +216,8 @@ class AggregateQuery:
                 yield from join.to._unnested_joins((*path, join.alias))
 
     def _print(self):
-        print("\n".join(self._paths()))
-
-    def _paths(self) -> List[str]:
-        result = []
-        result.append(self.identity)
-        for join in self.joins:
-            result += join.to._paths()
-        return result
+        for join in self.unnested_joins:
+            print(join.left_identity, join.right_identity)
 
     def __eq__(self, other: "AggregateQuery"):
         return (

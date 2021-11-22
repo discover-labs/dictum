@@ -39,3 +39,9 @@ dimensions:
     name: Employee Country
     type: string
     expr: Country
+
+  employee_revenue:
+    name: Employee Revenue
+    type: currency
+    currency: USD
+    expr: $revenue

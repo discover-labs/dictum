@@ -2,15 +2,11 @@
 
 Let's think about how the `users` table in a traditional data warehouse looks. Usually
 data teams calculate various metrics per-user. How many orders did this user make?
+What is their total order amount? When was the first order?
 
-
-Some dimensions you might want to have in your model can be derived from measures.
-For example, you might want to see the distrubution of users by how many orders they
-made.
-
-This is also useful for cohort analysis: you can calculate `First Order Date` dimension
-for each user, and then the difference between the user's `First Order Date` and
-`Order Date` on orders.
+In Dictum there's a special kind of dimensions called aggregate dimensions. They are
+created exactly for this purpose: calculating an existing measure per table row and
+using _that_ as a dimension.
 
 !!! warning
     Aggregate dimension calculations produce queries that will not perform very well.
@@ -31,18 +27,30 @@ First, we need to create the measures that will support them.
 --8<-- "snippets/aggregate_dimensions/measures.yml"
 ```
 
-`min_sale_date` doesn't make sense as a metric, so we set `metric: false` to hide it from
+`min_order_date` doesn't make sense as a metric, so we set `metric: false` to hide it from
 users. `orders` on the other hand is absolutely useful.
 
 
 ## Create aggregate dimensions
 
+You can just drop a measure into the dimension expression and it will be grouped by the
+table's primary key and joined in.
+
 ```{ .yaml hl_lines="11 15" }
 --8<-- "snippets/aggregate_dimensions/dimensions.yml"
 ```
 
-Yes, it's that simple. You can just drop a measure into the dimension expression and
-it will be grouped by the table's primary key and joined in.
+Now we can calculate number of users by how many orders they made:
+
+```py
+(
+    tutorial.select("users")
+    .by("user_order_count")
+)
+```
+
+--8<-- "snippets/aggregate_dimensions/user_order_count.html"
+
 
 
 ## Use dimensions in other dimensions' expressions
@@ -52,17 +60,22 @@ referenced in other measures' expressions.
 
 It also works with dimensions, but in addition to dimensions declared on the same table
 you can use dimensions from any related table, as long as there's a single unambiguous
-join path to it. To reference a dimensions, prefix it's ID with a colon (`:`).
+join path to it. To reference a dimension, prefix it's ID with a colon (`:`).
 
 ```{ .yaml hl_lines="9" }
 --8<-- "snippets/aggregate_dimensions/datediff.yml"
 ```
 
-Now users can do basic cohort analysis. For example, they can view how much revenue a
-particular user cohort brings over time, or compare between those cohorts.
+Now users can do basic cohort analysis. For example, they can view how many orders
+particular user cohort made over time and compare between those cohorts.
 
-```sql
-select revenue, unique_paying_users
-by first_order_date with month,
-   months_since_first_order
+```py
+(
+    tutorial.pivot("orders")
+    .rows("user_first_order_date", "datetrunc('month')", "cohort_month")
+    .columns("months_since_first_order")
+    .where("user_first_order_date", "atleast('2021-11-01')")
+)
 ```
+
+--8<-- "snippets/aggregate_dimensions/order_cohorts.html"

@@ -78,7 +78,7 @@ tables:
         name: Days Since User's First Order
         type: number
         expr: datediff('day', :user_first_order_date, :order_created_at)
-      order_month_diff:
+      months_since_first_order:
         name: Months Since User's First Order
         type: number
         expr: datediff('month', :user_first_order_date, :order_created_at)
@@ -110,6 +110,11 @@ tables:
         type: number
         missing: 0
         expr: $revenue
+      user_order_count:
+        name: Number of Order a User Made
+        type: number
+        missing: 0
+        expr: $orders
       user_first_order_date:
         name: User's First Order Date
         expr: $min_order_date
