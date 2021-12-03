@@ -1,6 +1,8 @@
+from datetime import date, datetime
 from functools import cached_property
 from typing import Dict, List, Optional, Union
 
+import dateutil.parser
 import sqlparse
 from lark import Transformer
 from sqlalchemy import (
@@ -228,6 +230,35 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         )
 
 
+def _date_mapper(v):
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str):
+        return dateutil.parser.parse(v).date()
+    if isinstance(v, datetime):
+        return v.date()
+    return v
+
+
+def _datetime_mapper(v):
+    if isinstance(v, datetime):
+        return v
+    if isinstance(v, date):
+        return datetime.combine(v, datetime.min.time())
+    if isinstance(v, str):
+        return dateutil.parser.parse(v)
+    return v
+
+
+_type_mappers = {
+    "float": float,
+    "int": int,
+    "str": str,
+    "date": _date_mapper,
+    "datetime": _datetime_mapper,
+}
+
+
 class SQLAlchemyConnection(Connection):
 
     type = "sql_alchemy"
@@ -274,3 +305,11 @@ class SQLAlchemyConnection(Connection):
 
     def __str__(self):
         return str(self.engine.url)
+
+    def coerce_types(self, data: List[dict], types: Dict[str, str]):
+        for row in data:
+            for k, v in row.items():
+                if row[k] is None:
+                    continue
+                row[k] = _type_mappers[types[k]](v)
+        return data

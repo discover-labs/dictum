@@ -29,15 +29,15 @@ generate(
 )
 
 generate(
-    tutorial.select("revenue").by("order_created_at", transform="datetrunc('year')"),
+    tutorial.select("revenue").by("order_created_at.datetrunc('year')"),
     "dimensions/query_revenue_by_date_transform.html",
 )
 
 generate(
     (
         tutorial.select("revenue")
-        .by("order_created_at", transform="datepart('year')", alias="year")
-        .by("order_created_at", transform="datepart('month')", alias="month")
+        .by("order_created_at.datepart('year')", alias="year")
+        .by("order_created_at.datepart('month')", alias="month")
     ),
     "dimensions/query_revenue_by_date_alias.html",
 )
@@ -46,7 +46,7 @@ generate(
     (
         tutorial.pivot("revenue")
         .rows("channel")
-        .columns("order_created_at", "datepart('year')", "year")
+        .columns("order_created_at.datepart('year')", "year")
     ),
     "dimensions/pivot.html",
 )
@@ -55,21 +55,21 @@ generate(
     (
         tutorial.pivot("revenue")
         .columns("channel")
-        .rows("order_created_at", "datepart('year')", "year")
-        .rows("order_created_at", "datepart('quarter')", "quarter")
+        .rows("order_created_at.datepart('year')", "year")
+        .rows("order_created_at.datepart('quarter')", "quarter")
     ),
     "dimensions/pivot_nested.html",
 )
 
 generate(
     tutorial.select("revenue", "unique_paying_users", "arppu").by(
-        "order_created_at", "datepart('year')", "year"
+        "order_created_at.datepart('year')", "year"
     ),
     "reusable_expressions/arppu.html",
 )
 
 generate(
-    tutorial.select("revenue", "users").by("date", "datepart('year')", "year"),
+    tutorial.select("revenue", "users").by("date.datepart('year')", "year"),
     "union_dimensions/select_by_union.html",
 )
 
@@ -87,9 +87,9 @@ generate(
 generate(
     (
         tutorial.pivot("orders")
-        .rows("user_first_order_date", "datetrunc('month')", "cohort_month")
+        .rows("user_first_order_date.datetrunc('month')", "cohort_month")
         .columns("months_since_first_order")
-        .where("user_first_order_date", "atleast('2021-11-01')")
+        .where("user_first_order_date >= '2021-11-01'")
     ),
     "aggregate_dimensions/order_cohorts.html",
 )

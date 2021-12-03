@@ -17,40 +17,41 @@ measures:
 
 
 dimensions:
-  invoice_date: &date
+  invoice_date:
     name: Sale Date
     expr: InvoiceDate
     type: date
-    query_defaults:
-      filter: last(30, 'day')
-      transform: datetrunc('day')
 
   invoice_datetime:
-    <<: *date
     name: Sale Datetime
+    description: User for testing purposes (type casting)
+    expr: InvoiceDate
     type: datetime
 
   order_amount:
     name: Order Amount
     expr: Total
-    type: number
+    type: float
 
   order_amount_10_dollar_bins:
     name: Total Order Amount ($10 bins)
     expr: Total // 10 * 10
-    type: currency
-    currency: USD
+    type: int
+    format:
+      kind: currency
+      currency: USD
 
   invoice_year:
     name: Invoice Year
-    type: number
     expr: datepart('year', :invoice_date)
+    type: int
 
   leap_year:
     name: Invoice Date is in Leap Year
     expr: |
-      if(:invoice_year % 400 == 0, 'Yes',
-          :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
-          'No'
-        )
-    type: string
+      if(
+        :invoice_year % 400 == 0, 'Yes',
+        :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
+        'No'
+      )
+    type: str

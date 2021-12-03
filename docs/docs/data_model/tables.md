@@ -61,8 +61,8 @@ You must use the `dict` form if table is in a non-standard schema:
 
 ```yaml
 source:
-    table: mytable
-    schema: myschema
+  table: mytable
+  schema: myschema
 ```
 
 !!! info
@@ -73,7 +73,7 @@ source:
     Without this field a table can't be a target of a relationship.
 
 ```{ .yaml title=project.yml hl_lines="9 10 11 12 13" }
---8<-- "snippets/first_model/first_measure.yml"
+--8<-- "snippets/tables/first_measure.yml"
 ```
 
 Then, under `measures`, we define which aggregations are applicable to this table.

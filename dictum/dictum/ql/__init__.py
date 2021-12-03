@@ -1,3 +1,3 @@
-from dictum.ql.transformer import parse_query
+from dictum.ql.transformer import compile_filter, compile_grouping, compile_query
 
-__all__ = ["parse_query"]
+__all__ = ["compile_query", "compile_filter", "compile_grouping"]

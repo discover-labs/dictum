@@ -76,11 +76,11 @@ tables:
         union: channel
       order_day_diff:
         name: Days Since User's First Order
-        type: number
+        type: int
         expr: datediff('day', :user_first_order_date, :order_created_at)
       months_since_first_order:
         name: Months Since User's First Order
-        type: number
+        type: int
         expr: datediff('month', :user_first_order_date, :order_created_at)
 
   users:
@@ -107,12 +107,12 @@ tables:
         union: channel
       user_orders_amount:
         name: Users' Total Orders Amount
-        type: number
+        type: float
         missing: 0
         expr: $revenue
       user_order_count:
         name: Number of Order a User Made
-        type: number
+        type: int
         missing: 0
         expr: $orders
       user_first_order_date:

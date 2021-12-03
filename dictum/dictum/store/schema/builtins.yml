@@ -1,12 +1,34 @@
 filters:
-  atleast:
-    name: at least
+  gt:
+    name: ">"
+    args: [value]
+    expr: "@ > value"
+  ge:
+    name: ">="
     args: [value]
     expr: "@ >= value"
-  atmost:
-    name: at most
+  lt:
+    name: "<"
+    args: [value]
+    expr: "@ = value"
+  le:
+    name: "<="
     args: [value]
     expr: "@ <= value"
+  eq:
+    name: "="
+    args: [value]
+    expr: "@ = value"
+  ne:
+    name: "!="
+    args: [value]
+    expr: "@ <> value"
+  isnull:
+    name: isnull
+    expr: "@ is null"
+  isnotnull:
+    name: isnotnull
+    expr: "@ is not null"
   inrange:
     name: in range
     args: [min, max]
@@ -20,38 +42,48 @@ transforms:
     name: step
     args: [size]
     expr: "@ // size * size"
+    return_type: int
   datepart:
     name: date part
     args: [part]
     expr: datepart(part, @)
-    return_type: number
-    format: "0000"
+    return_type: int
+    format:
+      kind: number
+      pattern: "0000"
   datetrunc:
     name: date trunc
     args: [part]
     expr: datetrunc(part, @)
   year:
     name: date year
-    expr: datetrunc('year', @)
-    format: yyyy
+    expr: datepart('year', @)
+    return_type: int
   quarter:
     name: date quarter
-    expr: datetrunc('quarter', @)
-    format: qqq yyyy
+    expr: datepart('quarter', @)
+    return_type: int
   month:
     name: date month
-    expr: datetrunc('month', @)
-    format: MMM yyyy
+    expr: datepart('month', @)
+    return_type: int
   week:
     name: date week
-    expr: datetrunc('week', @)
-    format: ww YYYY
+    expr: datepart('week', @)
+    return_type: int
   day:
     name: date day
-    expr: datetrunc('day', @)
+    expr: datepart('day', @)
+    return_type: int
   hour:
     name: date hour
-    expr: datetrunc('hour', @)
+    expr: datepart('hour', @)
+    return_type: int
   minute:
     name: date minute
-    expr: datetrunc('minute', @)
+    expr: datepart('minute', @)
+    return_type: int
+  second:
+    name: date second
+    expr: datepart('second', @)
+    return_type: int

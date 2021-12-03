@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
-from typing import List
+from typing import Dict, List
 
 import pandas as pd
 from lark import Token, Transformer
@@ -386,7 +386,7 @@ class Connection(ABC):
         query = self.compile(computation)
         with Timer() as t:
             data = self.execute(query)
-            data = self.coerce_types(data, computation)
+            data = self.coerce_types(data, computation.types)
         return BackendResult(
             data=data, raw_query=self.get_raw_query(query), duration=t.duration
         )
@@ -396,7 +396,7 @@ class Connection(ABC):
         return pd.DataFrame(result.data)
 
     @abstractmethod
-    def coerce_types(self, data: List[dict], computation: Computation):
+    def coerce_types(self, data: List[dict], types: Dict[str, str]):
         """Ensure that data types are what's requested in computation"""
 
     @abstractmethod

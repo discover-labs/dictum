@@ -50,11 +50,24 @@ aggregate this at some other level, like, for example, years or quarters.
 
 ### Dimension transforms
 
-You can define additional transforms for dimensions at query time. Let's truncate
-`order_created_at` timestamp to the level of years.
+You can define additional transforms for dimensions at query time. Applying a transform
+looks similar to calling a method right there on the dimension.
 
 ```py
-tutorial.select("revenue").by("order_created_at", transform="datetrunc('year')")
+tutorial.select("revenue").by("order_created_at.datetrunc('year')")
+```
+
+Grouping definitions are strings, but if you're more comfortable staying in Python or
+need to store transform arguments in a variable, there's a different way to express
+the same query:
+
+```py
+period = "year"
+order_created_at = tutorial.dimensions["order_created_at"]
+
+tutorial.select("revenue").by(
+    order_created_at.datetrunc(period)
+)
 ```
 
 --8<-- "snippets/dimensions/query_revenue_by_date_transform.html"

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from lark import Tree
 
@@ -236,3 +236,12 @@ class Computation:
     queries: List[AggregateQuery]
     metrics: List[ColumnCalculation]
     dimensions: List[ColumnCalculation] = field(default_factory=list)
+
+    @property
+    def types(self) -> Dict[str, str]:
+        result = {}
+        for metric in self.metrics:
+            result[metric.name] = metric.type
+        for dimension in self.dimensions:
+            result[dimension.name] = dimension.type
+        return result

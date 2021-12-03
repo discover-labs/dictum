@@ -31,24 +31,26 @@ If you want to learn how to describe your data, read the
 ## Querying
 
 Dictum can be queried with a special [SQL-like query language](reference/query_language.md),
-[Python query builder](reference/python_query.md), [GraphQL API](reference/graphql.md)
+[Python query builder](reference/python_api.md), [GraphQL API](reference/graphql.md)
 or by directly building a [Query object](reference/query.md).
 
 === "Query language"
 
     ```sql
     select signups
-    where date is last(52, 'week')
-    by date with datetrunc('week')
+    where date.last(52, 'week')
+    by date.datetrunc('week') as week
     ```
 
 === "Python query builder"
 
     ```py
+    project = Project()
+    date = project.dimensions["date"]
     (
         select("signups")
-        .by("date", transform="datetrunc('week')")
-        .where("date", "last(52, 'week')")
+        .by(date.datetrunc("week"), alias="week")
+        .where(date.last(52, "week"))
     )
     ```
 
@@ -64,6 +66,7 @@ or by directly building a [Query object](reference/query.md).
                     "id": "datetrunc",
                     "args": ["week"]
                 }
+                "alias": "week"
             }
         ],
         "filters": [

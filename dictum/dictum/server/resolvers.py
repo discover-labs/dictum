@@ -1,7 +1,7 @@
 from ariadne import InterfaceType, ObjectType, QueryType
 
 from dictum.client import CachedClient
-from dictum.ql import parse_query
+from dictum.ql import compile_query
 from dictum.store import Store, schema
 from dictum.store.formatting import Formatter
 
@@ -54,7 +54,7 @@ def resolve_store_query(obj, info, *, input: dict):
 
 @Query.field("qlQuery")
 def resolve_ql_query(obj, info, *, input: str, formatting: bool = True):
-    query = parse_query(input)
+    query = compile_query(input)
     query.formatting = formatting
     return _exec(info, query)
 

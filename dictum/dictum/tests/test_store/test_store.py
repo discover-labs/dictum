@@ -1,7 +1,7 @@
 import pytest
 from lark import Token, Tree
 
-from dictum.store.schema import Query
+from dictum.query import Query
 from dictum.store.store import AggregateQuery, Store
 
 
@@ -192,16 +192,8 @@ def test_resolve_related_aggregate_dimension(chinook: Store):
 
 
 def test_inject_default_filters_and_transforms(chinook: Store):
-    assert len(chinook.transforms) == 10
-    assert len(chinook.filters) == 5
-
-
-def test_query_defaults(chinook: Store):
-    defaults = chinook.dimensions.get("invoice_date").query_defaults
-    assert defaults.filter.id == "last"
-    assert defaults.filter.args == [30, "day"]
-    assert defaults.transform.id == "datetrunc"
-    assert defaults.transform.args == ["day"]
+    assert len(chinook.transforms) == 11
+    assert len(chinook.filters) == 11
 
 
 def test_metric_missing(chinook: Store):

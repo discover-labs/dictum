@@ -1,6 +1,5 @@
-import itertools
 from functools import cached_property
-from typing import List
+from typing import Dict, List
 
 import pandas as pd
 import sqlparse
@@ -170,18 +169,19 @@ class SQLiteConnection(SQLAlchemyConnection):
                 reindent=True,
             )
             df = self.compiler.compile(computation)
-            df = self.coerce_types(df, computation)
+            df = self.coerce_types(df, computation.types)
             data = df.to_dict(orient="records")
         return BackendResult(data=data, raw_query=raw_query, duration=timer.duration)
 
-    def coerce_types(
-        self, data: pd.DataFrame, computation: Computation
-    ) -> pd.DataFrame:
-        for column in itertools.chain(computation.dimensions, computation.metrics):
-            if column.type == "date":
-                data[column.name] = pd.to_datetime(data[column.name]).dt.date
-            elif column.type == "datetime":
-                data[column.name] = pd.to_datetime(data[column.name]).dt.to_pydatetime()
-            elif column.type in {"number", "decimal", "percent", "currency"}:
-                data[column.name] = pd.to_numeric(data[column.name])
+    def coerce_types(self, data: pd.DataFrame, types: Dict[str, str]) -> pd.DataFrame:
+        for col in data.columns:
+            T = types[col]
+            if T == "str":
+                data[col] = data[col].astype(str)
+            elif T in {"date", "datetime"}:
+                data[col] = pd.to_datetime(data[col])
+            elif T == "float":
+                data[col] = data[col].astype(float)
+            elif T == "int":
+                data[col] = data[col].astype("Int64")
         return data

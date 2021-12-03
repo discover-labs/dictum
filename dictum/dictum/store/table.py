@@ -1,13 +1,14 @@
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
-from functools import cached_property, reduce
+from functools import cached_property
 from typing import Dict, List, Optional, Tuple, Union
 
 from lark import Tree
 
 import dictum.store
-from dictum.store.calculations import Dimension, Measure
+from dictum.store.calculations import Dimension
+from dictum.store.dicts import DimensionDict, MeasureDict
 from dictum.store.expr.parser import parse_expr
 
 
@@ -68,8 +69,8 @@ class Table:
     primary_key: str
     filters: List[TableFilter] = field(default_factory=list)
     related: Dict[str, RelatedTable] = field(default_factory=dict)
-    measures: Dict[str, Measure] = field(default_factory=dict)
-    dimensions: Dict[str, Dimension] = field(default_factory=dict)
+    measures: MeasureDict = field(default_factory=MeasureDict)
+    dimensions: DimensionDict = field(default_factory=DimensionDict)
     measure_backlinks: Dict[str, "Table"] = field(
         default_factory=dict
     )  # measure_id -> table
@@ -94,12 +95,10 @@ class Table:
         """A dict of table id -> tuple of JoinPathItem. Join targets for which there
         exists only a single join path.
         """
-
-        def _acc_paths(acc: dict, path: JoinPath):
-            acc[path[-1]].append(path)
-            return acc
-
-        paths = reduce(_acc_paths, self.find_all_paths(), defaultdict(lambda: []))
+        paths = defaultdict(lambda: [])
+        for path in self.find_all_paths():
+            target = path[-1]
+            paths[target].append(path)
         return {k.table.id: v[0] for k, v in paths.items() if len(v) == 1}
 
     @cached_property

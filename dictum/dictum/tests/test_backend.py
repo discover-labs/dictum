@@ -4,9 +4,9 @@ import pytest
 from pandas.api.types import is_datetime64_any_dtype
 
 from dictum.backends.base import BackendResult
+from dictum.query import Query
 from dictum.store import AggregateQuery, ColumnCalculation, Computation, Store
 from dictum.store.expr.parser import parse_expr
-from dictum.store.schema import Query
 
 
 def test_groupby(chinook: Store, connection):
@@ -23,10 +23,10 @@ def test_filter(chinook: Store, connection):
         {
             "metrics": [{"metric": "items_sold"}],
             "filters": [
-                {"dimension": "genre", "filter": {"id": "in", "args": ["Rock"]}},
+                {"dimension": "genre", "filter": {"id": "isin", "args": ["Rock"]}},
                 {
                     "dimension": "customer_country",
-                    "filter": {"id": "in", "args": ["USA"]},
+                    "filter": {"id": "isin", "args": ["USA"]},
                 },
             ],
         }
@@ -178,12 +178,12 @@ def test_datepart(compute):
     dt = "2021-12-19 14:05:38"
 
     def datepart(part: str):
-        return int(compute(f"datepart('{part}', toDatetime('{dt}'))", type="number"))
+        return int(compute(f"datepart('{part}', toDatetime('{dt}'))", type="int"))
 
     assert datepart("year") == 2021
     assert datepart("quarter") == 4
-    assert compute("datepart('quarter', toDatetime('2021-12-31'))", "number") == "4"
-    assert compute("datepart('quarter', toDatetime('2022-01-01'))", "number") == "1"
+    assert compute("datepart('quarter', toDatetime('2021-12-31'))", "int") == "4"
+    assert compute("datepart('quarter', toDatetime('2022-01-01'))", "int") == "1"
     assert datepart("month") == 12
     assert datepart("week") == 50
     assert datepart("day") == 19
@@ -195,9 +195,7 @@ def test_datepart(compute):
 def test_datediff(compute):
     def datediff(part, s, e):
         return int(
-            compute(
-                f"datediff('{part}', toDatetime('{s}'), toDatetime('{e}'))", "number"
-            )
+            compute(f"datediff('{part}', toDatetime('{s}'), toDatetime('{e}'))", "int")
         )
 
     assert datediff("year", "2021-12-31 23:59:59", "2022-01-01 00:00:00") == 1

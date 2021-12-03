@@ -173,3 +173,12 @@ def test_coalesce():
     assert parse_expr("test", missing=0).children[0] == Tree(
         "call", ["coalesce", Tree("column", ["test"]), Token("INTEGER", "0")]
     )
+
+
+def test_null():
+    assert parse_expr("x is null").children[0] == Tree(
+        "isnull", [Tree("column", ["x"])]
+    )
+    assert parse_expr("x is not null").children[0] == Tree(
+        "NOT", [Tree("isnull", [Tree("column", ["x"])])]
+    )

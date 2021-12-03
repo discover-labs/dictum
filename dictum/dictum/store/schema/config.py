@@ -1,9 +1,11 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import yaml
 from babel.numbers import list_currencies
 from pydantic import BaseModel, Field, root_validator, validator
+
+currencies = set(list_currencies())
 
 
 class Base(BaseModel):
@@ -16,21 +18,58 @@ class RelatedTable(Base):
     alias: str = Field(alias="id")
 
 
+FormatKind = Literal["number", "decimal", "percent", "currency", "date", "datetime"]
+
+
+class FormatConfig(Base):
+    kind: FormatKind
+    pattern: Optional[str]
+    currency: Optional[str]
+
+    @root_validator(skip_on_failure=True)
+    def validate_currency(cls, values):
+        if values["kind"] != "currency":
+            if values.get("currency") is not None:
+                raise ValueError(
+                    "'currency' format option is only valid with 'currency' format kind"
+                )
+            return values
+        if values.get("currency") is None:
+            raise ValueError(
+                "'currency' formatting option is required if format kind is 'currency'"
+            )
+        if values["currency"] not in currencies:
+            raise ValueError(f"{values['currency']} is not a supported currency")
+        return values
+
+
+Format = Union[FormatKind, FormatConfig]
+Type = Literal["int", "float", "date", "datetime", "str"]
+
+
 class Displayed(Base):
     id: str
     name: str
     description: Optional[str]
-    type: str
-    format: Optional[str]
-    currency: Optional[str]
+    type: Type
+    format: Optional[Format]
     missing: Optional[Any]
 
-    @validator("type")
-    def validate_type(cls, value):
-        values = {"number", "percent", "date", "datetime", "string", "currency"}
-        if value not in values:
-            raise ValueError(f"Calculation type must be one of {values}")
-        return value
+    @staticmethod
+    def get_default_format(type: Type) -> Optional[FormatConfig]:
+        if type in {"int", "float"}:
+            return FormatConfig(kind="number")
+        if type in {"date", "datetime"}:
+            return FormatConfig(kind=type)
+
+    @root_validator
+    def set_format(cls, values):
+        fmt = values.get("format")
+        if fmt is None:
+            values["format"] = cls.get_default_format(values["type"])
+        if isinstance(fmt, str):
+            values["format"] = FormatConfig(kind=fmt)
+        return values
 
     @root_validator(skip_on_failure=True)
     def validate_currency(cls, values):
@@ -50,22 +89,16 @@ class Calculation(Displayed):
 
 
 class Measure(Calculation):
-    type: str = "number"
+    type: Type = "float"
     metric: bool = True
 
 
-class Metric(Measure):
-    pass
-
-
-class DimensionQueryDefaults(Base):
-    filter: Optional[str] = None
-    transform: Optional[str] = None
+class Metric(Calculation):
+    type: Type = "float"
 
 
 class Dimension(Calculation):
     union: Optional[str]
-    query_defaults: DimensionQueryDefaults = DimensionQueryDefaults()
 
 
 def _set_ids(data: Dict):
@@ -98,9 +131,9 @@ class Transform(Base):
     name: str
     description: Optional[str]
     args: list = []
-    expr: str
-    return_type: Optional[str]
-    format: Optional[str]
+    str_expr: str = Field(..., alias="expr")
+    format: Optional[Format]
+    return_type: Optional[Type]
 
 
 class Config(Base):

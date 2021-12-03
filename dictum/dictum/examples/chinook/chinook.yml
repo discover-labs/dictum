@@ -3,17 +3,24 @@ description: |
   An example project based on Chinook sqlite database, use for testing, introductory
   tutorial and as a basic example of what can be done here.
 
-metrics:
-  revenue_per_track:
-    name: Revenue per Track in the Library
-    expr: $revenue / $track_count
-    type: currency
-    currency: USD
+parameters:
+  period:
+    name: Reporting Period (Time Granularity)
+    values: [year, quarter, month, week, day, hour, minute, second]
+    default: day
 
 unions:
   country:
     name: Country
-    type: string
+    type: str
+
+metrics:
+  revenue_per_track:
+    name: Revenue per Track in the Library
+    expr: $revenue / $track_count
+    format:
+      kind: currency
+      currency: USD
 
 tables:
   genres:
@@ -23,7 +30,7 @@ tables:
       genre:
         name: Genre
         expr: Name
-        type: string
+        type: str
 
   artists:
     source: artists
@@ -32,7 +39,7 @@ tables:
       artist:
         name: Artist
         expr: Name
-        type: string
+        type: str
 
   albums:
     source: albums
@@ -45,7 +52,7 @@ tables:
       album:
         name: Album Title
         expr: Title
-        type: string
+        type: str
 
   media_types:
     source: media_types
@@ -54,4 +61,4 @@ tables:
       media_type:
         name: Type of Media
         expr: Name
-        type: string
+        type: str

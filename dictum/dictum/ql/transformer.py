@@ -1,7 +1,7 @@
 from lark import Transformer
 
-from dictum.ql.parser import parse_ql
-from dictum.store.schema.query import (
+from dictum.ql.parser import parse_filter, parse_grouping, parse_ql
+from dictum.query import (
     Query,
     QueryDimensionFilter,
     QueryDimensionRequest,
@@ -10,33 +10,17 @@ from dictum.store.schema.query import (
 )
 
 
-class QlTransformer(Transformer):
-    """Compiles a QL query AST into a Query object."""
-
-    def metric(self, children: list):
-        """Return metric name as a string"""
-        return QueryMetricRequest(metric=children[0])
-
-    def select(self, children: list):
-        """Just return a list of metric names"""
-        return children
-
+class TransformMixin:
     def dimension(self, children: list):
         return children[0]
 
     def call(self, children: list):
         id, *args = children
-        return QueryDimensionTransform(id=id, args=args)
+        return QueryDimensionTransform(id=id.lower(), args=args)
 
-    def alias(self, children: list):
-        return children[0]
-
-    def condition(self, children: list):
+    def filter(self, children: list):
         dimension, filter = children
         return QueryDimensionFilter(dimension=dimension, filter=filter)
-
-    def where(self, conditions: list):
-        return conditions
 
     def grouping(self, children: list):
         dimension, *rest = children
@@ -51,6 +35,24 @@ class QlTransformer(Transformer):
         return QueryDimensionRequest(
             dimension=dimension, transform=transform, alias=alias
         )
+
+
+class QlTransformer(TransformMixin, Transformer):
+    """Compiles a QL query AST into a Query object."""
+
+    def metric(self, children: list):
+        """Return metric name as a string"""
+        return QueryMetricRequest(metric=children[0])
+
+    def select(self, children: list):
+        """Just return a list of metric names"""
+        return children
+
+    def alias(self, children: list):
+        return children[0]
+
+    def where(self, children: list):
+        return children
 
     def groupby(self, children: list):
         return children
@@ -72,9 +74,30 @@ class QlTransformer(Transformer):
         )
 
 
-transformer = QlTransformer()
+ql_transformer = QlTransformer()
 
 
-def parse_query(query: str) -> Query:
-    expr = parse_ql(query)
-    return transformer.transform(expr)
+def compile_query(query: str) -> Query:
+    return ql_transformer.transform(parse_ql(query))
+
+
+class FilterTrasformer(TransformMixin, Transformer):
+    pass
+
+
+filter_transformer = FilterTrasformer()
+
+
+def compile_filter(expr: str) -> QueryDimensionFilter:
+    return filter_transformer.transform(parse_filter(expr))
+
+
+class GroupingTransformer(TransformMixin, Transformer):
+    pass
+
+
+grouping_transformer = GroupingTransformer()
+
+
+def compile_grouping(expr: str) -> QueryDimensionRequest:
+    return grouping_transformer.transform(parse_grouping(expr))

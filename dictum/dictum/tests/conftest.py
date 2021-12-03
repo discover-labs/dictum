@@ -7,8 +7,8 @@ from pathlib import Path
 import psycopg2
 import pytest
 
-from dictum import Store
 from dictum.examples import chinook
+from dictum.store import Store
 from dictum.tests.test_store import configs
 
 full_config_path = Path(configs.__file__).parent / "full_correct.yml"

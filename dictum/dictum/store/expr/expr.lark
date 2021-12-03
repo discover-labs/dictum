@@ -54,23 +54,22 @@ add: add_ "+" mul_
 sub: add_ "-" mul_
 
 // comparison
-?comp: add_ | gt | gte | lt | lte | eq | neq
+?comp: add_ | gt | gte | lt | lte | eq | neq | isnull | isnotnull
 gt: comp ">" add_
 gte: comp ">=" add_
 lt: comp "<" add_
 lte: comp "<=" add_
 eq: comp ("==" | "=") add_
 neq: comp ("!=" | "<>") add_
-
 // is null / is not null
-_IS_NULL: /IS\s+NULL/i
-_IS_NOT_NULL: /IS\s+NOT\s+NULL/i
-?null: comp | isnull | isnotnull
-isnull: comp _IS_NULL
-isnotnull: comp _IS_NOT_NULL
+_IS: "IS"i
+_NOT: "NOT"i
+_NULL: "NULL"i
+isnull: add_ _IS _NULL
+isnotnull: add_ _IS _NOT _NULL
 
 // in operator
-?in: null | in_ | not_in
+?in: comp | in_ | not_in
 _in_list: "(" comp ("," comp)* ")"
 in_: comp _IN _in_list
 not_in: comp _NOT_IN _in_list

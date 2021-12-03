@@ -1,7 +1,7 @@
 from lark import Tree
 
+from dictum.query import Query, QueryDimensionRequest
 from dictum.store import AggregateQuery, Store
-from dictum.store.schema import Query, QueryDimensionRequest
 
 
 def test_relational_query_add_dimension(chinook: Store):

@@ -37,45 +37,58 @@ group by country, city
 
 ### Dimension transforms
 
-You can apply additional transforms to dimensions. The syntax for a tranformed grouping
-is `dimension_name WITH transform`.
+You can apply additional transforms to dimensions. The syntax for a transformed grouping
+is `dimension.transform(arg1, arg2, argN, ...)`.
 
 ```sql
 select revenue
-group by sale_date with datetrunc('year'),
-         amount with step(1000)
+by sale_date.datetrunc('year'),
+   amount.step(1000)
 ```
 
 !!! tip
-    If a transform takes no arguments, parentheses are optional. `sale_date with year()`
-    is the same as `sale_date with year`.
+    If a transform takes no arguments, parentheses are optional. `sale_date.year()`
+    is the same as `sale_date.year`.
 
 ### Dimension aliases
 
-If you want to transform the same dimension in multiple ways yielding multiple columns,
-you have to give it an alias. Otherwise the result set will contain duplicate column
-names, which nobody will be happy about.
+When you apply dimension transforms, Dictum will give the resulting column a reasonable
+default name. If you don't like this default name, you can give it an alias:
 
 ```sql
 select revenue
-by sale_date with datepart('year') as year,
-   sale_date with datepart('quarter') as quarter
+by sale_date.year as year
+   sale_date.quarter as quarter
 ```
 
 
 ## `WHERE` clause
 
-`WHERE` clause applies filters to dimensions. The general syntax of each condition
-is `dimension_name IS filter`. Conditions are separated by comma (`,`).
+`WHERE` clause applies filters to dimensions. Filters are similar to transforms, they
+are just transforms that yield a boolean value. Multiple conditions are separated by
+comma (`,`).
 
 ```sql
 select revenue
-where order_amount is atleast(100),
-      customer_country is in('India', 'China')
+where order_amount.ge(100),
+      customer_country.in('India', 'China')
 ```
 
-!!! tip
-    `in` here is a built-in filter. It is a function identifier, not an operator.
+### Filter operators
+
+In the snippet above we're using `ge` filter, which stands for "greater than or equals".
+This is kind of ugly, so there's an alternative operator syntax, which will give you the
+same result:
+
+```sql
+select revenue
+where order_amount >= 100,
+      customer_country in ('India', 'China')
+```
+
+There are `=`, `<>`, `>`, `>=`, `<`, `<=`, `in`, `is null`, `is not null` operators,
+which are used just like in SQL. It's important to remember though, that this is just
+syntactic sugar and in the end `ge` filter is used.
 
 
 ## `ORDER BY` clause

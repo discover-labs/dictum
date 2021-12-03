@@ -18,6 +18,7 @@ measures:
     name: Number of Tracks
     description: |
       Total Number of Tracks in the Library.
+    type: int
     expr: count()
 
   track_length:
@@ -34,12 +35,13 @@ measures:
       Average price of a track in our library. For average sold item size, see
       Average Sold Unit Price.
     expr: avg(UnitPrice)
-    type: currency
-    currency: USD
+    format:
+      kind: currency
+      currency: USD
 
 
 dimensions:
   track_length_10s_bins:
     name: Track Length (10-second bins)
     expr: Milliseconds / 1000 // 10 * 10
-    type: number
+    type: int

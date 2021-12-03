@@ -1,12 +1,13 @@
 import dataclasses
-from collections import UserDict, defaultdict
+from collections import defaultdict
 from typing import Dict, List
 
+import dictum.query
+from dictum.ql import compile_filter
 from dictum.store import schema
 from dictum.store.calculations import (
     Calculation,
     Dimension,
-    DimensionQueryDefaults,
     DimensionsUnion,
     Measure,
     Metric,
@@ -17,52 +18,9 @@ from dictum.store.computation import (
     ColumnCalculation,
     Computation,
 )
+from dictum.store.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.store.table import RelatedTable, Table, TableFilter
-from dictum.store.transforms import InFilter, Transform
-
-
-class CalculationDict(UserDict):
-    def __getitem__(self, key: str):
-        result = self.data.get(key)
-        if result is None:
-            raise KeyError(f"{self.T.__name__} {key} does not exist")
-        return result
-
-    def __setitem__(self, name: str, value):
-        if name in self.data:
-            raise KeyError(
-                f"Duplicate {self.T.__name__.lower()}: {name} on tables "
-                f"{self.get(name).table.id} and {value.table.id}"
-            )
-        return super().__setitem__(name, value)
-
-    def get(self, key: str):
-        return self[key]
-
-    def add(self, calc: "Calculation"):
-        self[calc.id] = calc
-
-
-class MeasureDict(CalculationDict):
-    T = Measure
-
-    def get(self, key: str) -> Measure:
-        return super().get(key)
-
-
-class DimensionDict(CalculationDict):
-    T = Dimension
-
-    def get(self, key: str) -> Dimension:
-        return super().get(key)
-
-
-class MetricDict(CalculationDict):
-    T = Metric
-
-    def get(self, key: str) -> Metric:
-        return super().get(key)
-
+from dictum.store.transforms import IsInFilter, Transform
 
 displayed_fields = {
     "id",
@@ -115,16 +73,16 @@ class Store:
         # add filters and transforms
         for filter in config.filters.values():
             self.filters[filter.id] = Transform(
-                **filter.dict(include={"id", "name", "description", "expr", "args"})
+                **filter.dict(include={"id", "name", "description", "str_expr", "args"})
             )
-        self.filters["in"] = InFilter()
+        self.filters["isin"] = IsInFilter()
         for transform in config.transforms.values():
             self.transforms[transform.id] = Transform(
                 **transform.dict(
                     include={
                         "id",
                         "name",
-                        "expr",
+                        "str_expr",
                         "args",
                         "description",
                         "return_type",
@@ -166,14 +124,6 @@ class Store:
             for dimension in config_table.dimensions.values():
                 _dimension = Dimension(
                     table=table,
-                    query_defaults=DimensionQueryDefaults(
-                        filter=schema.QueryDimensionTransform.parse(
-                            dimension.query_defaults.filter
-                        ),
-                        transform=schema.QueryDimensionTransform.parse(
-                            dimension.query_defaults.transform
-                        ),
-                    ),
                     **dimension.dict(include=table_calc_fields),
                 )
                 table.dimensions[dimension.id] = _dimension
@@ -249,7 +199,7 @@ class Store:
             self.tables[table.id] = t
         return self.tables[table.id]
 
-    def get_metadata(self, query: schema.Query) -> Dict[str, Calculation]:
+    def get_metadata(self, query: "dictum.query.Query") -> Dict[str, Calculation]:
         """Returns a dict of metadata relevant to the query (mostly having to do with
         updated formats).
         """
@@ -277,7 +227,7 @@ class Store:
             result[request.metric] = self.metrics.get(request.metric)
         return result
 
-    def suggest_metrics(self, query: schema.Query) -> List[Measure]:
+    def suggest_metrics(self, query: "dictum.query.Query") -> List[Measure]:
         """Suggest a list of possible metrics based on a query.
         Only metrics that can be used with all the dimensions from the query
         """
@@ -291,7 +241,7 @@ class Store:
                 result.append(metric)
         return sorted(result, key=lambda x: (x.name))
 
-    def suggest_dimensions(self, query: schema.Query) -> List[Dimension]:
+    def suggest_dimensions(self, query: "dictum.query.Query") -> List[Dimension]:
         """Suggest a list of possible dimensions based on a query. Only dimensions
         shared by all measures that are already in the query.
         """
@@ -337,8 +287,8 @@ class Store:
     def get_aggregate_query(
         self,
         measures: List[str],
-        dimensions: List[schema.QueryDimensionRequest] = [],
-        filters: List[schema.QueryDimensionFilter] = [],
+        dimensions: List["dictum.query.QueryDimensionRequest"] = [],
+        filters: List["dictum.query.QueryDimensionFilter"] = [],
     ) -> AggregateQuery:
         measure_id, *measures = measures
 
@@ -360,13 +310,12 @@ class Store:
                 transform = self.transforms[request.transform.id]
                 compiler = transform.get_compiler(request.transform.args)
                 type_ = transform.return_type
-            name = request.alias if request.alias is not None else request.dimension
-            query.add_dimension(dimension.id, name, type_, compiler=compiler)
+            query.add_dimension(dimension.id, request.name, type_, compiler=compiler)
 
         for request in filters:
             filter = self.filters.get(request.filter.id)
             if filter is None:
-                raise KeyError(f"Filter function {request.id} doesn't exist")
+                raise KeyError(f"Filter function {request.filter.id} doesn't exist")
             query.add_filter(
                 request.dimension, filter.get_compiler(request.filter.args)
             )
@@ -376,7 +325,7 @@ class Store:
 
         return query
 
-    def get_computation(self, query: schema.Query) -> Computation:
+    def get_computation(self, query: "dictum.query.Query") -> Computation:
         """Returns an object that can then be executed on a backend."""
 
         metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}
@@ -387,7 +336,7 @@ class Store:
             for measure in metric.measures:
                 tables[measure.table.id].append(measure.id)
 
-        # get queries for each anchor
+        # get a query for each anchor
         queries = []
         for measures in tables.values():
             queries.append(
@@ -406,8 +355,7 @@ class Store:
             if request.transform is not None:
                 transform = self.transforms[request.transform.id]
                 type_ = transform.return_type
-            name = dimension.id if request.alias is None else request.alias
-            column = Column(name=name, type=type_)
+            column = Column(name=request.name, type=type_)
             dimensions.append(column)
 
         metrics = [

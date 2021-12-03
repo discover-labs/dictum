@@ -11,33 +11,38 @@ measures:
   n_customers:
     name: Number of Customers
     expr: count()
+    type: int
 
 
 dimensions:
   customer_country:
     union: country
     name: Customer Country
-    type: string
+    type: str
     expr: Country
 
   customer_city:
     name: Customer City
-    type: string
+    type: str
     expr: City
 
   customer_orders_amount:
     name: Customer's Total Orders Amount
-    type: currency
-    currency: USD
     expr: $revenue
+    type: float
+    format:
+      kind: currency
+      currency: USD
 
   customer_orders_amount_10_bins:
     name: Customer's Total Orders Amount ($10 bins)
-    type: currency
-    currency: USD
     expr: :customer_orders_amount // 10 * 10
+    type: int
+    format:
+      kind: currency
+      currency: USD
 
   customer_first_sale_date:
     name: Customer's First Sale Date
-    type: date
     expr: $min_sale_date
+    type: datetime

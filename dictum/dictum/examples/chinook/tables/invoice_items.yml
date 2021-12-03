@@ -12,8 +12,9 @@ measures:
   revenue:
     name: Revenue
     expr: sum(UnitPrice * Quantity)
-    type: currency
-    currency: USD
+    format:
+      kind: currency
+      currency: USD
     missing: 0
 
   unique_paying_customers:
@@ -21,33 +22,44 @@ measures:
     expr: countd(invoice.CustomerId)
     description: |
       Number of unique users who made an order.
+    type: int
 
   items_sold:
     name: Number of Items Sold
     expr: sum(Quantity)
+    type: int
 
   arppu:
     name: Average Revenue per Paying Customer
     expr: $revenue / $unique_paying_customers
-    type: currency
-    currency: USD
+    type: float
+    format:
+      kind: currency
+      currency: USD
 
   avg_sold_unit_price:
     name: Averate Sold Unit Price
     description: Average price of a track that we sold.
     expr: $revenue / $items_sold
-    type: currency
-    currency: USD
+    type: float
+    format:
+      kind: currency
+      currency: USD
 
 
 dimensions:
   order_customer_country:
     name: Order's Customer Country
     description: Duplicate of Customer Country, used for tests
-    type: string
+    type: str
     expr: :customer_country
 
   first_order_cohort_month:
-      name: Month After First Order
-      type: number
-      expr: datediff('month', :customer_first_sale_date, :invoice_date)
+    name: Month After First Order
+    type: int
+    expr: datediff('month', :customer_first_sale_date, :invoice_date)
+
+  order_cohort:
+    name: Months Since First Order
+    type: int
+    expr: datediff('month', :customer_first_sale_date, :invoice_date)

@@ -1,12 +1,10 @@
-from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import Integer
 from sqlalchemy.sql import cast, func
 
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
 from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
-from dictum.store import Computation
 
 
 class PostgresCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
@@ -51,13 +49,3 @@ class PostgresConnection(SQLAlchemyConnection):
             password=password,
             pool_size=pool_size,
         )
-
-    def coerce_types(self, data: List[dict], computation: Computation):
-        columns = [*computation.metrics, *computation.dimensions]
-        types = {c.name: c.type for c in columns}
-        for row in data:
-            for k, v in row.items():
-                if types[k] in {"number", "decimal", "percent", "currency"}:
-                    if isinstance(row[k], Decimal):
-                        row[k] = float(v)
-        return data

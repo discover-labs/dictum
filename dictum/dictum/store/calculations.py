@@ -19,9 +19,8 @@ class Displayed:
     id: str
     name: str
     description: str
-    type: str
-    format: Optional[str]
-    currency: Optional[str]
+    type: schema.Type
+    format: Optional[schema.Format]
     missing: Optional[Any]
 
 
@@ -51,6 +50,12 @@ class Calculation(Displayed):
     def check_dimension_references(self, path):
         for ref in self.parsed_expr.find_data("dimension"):
             dimension = self.table.allowed_dimensions.get(ref.children[0])
+            if dimension is None:
+                raise KeyError(
+                    f"{self} uses dimension {ref.children[0]}, but there's "
+                    f"no unambiguous join path between {self.table} "
+                    "and dimension's parent table"
+                )
             dimension.check_references(path)
 
     @cached_property
@@ -111,12 +116,6 @@ class TableCalculation(Calculation):
         return query.joins
 
 
-@dataclass
-class DimensionQueryDefaults:
-    filter: Optional[schema.QueryDimensionTransform] = None
-    transform: Optional[schema.QueryDimensionTransform] = None
-
-
 class DimensionTransformer(Transformer):
     def __init__(
         self,
@@ -146,9 +145,6 @@ class DimensionTransformer(Transformer):
 
 @dataclass(eq=False, repr=False)
 class Dimension(TableCalculation):
-    # not really a default, schema prevents that
-    query_defaults: Optional[DimensionQueryDefaults] = None
-
     @cached_property
     def expr(self) -> Tree:
         self.check_references()
@@ -314,7 +310,6 @@ class Metric(Calculation):
             str_expr=f"${measure.id}",
             type=measure.type,
             format=measure.format,
-            currency=measure.currency,
             missing=measure.missing,
         )
 

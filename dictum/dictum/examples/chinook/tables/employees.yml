@@ -11,37 +11,40 @@ measures:
   n_employees:
     name: Number of Employees
     expr: count()
+    type: int
 
 
 dimensions:
   manager_title:
     name: Support Rep's Manager's Title
-    type: string
+    type: str
     expr: manager.Title
 
   manager_name:
     name: Support Rep's Manager's Name
-    type: string
+    type: str
     expr: manager.LastName
 
   employee_name:
     name: Support Rep's Name
-    type: string
+    type: str
     expr: LastName
 
   employee_title:
     name: Support Rep's Title
-    type: string
+    type: str
     expr: Title
 
   employee_country:
     union: country
     name: Employee Country
-    type: string
+    type: str
     expr: Country
 
   employee_revenue:
     name: Employee Revenue
-    type: currency
-    currency: USD
     expr: $revenue
+    type: float
+    format:
+      kind: currency
+      currency: USD

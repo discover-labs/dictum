@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import List, Optional
 
 from lark import Transformer, Tree
 
+from dictum.store import schema
 from dictum.store.expr.parser import parse_expr
 
 
@@ -26,14 +28,15 @@ class TransformTransformer(Transformer):
 class Transform:
     id: str
     name: str
-    expr: Tree
+    str_expr: str
     args: List[str] = field(default_factory=list)
     description: Optional[str] = None
-    return_type: Optional[str] = None
-    format: Optional[str] = None
+    return_type: Optional[schema.Type] = None
+    format: Optional[schema.Format] = None
 
-    def __post_init__(self):
-        self.expr = parse_expr(self.expr)
+    @cached_property
+    def expr(self):
+        return parse_expr(self.str_expr)
 
     def compile(self, arg, args: dict):
         if len(args) != len(self.args):
@@ -50,7 +53,7 @@ class Transform:
         return compiler
 
 
-class InFilter:
+class IsInFilter:
     """This filter is a special case, because you can't implement variable-argument
     functions with user-defined transforms.
     """

@@ -1,8 +1,9 @@
 from lark import Tree
 
-from dictum.ql import parse_query
-from dictum.ql.parser import parse_ql
-from dictum.store.schema import Query
+from dictum.ql import compile_query
+from dictum.ql.parser import parse_filter, parse_grouping, parse_ql
+from dictum.ql.transformer import compile_filter, compile_grouping
+from dictum.query import Query, QueryDimensionFilter, QueryDimensionRequest
 
 
 def test_single_metric():
@@ -26,170 +27,132 @@ def test_multiple_metrics():
     )
 
 
-def test_groupby():
-    assert parse_ql("select revenue group by channel") == Tree(
+def test_where_transform():
+    assert parse_ql("select x where y.z(1)") == Tree(
         "query",
         [
-            Tree("select", [Tree("metric", ["revenue"])]),
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["z", 1])])],
+            ),
+        ],
+    )
+
+
+def test_where_gt():
+    assert parse_ql("select x where y > 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["gt", 0])])],
+            ),
+        ],
+    )
+
+
+def test_where_ge():
+    assert parse_ql("select x where y >= 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["ge", 0])])],
+            ),
+        ],
+    )
+
+
+def test_where_lt():
+    assert parse_ql("select x where y < 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["lt", 0])])],
+            ),
+        ],
+    )
+
+
+def test_where_le():
+    assert parse_ql("select x where y <= 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["le", 0])])],
+            ),
+        ],
+    )
+
+
+def test_where_eq():
+    assert parse_ql("select x where y = 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["eq", 0])])],
+            ),
+        ],
+    )
+
+
+def test_where_ne():
+    assert parse_ql("select x where y <> 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [Tree("filter", [Tree("dimension", ["y"]), Tree("call", ["ne", 0])])],
+            ),
+        ],
+    )
+
+
+def test_groupby():
+    assert parse_ql("select x by y") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
             Tree(
                 "groupby",
                 [
                     Tree(
                         "grouping",
                         [
-                            Tree("dimension", ["channel"]),
+                            Tree("dimension", ["y"]),
                         ],
                     )
                 ],
             ),
-        ],
-    )
-
-
-def test_where():
-    assert parse_ql("select revenue where amount is atleast(10)") == Tree(
-        "query",
-        [
-            Tree(
-                "select",
-                [
-                    Tree("metric", ["revenue"]),
-                ],
-            ),
-            Tree(
-                "where",
-                [
-                    Tree(
-                        "condition",
-                        [
-                            Tree("dimension", ["amount"]),
-                            Tree("call", ["atleast", 10]),
-                        ],
-                    ),
-                ],
-            ),
-        ],
-    )
-
-
-def test_where_groupby():
-    assert parse_ql(
-        "select revenue where amount is atleast(10) group by channel"
-    ) == Tree(
-        "query",
-        [
-            Tree("select", [Tree("metric", ["revenue"])]),
-            Tree(
-                "where",
-                [
-                    Tree(
-                        "condition",
-                        [
-                            Tree("dimension", ["amount"]),
-                            Tree("call", ["atleast", 10]),
-                        ],
-                    )
-                ],
-            ),
-            Tree("groupby", [Tree("grouping", [Tree("dimension", ["channel"])])]),
         ],
     )
 
 
 def test_groupby_transform():
-    assert parse_ql("select revenue group by amount with step(10)") == Tree(
+    assert parse_ql("select x group by y.z(10)") == Tree(
         "query",
         [
-            Tree("select", [Tree("metric", ["revenue"])]),
+            Tree("select", [Tree("metric", ["x"])]),
             Tree(
                 "groupby",
                 [
                     Tree(
                         "grouping",
-                        [
-                            Tree("dimension", ["amount"]),
-                            Tree("call", ["step", 10]),
-                        ],
+                        [Tree("dimension", ["y"]), Tree("call", ["z", 10])],
                     )
                 ],
             ),
         ],
-    )
-
-
-def test_parse_query():
-    assert parse_query("select revenue") == Query.parse_obj(
-        {"metrics": [{"metric": "revenue"}]}
-    )
-
-
-def test_parse_groupby():
-    q = Query.parse_obj(
-        {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "channel"}],
-        }
-    )
-    assert parse_query("select revenue group by channel") == q
-    assert parse_query("select revenue by channel") == q
-
-
-def test_parse_groupby_transform():
-    assert parse_query(
-        "select revenue, orders group by amount with step(10)"
-    ) == Query.parse_obj(
-        {
-            "metrics": [{"metric": "revenue"}, {"metric": "orders"}],
-            "dimensions": [
-                {"dimension": "amount", "transform": {"id": "step", "args": [10]}}
-            ],
-        }
-    )
-
-
-def test_parse_condition():
-    assert parse_query(
-        "select revenue where amount is atleast(100)"
-    ) == Query.parse_obj(
-        {
-            "metrics": [{"metric": "revenue"}],
-            "filters": [
-                {"dimension": "amount", "filter": {"id": "atleast", "args": [100]}}
-            ],
-        }
-    )
-
-
-def test_parse_multiple_groupbys():
-    parse_query(
-        """
-    select revenue, orders
-    where category is in('A', 'B', 'C'),
-        neg is atleast(0)
-    group by
-        date with datetrunc('day'),
-        channel,
-        amount with step(10)
-    """
-    ) == Query.parse_obj(
-        {
-            "metrics": [{"metric": "revenue"}, {"metric": "orders"}],
-            "dimensions": [
-                {
-                    "dimension": "date",
-                    "transform": {"id": "datetrunc", "args": ["day"]},
-                },
-                {"dimension": "channel"},
-                {"dimension": "amount", "tranform": {"id": "step", "args": [10]}},
-            ],
-            "filters": [
-                {
-                    "dimension": "category",
-                    "filter": {"id": "in", "args": ["A", "B", "C"]},
-                },
-                {"dimension": "neg", "filter": {"id": "atleast", "args": [0]}},
-            ],
-        }
     )
 
 
@@ -221,7 +184,7 @@ def test_dimension_alias():
 
 
 def test_dimension_transform_alias():
-    assert parse_ql("select metric by dim with test as dim1") == Tree(
+    assert parse_ql("select metric by dim.test as dim1") == Tree(
         "query",
         [
             Tree("select", [Tree("metric", ["metric"])]),
@@ -242,16 +205,137 @@ def test_dimension_transform_alias():
     )
 
 
-def test_parse_dimension_alias():
-    assert parse_query("select metric by dim with test as dim1") == Query.parse_obj(
+def test_in():
+    assert parse_ql("select x where y in ('a', 1)") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [
+                    Tree(
+                        "filter",
+                        [Tree("dimension", ["y"]), Tree("call", ["isin", "a", 1])],
+                    )
+                ],
+            ),
+        ],
+    )
+
+
+def test_compile_query():
+    assert compile_query("select x") == Query.parse_obj({"metrics": [{"metric": "x"}]})
+
+
+def test_compile_groupby():
+    q = Query.parse_obj(
         {
-            "metrics": [{"metric": "metric"}],
+            "metrics": [{"metric": "x"}],
+            "dimensions": [{"dimension": "y"}],
+        }
+    )
+    assert compile_query("select x group by y") == q
+    assert compile_query("select x by y") == q
+
+
+def test_compile_groupby_transform():
+    assert compile_query("select x, y by z.p(10)") == Query.parse_obj(
+        {
+            "metrics": [{"metric": "x"}, {"metric": "y"}],
+            "dimensions": [{"dimension": "z", "transform": {"id": "p", "args": [10]}}],
+        }
+    )
+
+
+def test_compile_where():
+    assert compile_query("select x where y.z(10)") == Query.parse_obj(
+        {
+            "metrics": [{"metric": "x"}],
+            "filters": [{"dimension": "y", "filter": {"id": "z", "args": [10]}}],
+        }
+    )
+
+
+def test_compile_multiple_groupbys():
+    compile_query(
+        """
+    select x, y
+    where z.z(1, 2, 3),
+        a.b('a')
+    by d.d('d'),
+       c,
+       f.h(11)
+    """
+    ) == Query.parse_obj(
+        {
+            "metrics": [{"metric": "x"}, {"metric": "y"}],
             "dimensions": [
                 {
-                    "dimension": "dim",
-                    "transform": {"id": "test", "args": []},
-                    "alias": "dim1",
-                }
+                    "dimension": "d",
+                    "transform": {"id": "d", "args": ["d"]},
+                },
+                {"dimension": "c"},
+                {"dimension": "f", "tranform": {"id": "h", "args": [11]}},
+            ],
+            "filters": [
+                {
+                    "dimension": "z",
+                    "filter": {"id": "z", "args": [1, 2, 3]},
+                },
+                {"dimension": "a", "filter": {"id": "b", "args": ["a"]}},
             ],
         }
+    )
+
+
+def test_compile_dimension_alias():
+    assert compile_query("select metric by dim as dim1") == Query.parse_obj(
+        {
+            "metrics": [{"metric": "metric"}],
+            "dimensions": [{"dimension": "dim", "alias": "dim1"}],
+        }
+    )
+
+
+def test_parse_filter():
+    assert parse_filter("x.y('z')") == Tree(
+        "filter", [Tree("dimension", ["x"]), Tree("call", ["y", "z"])]
+    )
+
+
+def test_compile_filter():
+    assert compile_filter("x.y('z')") == QueryDimensionFilter.parse_obj(
+        {"dimension": "x", "filter": {"id": "y", "args": ["z"]}}
+    )
+
+
+def test_filter_null():
+    assert parse_filter("x is null") == Tree(
+        "filter", [Tree("dimension", ["x"]), Tree("call", ["isnull"])]
+    )
+    assert parse_filter("x is not null") == Tree(
+        "filter", [Tree("dimension", ["x"]), Tree("call", ["isnotnull"])]
+    )
+
+
+def test_compile_filter_null():
+    assert compile_filter("x is null") == QueryDimensionFilter.parse_obj(
+        {"dimension": "x", "filter": {"id": "isnull", "args": []}}
+    )
+
+
+def test_parse_grouping():
+    assert parse_grouping("x.y(1)") == Tree(
+        "grouping", [Tree("dimension", ["x"]), Tree("call", ["y", 1])]
+    )
+    assert parse_grouping("x") == Tree("grouping", [Tree("dimension", ["x"])])
+
+
+def test_compile_grouping():
+    assert compile_grouping("x") == QueryDimensionRequest(dimension="x")
+    assert compile_grouping("x.y") == QueryDimensionRequest.parse_obj(
+        {"dimension": "x", "transform": {"id": "y"}}
+    )
+    assert compile_grouping("x.y('z', 1)") == QueryDimensionRequest.parse_obj(
+        {"dimension": "x", "transform": {"id": "y", "args": ["z", 1]}}
     )
