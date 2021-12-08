@@ -38,6 +38,10 @@ class Calculation(Displayed):
     def parsed_expr(self):
         return parse_expr(self.str_expr)
 
+    @cached_property
+    def expr_tree(self) -> str:
+        return self.expr.pretty()
+
     def check_references(self, path=tuple()):
         if self.id in path:
             raise RecursionError(f"Circular reference in {self}: {path}")

@@ -4,5 +4,5 @@ categories:
   dimensions:
     category:
       name: Category
-      type: string
+      type: str
       expr: name

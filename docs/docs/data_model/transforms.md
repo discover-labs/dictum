@@ -4,10 +4,10 @@
 parameters:
   period:
     values: [year, quarter, month, week, day, hour]
-    type: string
+    type: str
     default: week
   periods:
-    type: number
+    type: int
     default: 30
     range: [10, 100]
     step: 5

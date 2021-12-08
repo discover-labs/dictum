@@ -8,7 +8,9 @@ import pandas as pd
 import dictum.project.analyses as analyses
 from dictum.backends.base import BackendResult, Connection
 from dictum.backends.profiles import ProfilesConfig
-from dictum.project.dimension import ProjectDimensions
+from dictum.project.dimensions import ProjectDimensions
+from dictum.project.metrics import ProjectMetrics
+from dictum.project.templates import environment
 from dictum.ql import compile_query
 from dictum.query import Query
 from dictum.store import Store
@@ -63,6 +65,10 @@ class Project:
         self.path = path
         self.profiles = profiles
         self.profile = profile
+        self.m = ProjectMetrics(self)
+        self.metrics = self.m
+        self.d = ProjectDimensions(self)
+        self.dimensions = self.d
 
     @property
     def store(self) -> Store:
@@ -146,23 +152,9 @@ class Project:
             .fillna("")
         )
 
-    def metrics(self):
-        metrics = self.store.metrics.values()
-        return pd.DataFrame(
-            data=[
-                {
-                    "id": m.id,
-                    "name": m.name,
-                    "description": m.description,
-                    "dimensions": len(m.dimensions),
-                }
-                for m in metrics
-            ]
-        )
-
-    @cached_property
-    def dimensions(self) -> ProjectDimensions:
-        return ProjectDimensions(self)
+    def _repr_html_(self):
+        template = environment.get_template("project.html.j2")
+        return template.render(project=self)
 
 
 class CachedProject(Project):

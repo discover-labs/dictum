@@ -304,7 +304,7 @@ class SQLAlchemyConnection(Connection):
         return Table(name, self.metadata, schema=schema, autoload=True)
 
     def __str__(self):
-        return str(self.engine.url)
+        return repr(self.engine.url)
 
     def coerce_types(self, data: List[dict], types: Dict[str, str]):
         for row in data:

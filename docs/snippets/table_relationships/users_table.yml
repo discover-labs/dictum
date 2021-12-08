@@ -12,5 +12,5 @@ users:
       expr: created_at
     user_channel:
       name: User's Marketing Channel
-      type: string
+      type: str
       description: Marketing channel that the user's signup was attributed to

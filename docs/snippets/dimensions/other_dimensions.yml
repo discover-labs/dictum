@@ -20,7 +20,7 @@ tables:
         expr: created_at
       order_channel:
         name: Order Marketing Channel
-        type: string
+        type: str
         expr: channel
       order_amount:
         name: Order Amount

@@ -19,7 +19,7 @@ unions:
     type: datetime
   channel:
     name: Marketing Channel
-    type: string
+    type: str
 
 tables:
   categories:
@@ -68,10 +68,10 @@ tables:
       category:
         name: Order Category
         expr: category.name
-        type: string
+        type: str
       order_channel:
         name: Order Channel
-        type: string
+        type: str
         expr: channel
         union: channel
       order_day_diff:
@@ -103,7 +103,7 @@ tables:
         name: User's Marketing Channel
         description: Marketing channel that the user's signup was attributed to
         expr: channel
-        type: string
+        type: str
         union: channel
       user_orders_amount:
         name: Users' Total Orders Amount

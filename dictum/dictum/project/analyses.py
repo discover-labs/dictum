@@ -5,7 +5,7 @@ import pandas as pd
 
 import dictum.project
 from dictum.backends.base import BackendResult
-from dictum.project.dimension import ProjectDimension, ProjectDimensionTransform
+from dictum.project.dimensions import ProjectDimension, ProjectDimensionTransform
 from dictum.ql import compile_filter, compile_grouping
 from dictum.query import Query, QueryMetricRequest
 
@@ -21,7 +21,7 @@ class Select:
 
     def __init__(self, project: "dictum.project.Project", *metrics):
         self.project = project
-        self.query = Query(metrics=[QueryMetricRequest(metric=m) for m in metrics])
+        self.query = Query(metrics=[QueryMetricRequest(metric=str(m)) for m in metrics])
 
     def by(
         self,
@@ -93,7 +93,7 @@ class Select:
             ```
         """
         for f in filters:
-            self.query.filters.append(compile_filter(f))
+            self.query.filters.append(compile_filter(str(f)))
         return self
 
     def _execute(self) -> BackendResult:
@@ -192,6 +192,7 @@ class Pivot(Select):
         Returns:
             self
         """
+        dimension = str(dimension)
         name = alias if alias is not None else dimension
         self._rows.append(name)
         if dimension == "$":
@@ -219,6 +220,7 @@ class Pivot(Select):
         Returns:
             self
         """
+        dimension = str(dimension)
         name = alias if alias is not None else dimension
         self._columns.append(name)
         if dimension == "$":

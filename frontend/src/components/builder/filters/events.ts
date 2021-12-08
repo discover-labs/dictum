@@ -1,5 +1,5 @@
 interface Events {
-    type: string;
+    type: str;
 }
 
 export interface CheckboxToggleEvent extends Event {

@@ -63,10 +63,10 @@ class Displayed(Base):
             return FormatConfig(kind=type)
 
     @root_validator
-    def set_format(cls, values):
+    def set_default_format(cls, values):
         fmt = values.get("format")
         if fmt is None:
-            values["format"] = cls.get_default_format(values["type"])
+            values["format"] = cls.get_default_format(values.get("type", "float"))
         if isinstance(fmt, str):
             values["format"] = FormatConfig(kind=fmt)
         return values

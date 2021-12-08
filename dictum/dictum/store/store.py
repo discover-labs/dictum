@@ -3,7 +3,6 @@ from collections import defaultdict
 from typing import Dict, List
 
 import dictum.query
-from dictum.ql import compile_filter
 from dictum.store import schema
 from dictum.store.calculations import (
     Calculation,
@@ -354,7 +353,7 @@ class Store:
             type_ = dimension.type
             if request.transform is not None:
                 transform = self.transforms[request.transform.id]
-                type_ = transform.return_type
+                type_ = transform.return_type or type_
             column = Column(name=request.name, type=type_)
             dimensions.append(column)
 
