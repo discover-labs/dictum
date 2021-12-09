@@ -8,12 +8,12 @@ import pandas as pd
 import dictum.project.analyses as analyses
 from dictum.backends.base import BackendResult, Connection
 from dictum.backends.profiles import ProfilesConfig
+from dictum.data_model import DataModel
 from dictum.project.dimensions import ProjectDimensions
 from dictum.project.metrics import ProjectMetrics
 from dictum.project.templates import environment
 from dictum.ql import compile_query
-from dictum.query import Query
-from dictum.store import Store
+from dictum.schema import Query
 
 
 class Project:
@@ -71,8 +71,8 @@ class Project:
         self.dimensions = self.d
 
     @property
-    def store(self) -> Store:
-        return Store.from_yaml(self.path)
+    def store(self) -> DataModel:
+        return DataModel.from_yaml(self.path)
 
     @cached_property
     def connection(self) -> Connection:
@@ -163,7 +163,7 @@ class CachedProject(Project):
     """
 
     @cached_property
-    def store(self) -> Store:
+    def store(self) -> DataModel:
         return super().store
 
 

@@ -1,7 +1,7 @@
-from dictum.store import Store
+from dictum.data_model import DataModel
 
 
-def test_table_calculation_joins(chinook: Store):
+def test_table_calculation_joins(chinook: DataModel):
     assert chinook.measures.get("revenue").joins == []
     join = chinook.measures.get("unique_paying_customers").joins[0]
     assert join.foreign_key == "InvoiceId"
@@ -12,12 +12,12 @@ def test_table_calculation_joins(chinook: Store):
     assert join.alias == "manager"
 
 
-def test_dimensions_joins(chinook: Store):
+def test_dimensions_joins(chinook: DataModel):
     dimension = chinook.dimensions.get("customer_orders_amount")
     assert len(dimension.joins) == 1
 
 
-def test_measure_dimensions_union(chinook: Store):
+def test_measure_dimensions_union(chinook: DataModel):
     assert "country" in set(
         d.id for d in chinook.measures.get("n_customers").dimensions
     )

@@ -1,10 +1,10 @@
 from lark import Tree
 
-from dictum.query import Query, QueryDimensionRequest
-from dictum.store import AggregateQuery, Store
+from dictum.data_model import AggregateQuery, DataModel
+from dictum.schema import Query, QueryDimensionRequest
 
 
-def test_relational_query_add_dimension(chinook: Store):
+def test_relational_query_add_dimension(chinook: DataModel):
     q = AggregateQuery(table=chinook.tables.get("invoice_items"))
 
     q.add_dimension("album", "album", "string")
@@ -40,7 +40,7 @@ def test_relational_query_add_dimension(chinook: Store):
     assert q.joins[1].to.joins[0].to.joins[0].to.joins[0].to.table.id == "employees"
 
 
-def test_relational_query_measure_dimension(chinook: Store):
+def test_relational_query_measure_dimension(chinook: DataModel):
     q = chinook.get_aggregate_query(
         measures=["items_sold"],
         dimensions=[QueryDimensionRequest(dimension="customer_orders_amount")],
@@ -50,7 +50,7 @@ def test_relational_query_measure_dimension(chinook: Store):
     assert joins[-1].right.subquery
 
 
-def test_unique_joins(chinook: Store):
+def test_unique_joins(chinook: DataModel):
     comp = chinook.get_computation(
         query=Query.parse_obj(
             {

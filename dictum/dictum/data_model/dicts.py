@@ -1,6 +1,6 @@
 from collections import UserDict
 
-from dictum.store.calculations import Calculation, Dimension, Measure, Metric
+from dictum.data_model.calculations import Calculation, Dimension, Measure, Metric
 
 
 class CalculationDict(UserDict):

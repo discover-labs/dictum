@@ -29,7 +29,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from dictum.backends.base import Compiler, Connection
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
-from dictum.store import AggregateQuery, Computation
+from dictum.data_model import AggregateQuery, Computation
 
 
 def get_case_insensitive_column(table: Table, column: str):

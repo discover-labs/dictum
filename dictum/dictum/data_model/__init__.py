@@ -1,18 +1,19 @@
-from dictum.store.computation import (
+from dictum.data_model.calculations import Dimension, Metric
+from dictum.data_model.computation import (
     AggregateQuery,
     ColumnCalculation,
     Computation,
     Join,
 )
-from dictum.store.store import Dimension, Metric, Store
-from dictum.store.table import RelatedTable, Table
+from dictum.data_model.data_model import DataModel
+from dictum.data_model.table import RelatedTable, Table
 
 __all__ = [
     "Computation",
     "ColumnCalculation",
     "AggregateQuery",
     "Join",
-    "Store",
+    "DataModel",
     "RelatedTable",
     "Table",
     "Metric",

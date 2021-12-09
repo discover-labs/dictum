@@ -1,5 +1,5 @@
-from dictum.store import Store
+from dictum.data_model import DataModel
 
 
-def test_ge(chinook: Store):
+def test_ge(chinook: DataModel):
     assert chinook.filters["ge"].args == ["value"]

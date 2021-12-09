@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from lark import Tree
 
-from dictum.store.table import Table
+from dictum.data_model.table import Table
 
 
 @dataclass

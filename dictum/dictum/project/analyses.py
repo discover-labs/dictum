@@ -7,7 +7,7 @@ import dictum.project
 from dictum.backends.base import BackendResult
 from dictum.project.dimensions import ProjectDimension, ProjectDimensionTransform
 from dictum.ql import compile_filter, compile_grouping
-from dictum.query import Query, QueryMetricRequest
+from dictum.schema import Query, QueryMetricRequest
 
 
 class Select:

@@ -7,7 +7,7 @@ class Preprocessor(Transformer):
     """First pass transform. Replace // with floor and division, unquote strings etc."""
 
     def STRING(self, token: Token):
-        """Unquotes string values (by default they are captured with ")"""
+        """Unquotes string values (by default they are captured with '')"""
         return Token("STRING", token.value[1:-1])
 
     def IDENTIFIER(self, token: Token):
@@ -39,7 +39,7 @@ class Preprocessor(Transformer):
         return Tree("call", ["floor", Tree("div", [left, right])])
 
     def call(self, children):
-        """All function calls to lowercase."""
+        """Convert all function calls to lowercase"""
         fn, *args = children
         fn = fn.lower()
         upper_fns = {"if"}  # some functions can only be uppercase methods

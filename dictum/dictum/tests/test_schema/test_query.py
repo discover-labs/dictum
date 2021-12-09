@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from dictum.query import Query, QueryDimensionRequest
+from dictum.schema import Query, QueryDimensionRequest
 
 
 def test_query_duplicate_dimensions():

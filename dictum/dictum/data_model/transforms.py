@@ -4,8 +4,8 @@ from typing import List, Optional
 
 from lark import Transformer, Tree
 
-from dictum.store import schema
-from dictum.store.expr.parser import parse_expr
+from dictum import schema
+from dictum.data_model.expr.parser import parse_expr
 
 
 class TransformTransformer(Transformer):
@@ -32,7 +32,7 @@ class Transform:
     args: List[str] = field(default_factory=list)
     description: Optional[str] = None
     return_type: Optional[schema.Type] = None
-    format: Optional[schema.Format] = None
+    format: Optional[schema.FormatConfig] = None
 
     @cached_property
     def expr(self):

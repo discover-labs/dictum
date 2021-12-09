@@ -6,7 +6,7 @@ from typing import Dict, List
 import pandas as pd
 from lark import Token, Transformer
 
-from dictum.store import AggregateQuery, Computation
+from dictum.data_model import AggregateQuery, Computation
 
 
 class Timer:

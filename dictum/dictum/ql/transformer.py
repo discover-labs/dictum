@@ -1,7 +1,7 @@
 from lark import Transformer
 
 from dictum.ql.parser import parse_filter, parse_grouping, parse_ql
-from dictum.query import (
+from dictum.schema import (
     Query,
     QueryDimensionFilter,
     QueryDimensionRequest,

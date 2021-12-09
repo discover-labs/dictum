@@ -10,7 +10,7 @@ from dictum.backends.base import BackendResult, Timer
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
-from dictum.store import Computation
+from dictum.data_model import Computation
 
 trunc_modifiers = {
     "year": ["start of year"],

@@ -2,24 +2,23 @@ import dataclasses
 from collections import defaultdict
 from typing import Dict, List
 
-import dictum.query
-from dictum.store import schema
-from dictum.store.calculations import (
+from dictum import schema
+from dictum.data_model.calculations import (
     Calculation,
     Dimension,
     DimensionsUnion,
     Measure,
     Metric,
 )
-from dictum.store.computation import (
+from dictum.data_model.computation import (
     AggregateQuery,
     Column,
     ColumnCalculation,
     Computation,
 )
-from dictum.store.dicts import DimensionDict, MeasureDict, MetricDict
-from dictum.store.table import RelatedTable, Table, TableFilter
-from dictum.store.transforms import IsInFilter, Transform
+from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
+from dictum.data_model.table import RelatedTable, Table, TableFilter
+from dictum.data_model.transforms import IsInFilter, Transform
 
 displayed_fields = {
     "id",
@@ -34,7 +33,7 @@ displayed_fields = {
 table_calc_fields = displayed_fields | {"str_expr"}
 
 
-class Store:
+class DataModel:
     """The actual metrics store. Receives a query object, figures out which computations
     on the source tables are required to be performed in order to fulfil the query.
 
@@ -57,10 +56,10 @@ class Store:
     deduplicating the joins, arranging them in a tree and returning a Calculation object.
     """
 
-    def __init__(self, config: schema.Config):
-        self.name = config.name
-        self.description = config.description
-        self.locale = config.locale
+    def __init__(self, data_model: schema.DataModel):
+        self.name = data_model.name
+        self.description = data_model.description
+        self.locale = data_model.locale
 
         self.tables: Dict[str, Table] = {}
         self.measures = MeasureDict()
@@ -70,12 +69,12 @@ class Store:
         self.transforms: Dict[str, Transform] = {}
 
         # add filters and transforms
-        for filter in config.filters.values():
+        for filter in data_model.filters.values():
             self.filters[filter.id] = Transform(
                 **filter.dict(include={"id", "name", "description", "str_expr", "args"})
             )
         self.filters["isin"] = IsInFilter()
-        for transform in config.transforms.values():
+        for transform in data_model.transforms.values():
             self.transforms[transform.id] = Transform(
                 **transform.dict(
                     include={
@@ -91,21 +90,21 @@ class Store:
             )
 
         # add unions
-        for union in config.unions.values():
+        for union in data_model.unions.values():
             self.dimensions[union.id] = DimensionsUnion(
                 **union.dict(include=displayed_fields)
             )
 
         # add all tables and their relationships
-        for config_table in config.tables.values():
+        for config_table in data_model.tables.values():
             table = self.ensure_table(config_table)
             for related in config_table.related.values():
-                if related.table not in config.tables:
+                if related.table not in data_model.tables:
                     raise KeyError(
                         f"Table {related.table} is referenced as a foreign key target "
                         f"for table {table.id}, but it's not defined in the config."
                     )
-                related_table = config.tables[related.table]
+                related_table = data_model.tables[related.table]
                 if related_table.primary_key is None:
                     raise ValueError(
                         f"Table {related.table} is a related table for {table.id}, but "
@@ -118,7 +117,7 @@ class Store:
                 )
 
         # add all dimensions
-        for config_table in config.tables.values():
+        for config_table in data_model.tables.values():
             table = self.tables.get(config_table.id)
             for dimension in config_table.dimensions.values():
                 _dimension = Dimension(
@@ -133,12 +132,12 @@ class Store:
                             f"on table {table.id}"
                         )
                     table.dimensions[dimension.union] = dataclasses.replace(
-                        _dimension, id=dimension.union
+                        _dimension, id=dimension.union, is_union=True
                     )
                 self.dimensions.add(_dimension)
 
         # add all measures
-        for config_table in config.tables.values():
+        for config_table in data_model.tables.values():
             table = self.tables.get(config_table.id)
             for measure in config_table.measures.values():
                 _measure = self.build_measure(measure, table)
@@ -148,8 +147,7 @@ class Store:
         # add measure backlinks
         for table in self.tables.values():
             for measure in table.measures.values():
-                for path in table.allowed_join_paths.values():
-                    target = path[-1].table
+                for target in table.allowed_join_paths:
                     target.measure_backlinks[measure.id] = table
 
         # add virtual related tables (subqueries)
@@ -158,7 +156,7 @@ class Store:
                 dimension.table.related.update(dimension.related)
 
         # add metrics
-        for metric in config.metrics.values():
+        for metric in data_model.metrics.values():
             self.metrics[metric.id] = Metric(
                 store=self,
                 **metric.dict(include=table_calc_fields),
@@ -166,8 +164,7 @@ class Store:
 
     @classmethod
     def from_yaml(cls, path: str):
-        config = schema.Config.from_yaml(path)
-        return cls(config)
+        return cls(schema.DataModel.from_yaml(path))
 
     def build_measure(self, measure: schema.Measure, table: Table) -> Measure:
         _measure = Measure(
@@ -198,7 +195,7 @@ class Store:
             self.tables[table.id] = t
         return self.tables[table.id]
 
-    def get_metadata(self, query: "dictum.query.Query") -> Dict[str, Calculation]:
+    def get_metadata(self, query: schema.Query) -> Dict[str, Calculation]:
         """Returns a dict of metadata relevant to the query (mostly having to do with
         updated formats).
         """
@@ -226,7 +223,7 @@ class Store:
             result[request.metric] = self.metrics.get(request.metric)
         return result
 
-    def suggest_metrics(self, query: "dictum.query.Query") -> List[Measure]:
+    def suggest_metrics(self, query: schema.Query) -> List[Measure]:
         """Suggest a list of possible metrics based on a query.
         Only metrics that can be used with all the dimensions from the query
         """
@@ -240,7 +237,7 @@ class Store:
                 result.append(metric)
         return sorted(result, key=lambda x: (x.name))
 
-    def suggest_dimensions(self, query: "dictum.query.Query") -> List[Dimension]:
+    def suggest_dimensions(self, query: schema.Query) -> List[Dimension]:
         """Suggest a list of possible dimensions based on a query. Only dimensions
         shared by all measures that are already in the query.
         """
@@ -286,8 +283,8 @@ class Store:
     def get_aggregate_query(
         self,
         measures: List[str],
-        dimensions: List["dictum.query.QueryDimensionRequest"] = [],
-        filters: List["dictum.query.QueryDimensionFilter"] = [],
+        dimensions: List[schema.QueryDimensionRequest] = [],
+        filters: List[schema.QueryDimensionFilter] = [],
     ) -> AggregateQuery:
         measure_id, *measures = measures
 
@@ -324,7 +321,7 @@ class Store:
 
         return query
 
-    def get_computation(self, query: "dictum.query.Query") -> Computation:
+    def get_computation(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
 
         metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}

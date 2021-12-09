@@ -1,12 +1,12 @@
 import pandas as pd
 
 import dictum.project
-import dictum.store
+import dictum.data_model
 from dictum.project.templates import environment
 
 
 class ProjectMetric:
-    def __init__(self, metric: "dictum.store.Metric"):
+    def __init__(self, metric: "dictum.data_model.Metric"):
         self.metric = metric
 
     def __str__(self):

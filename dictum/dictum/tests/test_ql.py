@@ -3,7 +3,7 @@ from lark import Tree
 from dictum.ql import compile_query
 from dictum.ql.parser import parse_filter, parse_grouping, parse_ql
 from dictum.ql.transformer import compile_filter, compile_grouping
-from dictum.query import Query, QueryDimensionFilter, QueryDimensionRequest
+from dictum.schema import Query, QueryDimensionFilter, QueryDimensionRequest
 
 
 def test_single_metric():

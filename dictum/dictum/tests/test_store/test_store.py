@@ -1,8 +1,8 @@
 import pytest
 from lark import Token, Tree
 
-from dictum.query import Query
-from dictum.store.store import AggregateQuery, Store
+from dictum.data_model import AggregateQuery, DataModel
+from dictum.schema import Query
 
 
 @pytest.fixture(scope="module")
@@ -10,26 +10,26 @@ def store(store_full):
     return store_full
 
 
-def test_store_loads(chinook: Store):
+def test_store_loads(chinook: DataModel):
     assert chinook.metrics
     assert chinook.measures
     assert chinook.dimensions
     assert chinook.tables
 
 
-def test_store_parses_expr(chinook: Store):
+def test_store_parses_expr(chinook: DataModel):
     assert isinstance(chinook.measures["revenue"].expr, Tree)
     assert isinstance(chinook.dimensions["leap_year"].expr, Tree)
     assert isinstance(chinook.metrics["revenue_per_track"].expr, Tree)
 
 
-def test_store_measure_related_column(chinook: Store):
+def test_store_measure_related_column(chinook: DataModel):
     q = Query.parse_obj({"metrics": [{"metric": "unique_paying_customers"}]})
     comp = chinook.get_computation(q)
     assert len(comp.queries[0].joins) == 1
 
 
-def test_suggest_metrics_no_dims(chinook: Store):
+def test_suggest_metrics_no_dims(chinook: DataModel):
     q = Query.parse_obj({"metrics": [{"metric": "track_count"}]})
     metrics = chinook.suggest_metrics(q)
     assert len(metrics) == 12
@@ -39,7 +39,7 @@ def test_suggest_metrics_no_dims(chinook: Store):
     assert len(metrics) == 12
 
 
-def test_suggest_metrics_with_dims(chinook: Store):
+def test_suggest_metrics_with_dims(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "revenue"}],
@@ -63,7 +63,7 @@ def test_suggest_metrics_with_dims(chinook: Store):
     assert len(metrics) == 10
 
 
-def test_suggest_dimensions(chinook: Store):
+def test_suggest_dimensions(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "track_count"}, {"metric": "revenue"}],
@@ -79,7 +79,7 @@ def test_suggest_dimensions(chinook: Store):
     }
 
 
-def test_suggest_metrics_with_union(chinook: Store):
+def test_suggest_metrics_with_union(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "n_customers"}],
@@ -91,7 +91,7 @@ def test_suggest_metrics_with_union(chinook: Store):
     assert metrics[1].id == "n_employees"
 
 
-def test_suggest_dimensions_with_union(chinook: Store):
+def test_suggest_dimensions_with_union(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "n_customers"}],
@@ -102,7 +102,7 @@ def test_suggest_dimensions_with_union(chinook: Store):
     assert len(dimensions) == 11
 
 
-def test_dimension_same_table_as_measures(chinook: Store):
+def test_dimension_same_table_as_measures(chinook: DataModel):
     """There was a bug where the table couldn't find a join path from a self to
     a dimension declared on self :-/
     """
@@ -112,7 +112,7 @@ def test_dimension_same_table_as_measures(chinook: Store):
     )
 
 
-def test_resolve_metrics(chinook: Store):
+def test_resolve_metrics(chinook: DataModel):
     assert chinook.metrics.get("revenue_per_track").expr.children[0] == Tree(
         "div",
         [
@@ -125,7 +125,7 @@ def test_resolve_metrics(chinook: Store):
     )
 
 
-def test_compute_union(chinook: Store):
+def test_compute_union(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "n_customers"}, {"metric": "n_employees"}],
@@ -137,14 +137,14 @@ def test_compute_union(chinook: Store):
         assert query.groupby[0].name == "country"
 
 
-def test_union_allowed_dimensions(chinook: Store):
+def test_union_allowed_dimensions(chinook: DataModel):
     table = chinook.tables.get("invoice_items")
     assert "country" not in table.allowed_dimensions
     assert "customer_country" in table.allowed_dimensions
     assert "employee_country" in table.allowed_dimensions
 
 
-def test_aggregate_dimension_related_subquery(chinook: Store):
+def test_aggregate_dimension_related_subquery(chinook: DataModel):
     related = chinook.tables.get("customers").related
     key = "__subquery__revenue"
     assert key in related
@@ -152,25 +152,25 @@ def test_aggregate_dimension_related_subquery(chinook: Store):
     assert related[key].table.subquery
 
 
-def test_resolve_aggregate_dimension(chinook: Store):
+def test_resolve_aggregate_dimension(chinook: DataModel):
     assert chinook.dimensions.get("customer_orders_amount").expr.children[0] == Tree(
         "column", ["customers", "__subquery__revenue", "revenue"]
     )
 
 
-def test_resolve_related_dimension(chinook: Store):
+def test_resolve_related_dimension(chinook: DataModel):
     assert chinook.dimensions.get("order_customer_country").expr.children[0] == Tree(
         "column", ["invoice_items", "invoice", "customer", "Country"]
     )
 
 
-def test_resolve_dimension_on_anchor(chinook: Store):
+def test_resolve_dimension_on_anchor(chinook: DataModel):
     assert chinook.dimensions.get("genre").expr.children[0] == Tree(
         "column", ["genres", "Name"]
     )
 
 
-def test_resolve_related_aggregate_dimension(chinook: Store):
+def test_resolve_related_aggregate_dimension(chinook: DataModel):
     assert chinook.dimensions.get("first_order_cohort_month").expr.children[0] == Tree(
         "call",
         [
@@ -191,24 +191,24 @@ def test_resolve_related_aggregate_dimension(chinook: Store):
     )
 
 
-def test_inject_default_filters_and_transforms(chinook: Store):
+def test_inject_default_filters_and_transforms(chinook: DataModel):
     assert len(chinook.transforms) == 11
     assert len(chinook.filters) == 11
 
 
-def test_metric_missing(chinook: Store):
+def test_metric_missing(chinook: DataModel):
     assert chinook.metrics.get("revenue").expr.children[0] == Tree(
         "call", ["coalesce", Tree("measure", ["revenue"]), Token("INTEGER", 0)]
     )
 
 
-def test_transform_compile(chinook: Store):
+def test_transform_compile(chinook: DataModel):
     assert chinook.transforms.get("datepart").compile(
         Tree("column", ["dt"]), ["year"]
     ) == Tree("call", ["datepart", "year", Tree("column", ["dt"])])
 
 
-def test_alias(chinook: Store):
+def test_alias(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "revenue"}],
@@ -231,7 +231,7 @@ def test_alias(chinook: Store):
     assert comp.dimensions[1].name == "month"
 
 
-def test_missing_join_for_aggregate_dimension(chinook: Store):
+def test_missing_join_for_aggregate_dimension(chinook: DataModel):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "items_sold"}],

@@ -1,7 +1,7 @@
 import pytest
 from lark import ParseError, Token, Tree, UnexpectedToken
 
-from dictum.store.expr.parser import parse_expr, parser
+from dictum.data_model.expr.parser import parse_expr, parser
 
 
 def test_integer_number():

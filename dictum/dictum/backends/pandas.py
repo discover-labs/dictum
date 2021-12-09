@@ -8,7 +8,7 @@ from lark import Transformer
 from dictum.backends.base import Compiler
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.store import AggregateQuery
+from dictum.data_model import AggregateQuery
 
 
 class PandasColumnTransformer(Transformer):

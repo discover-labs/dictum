@@ -9,7 +9,7 @@ from starlette.staticfiles import StaticFiles
 from dictum.client import CachedClient
 from dictum.server import static
 from dictum.server.resolvers import types
-from dictum.store import Store
+from dictum.data_model import DataModel
 
 schema_text = (Path(__file__).parent / "schema.graphql").read_text()
 schema = make_executable_schema(gql(schema_text), *types, snake_case_fallback_resolvers)
@@ -22,7 +22,7 @@ def get_ctx():
     profile = os.getenv("NESTOR_PROFILE", None)
     return {
         "client": CachedClient(path=store, profiles=profiles, profile=profile),
-        "store": Store.from_yaml(store),
+        "store": DataModel.from_yaml(store),
     }
 
 

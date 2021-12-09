@@ -3,7 +3,7 @@ import functools
 import dictum.project
 from dictum import utils
 from dictum.project.templates import environment
-from dictum.store import Dimension
+from dictum.data_model import Dimension
 
 
 def _repr_other(fn):

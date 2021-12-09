@@ -4,8 +4,8 @@ from typing import Dict, List, Optional, Tuple, TypeVar
 from pydantic import BaseModel, Field
 
 from dictum.server import static
-from dictum.store.schema import CalculationMetadata, Query
-from dictum.store.schema.types import CalculationType, Identifier
+from dictum.data_model.schema import CalculationMetadata, Query
+from dictum.data_model.schema.types import CalculationType, Identifier
 
 static = Path(static.__file__).parent
 

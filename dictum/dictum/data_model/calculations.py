@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from lark import Transformer, Tree
 
-import dictum.store
-from dictum.store import schema
-from dictum.store.expr.parser import missing_token, parse_expr
+import dictum.data_model
+from dictum import schema
+from dictum.data_model.expr.parser import missing_token, parse_expr
 
 
 class ResolutionError(Exception):
@@ -20,7 +20,7 @@ class Displayed:
     name: str
     description: str
     type: schema.Type
-    format: Optional[schema.Format]
+    format: Optional[schema.FormatConfig]
     missing: Optional[Any]
 
 
@@ -109,11 +109,11 @@ class Calculation(Displayed):
 
 @dataclass(eq=False, repr=False)
 class TableCalculation(Calculation):
-    table: "dictum.store.Table"
+    table: "dictum.data_model.Table"
 
     @cached_property
-    def joins(self) -> List["dictum.store.Join"]:
-        query = dictum.store.AggregateQuery(table=self.table)
+    def joins(self) -> List["dictum.data_model.Join"]:
+        query = dictum.data_model.AggregateQuery(table=self.table)
         for ref in self.expr.find_data("column"):
             _, *path, _ = ref.children
             query.add_path(path)
@@ -123,7 +123,7 @@ class TableCalculation(Calculation):
 class DimensionTransformer(Transformer):
     def __init__(
         self,
-        table: "dictum.store.Table",
+        table: "dictum.data_model.Table",
         measures: Dict[str, "Measure"],
         dimensions: Dict[str, "Dimension"],
         visit_tokens: bool = True,
@@ -149,6 +149,8 @@ class DimensionTransformer(Transformer):
 
 @dataclass(eq=False, repr=False)
 class Dimension(TableCalculation):
+    is_union: bool = False
+
     @cached_property
     def expr(self) -> Tree:
         self.check_references()
@@ -177,7 +179,7 @@ class Dimension(TableCalculation):
             measure.check_references(path)
 
     @cached_property
-    def related(self) -> Dict[str, "dictum.store.AggregateQuery"]:
+    def related(self) -> Dict[str, "dictum.data_model.AggregateQuery"]:
         """Virtual related tables that need to be added to the user-defined related
         tables. Will be joined as a subquery. Aggregate dimensions are implemented this
         way. Run before resolving the expression.
@@ -191,12 +193,12 @@ class Dimension(TableCalculation):
                 continue
             # figure out the subquery — group the measure by self.table.primary_key
             source_table = self.table.measure_backlinks[measure_id]
-            subquery = dictum.store.AggregateQuery(
+            subquery = dictum.data_model.AggregateQuery(
                 table=source_table,
                 subquery=True,
             )
             subquery.add_measure(measure_id)
-            path = [p.alias for p in source_table.allowed_join_paths.get(self.table.id)]
+            path = source_table.allowed_join_paths.get(self.table)
             subquery.add_path(path)
             expr = Tree(
                 "expr",
@@ -210,11 +212,11 @@ class Dimension(TableCalculation):
                     )
                 ],
             )
-            column = dictum.store.ColumnCalculation(
+            column = dictum.data_model.ColumnCalculation(
                 expr=expr, name=self.table.primary_key, type="number"
             )
             subquery.groupby.append(column)
-            result[f"__subquery__{measure_id}"] = dictum.store.RelatedTable(
+            result[f"__subquery__{measure_id}"] = dictum.data_model.RelatedTable(
                 table=subquery,
                 foreign_key=self.table.primary_key,
                 related_key=self.table.primary_key,
@@ -231,7 +233,7 @@ class DimensionsUnion(Displayed):
 class MeasureTransformer(Transformer):
     def __init__(
         self,
-        table: "dictum.store.Table",
+        table: "dictum.data_model.Table",
         measures: Dict[str, "Measure"],
         dimensions: Dict[str, "Dimension"],
         visit_tokens: bool = True,
@@ -302,10 +304,12 @@ class MetricTransformer(Transformer):
 
 @dataclass(repr=False)
 class Metric(Calculation):
-    store: "dictum.store.Store"
+    store: "dictum.data_model.DataModel"
 
     @classmethod
-    def from_measure(cls, measure: Measure, store: "dictum.store.Store") -> "Metric":
+    def from_measure(
+        cls, measure: Measure, store: "dictum.data_model.DataModel"
+    ) -> "Metric":
         return cls(
             store=store,
             id=measure.id,

@@ -6,39 +6,18 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from lark import Tree
 
-import dictum.store
-from dictum.store.calculations import Dimension
-from dictum.store.dicts import DimensionDict, MeasureDict
-from dictum.store.expr.parser import parse_expr
+import dictum.data_model
+from dictum.data_model.calculations import Dimension
+from dictum.data_model.dicts import DimensionDict, MeasureDict
+from dictum.data_model.expr.parser import parse_expr
 
 
 @dataclass
 class RelatedTable:
-    table: Union["Table", "dictum.store.AggregateQuery"]
+    table: Union["Table", "dictum.data_model.AggregateQuery"]
     foreign_key: str
     related_key: str
     alias: str
-
-
-@dataclass(repr=False)
-class JoinPathItem:
-    table: "Table"
-    alias: str
-
-    def __eq__(self, other):
-        return self.table == other.table
-
-    def __hash__(self):
-        return hash(self.table)
-
-    def __str__(self):
-        return f"{self.alias}:{self.table}"
-
-    def __repr__(self):
-        return str(self)
-
-
-JoinPath = Tuple[JoinPathItem, ...]
 
 
 @dataclass
@@ -65,8 +44,8 @@ class Table:
 
     id: str
     source: str
-    description: Optional[str]
-    primary_key: str
+    description: Optional[str] = None
+    primary_key: Optional[str] = None
     filters: List[TableFilter] = field(default_factory=list)
     related: Dict[str, RelatedTable] = field(default_factory=dict)
     measures: MeasureDict = field(default_factory=MeasureDict)
@@ -77,37 +56,33 @@ class Table:
 
     _resolved: bool = False
 
-    def find_all_paths(self, path: JoinPath = ()) -> List[JoinPath]:
-        """Find all join paths from this table to other tables"""
-        result = []
-        if path:
-            result.append(path)
-        for alias, rel in self.related.items():
-            item = JoinPathItem(rel.table, alias)
-            if item in path:
-                continue  # skip on cycle
-            if isinstance(rel.table, Table):  # skip related subqueries
-                result.extend(rel.table.find_all_paths(path + (item,)))
-        return result
+    def find_all_paths(
+        self, traversed_tables: Tuple[str] = ()
+    ) -> List[Tuple["Table", List["str"]]]:
+        """Find all join paths from this table to other tables, avoiding cycles"""
+        traversed_tables += (self.id,)
+        for rel in self.related.values():
+            if isinstance(rel.table, Table) and rel.table.id not in traversed_tables:
+                yield rel.table, [rel.alias]
+                for target, path in rel.table.find_all_paths(traversed_tables):
+                    yield target, [rel.alias, *path]
 
     @cached_property
-    def allowed_join_paths(self) -> Dict[str, JoinPath]:
-        """A dict of table id -> tuple of JoinPathItem. Join targets for which there
-        exists only a single join path.
+    def allowed_join_paths(self) -> Dict["Table", List[str]]:
+        """A dict of table id -> tuple list of related table aliases. Join targets for
+        which there exists only a single join path.
         """
         paths = defaultdict(lambda: [])
-        for path in self.find_all_paths():
-            target = path[-1]
+        for target, path in self.find_all_paths():
             paths[target].append(path)
-        return {k.table.id: v[0] for k, v in paths.items() if len(v) == 1}
+        return {t: v[0] for t, v in paths.items() if len(v) == 1}
 
     @cached_property
     def dimension_join_paths(self) -> Dict[str, List[str]]:
         result = {}
-        for path in self.allowed_join_paths.values():
-            *_, target = path
-            for key in target.table.dimensions:
-                result[key] = [self.id] + [p.alias for p in path]
+        for target, path in self.allowed_join_paths.items():
+            for key in target.dimensions:
+                result[key] = [self.id] + path
         for dimension_id in self.dimensions:
             result[dimension_id] = [self.id]
         return result
@@ -117,15 +92,15 @@ class Table:
         """Which dimensions are allowed to be used with this table as anchor.
         Only those to which there's a single direct join path. If there isn't,
         dimensions must be declared directly on a table that's available for join.
+        Unions are not allowed for joins.
         """
-        dims = {}
-        dims.update(self.dimensions)
-        counts = defaultdict(lambda: 0)
-        for *_, target in self.allowed_join_paths.values():
-            for dimension in target.table.dimensions.values():
-                counts[dimension] += 1
-        dims.update({d.id: d for d, paths in counts.items() if paths == 1})
-        return dims
+        result = {}
+        for target in self.allowed_join_paths.keys():
+            result.update(
+                {d.id: d for d in target.dimensions.values() if not d.is_union}
+            )
+        result.update(self.dimensions)
+        return result
 
     def __eq__(self, other: "Table"):
         return isinstance(other, Table) and self.id == other.id

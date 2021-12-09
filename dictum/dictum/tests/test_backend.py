@@ -4,12 +4,12 @@ import pytest
 from pandas.api.types import is_datetime64_any_dtype
 
 from dictum.backends.base import BackendResult
-from dictum.query import Query
-from dictum.store import AggregateQuery, ColumnCalculation, Computation, Store
-from dictum.store.expr.parser import parse_expr
+from dictum.data_model import AggregateQuery, ColumnCalculation, Computation, DataModel
+from dictum.data_model.expr.parser import parse_expr
+from dictum.schema import Query
 
 
-def test_groupby(chinook: Store, connection):
+def test_groupby(chinook: DataModel, connection):
     q = Query.parse_obj(
         {"metrics": [{"metric": "track_count"}], "dimensions": [{"dimension": "genre"}]}
     )
@@ -18,7 +18,7 @@ def test_groupby(chinook: Store, connection):
     assert df[df["genre"] == "Rock"].iloc[0]["track_count"] == 1297
 
 
-def test_filter(chinook: Store, connection):
+def test_filter(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "items_sold"}],
@@ -36,7 +36,7 @@ def test_filter(chinook: Store, connection):
     assert df.iloc[0][0] == 157
 
 
-def _test_convert_datetime(chinook: Store, connection):
+def _test_convert_datetime(chinook: DataModel, connection):
     """Temporarily off, because not sure if this is needed. SQLite's datetime()
     returns a string, not a datetime (unlike a raw column), but everything is sent
     as a string to the frontend anyway. Only problem is the Python API, which we don't
@@ -51,7 +51,7 @@ def _test_convert_datetime(chinook: Store, connection):
     assert is_datetime64_any_dtype(df["invoice_date"].dtype)
 
 
-def test_metric_not_measure(chinook: Store, connection):
+def test_metric_not_measure(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [
@@ -66,7 +66,7 @@ def test_metric_not_measure(chinook: Store, connection):
     assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 0.66)
 
 
-def test_metric_with_groupby(chinook: Store, connection):
+def test_metric_with_groupby(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "arppu"}, {"metric": "track_count"}],
@@ -78,7 +78,7 @@ def test_metric_with_groupby(chinook: Store, connection):
     assert df.shape == (25, 3)
 
 
-def test_multiple_facts(chinook: Store, connection):
+def test_multiple_facts(chinook: DataModel, connection):
     q = Query.parse_obj(
         {"metrics": [{"metric": "items_sold"}, {"metric": "track_count"}]}
     )
@@ -87,7 +87,7 @@ def test_multiple_facts(chinook: Store, connection):
     assert tuple(df.iloc[0]) == (2240, 3503)
 
 
-def test_multiple_facts_dimensions(chinook: Store, connection):
+def test_multiple_facts_dimensions(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "items_sold"}, {"metric": "track_count"}],
@@ -102,7 +102,7 @@ def test_multiple_facts_dimensions(chinook: Store, connection):
     )
 
 
-def test_if(chinook: Store, connection):
+def test_if(chinook: DataModel, connection):
     """Test if() function and case when ... then ... else ... end constructs"""
     q = Query.parse_obj(
         {
@@ -115,7 +115,7 @@ def test_if(chinook: Store, connection):
     assert df[df["leap_year"] == "Yes"].iloc[0]["invoice_year"] == 2012
 
 
-def test_subquery_join(chinook: Store, connection):
+def test_subquery_join(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "items_sold"}],
@@ -129,7 +129,7 @@ def test_subquery_join(chinook: Store, connection):
 
 
 @pytest.fixture(scope="module")
-def compute(chinook: Store, connection):
+def compute(chinook: DataModel, connection):
     def computer(expr: str, type="datetime"):
         expr = parse_expr(expr)
         dims = [ColumnCalculation(name="value", expr=expr, type=type)]
@@ -217,7 +217,7 @@ def test_datediff(compute):
     assert datediff("second", "2021-12-31 04:59:59", "2021-12-31 04:59:59") == 0
 
 
-def test_date(chinook: Store, connection):
+def test_date(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "revenue"}],
@@ -232,7 +232,7 @@ def test_date(chinook: Store, connection):
     assert isinstance(result.data[0]["invoice_date"], datetime.date)
 
 
-def test_datetime(chinook: Store, connection):
+def test_datetime(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "revenue"}],
@@ -247,7 +247,7 @@ def test_datetime(chinook: Store, connection):
     assert isinstance(result.data[0]["invoice_datetime"], datetime.datetime)
 
 
-def test_alias(chinook: Store, connection):
+def test_alias(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [{"metric": "revenue"}],

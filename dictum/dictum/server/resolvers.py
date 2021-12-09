@@ -2,8 +2,8 @@ from ariadne import InterfaceType, ObjectType, QueryType
 
 from dictum.client import CachedClient
 from dictum.ql import compile_query
-from dictum.store import Store, schema
-from dictum.store.formatting import Formatter
+from dictum.data_model import DataModel, schema
+from dictum.data_model.formatting import Formatter
 
 Query = QueryType()
 StoreType = ObjectType("Store")
@@ -25,7 +25,7 @@ def resolve_store(_, info):
 
 def _exec(info, query: schema.Query):
     client: CachedClient = info.context["client"]
-    store: Store = info.context["store"]
+    store: DataModel = info.context["store"]
     result = client.execute(query)
     metadata = store.get_metadata(query)
     formatter = Formatter(store.locale, fields=metadata, formatting=query.formatting)
