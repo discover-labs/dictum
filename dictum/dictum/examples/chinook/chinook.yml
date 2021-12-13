@@ -1,6 +1,6 @@
 name: Chinook Example
 description: |
-  An example project based on Chinook sqlite database, use for testing, introductory
+  An example project based on Chinook sqlite database. Use for testing, introductory
   tutorial and as a basic example of what can be done here.
 
 parameters:

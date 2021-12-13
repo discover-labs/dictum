@@ -28,7 +28,7 @@ dimension: identifier
 _tran: dimension "." call
 
 grouping: (dimension | _tran) [ alias ]
-alias: _AS IDENTIFIER
+alias: _AS identifier
 
 ?filter: _tran | op
 

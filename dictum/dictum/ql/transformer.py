@@ -22,6 +22,9 @@ class TransformMixin:
         dimension, filter = children
         return QueryDimensionFilter(dimension=dimension, filter=filter)
 
+    def alias(self, children: list):
+        return children[0]
+
     def grouping(self, children: list):
         dimension, *rest = children
         transform = None
@@ -47,9 +50,6 @@ class QlTransformer(TransformMixin, Transformer):
     def select(self, children: list):
         """Just return a list of metric names"""
         return children
-
-    def alias(self, children: list):
-        return children[0]
 
     def where(self, children: list):
         return children

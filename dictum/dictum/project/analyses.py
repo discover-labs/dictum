@@ -5,7 +5,7 @@ import pandas as pd
 
 import dictum.project
 from dictum.backends.base import BackendResult
-from dictum.project.dimensions import ProjectDimension, ProjectDimensionTransform
+from dictum.project.dimensions import ProjectDimension
 from dictum.ql import compile_filter, compile_grouping
 from dictum.schema import Query, QueryMetricRequest
 
@@ -25,7 +25,7 @@ class Select:
 
     def by(
         self,
-        dimension: Union[str, ProjectDimension, ProjectDimensionTransform],
+        dimension: Union[str, ProjectDimension],
         alias: Optional[str] = None,
     ) -> "Select":
         """Add a dimension to the query. Can be called multiple times for adding more
@@ -173,7 +173,7 @@ class Pivot(Select):
 
     def rows(
         self,
-        dimension: Union[str, ProjectDimension, ProjectDimensionTransform],
+        dimension: Union[str, ProjectDimension],
         alias: Optional[str] = None,
     ) -> "Pivot":
         """Add a dimension to the row grouping.

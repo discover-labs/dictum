@@ -39,6 +39,10 @@ class QueryDimensionFilter(BaseModel):
 class QueryMetricRequest(BaseModel):
     metric: str
 
+    @property
+    def name(self):
+        return self.metric
+
 
 class Query(BaseModel):
     """A query object that a store understands. Represents a request for metrics
