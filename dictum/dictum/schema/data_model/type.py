@@ -1,3 +1,3 @@
 from typing import Literal
 
-Type = Literal["int", "float", "date", "datetime", "str"]
+Type = Literal["bool", "int", "float", "date", "datetime", "str"]

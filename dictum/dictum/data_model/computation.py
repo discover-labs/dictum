@@ -1,6 +1,6 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 from lark import Tree
 
@@ -95,9 +95,6 @@ class AggregateQuery:
         if dimension_id in self.table.dimensions:
             dimension = self.table.dimensions.get(dimension_id)
             self.merge_joins(dimension.joins)
-            # for join in dimension.joins:
-            #     if join not in self.joins:
-            #         self.joins.append(join)
             return self, _path  # terminate
 
         path = self.table.dimension_join_paths.get(dimension_id)
@@ -133,13 +130,13 @@ class AggregateQuery:
         dimension_id: str,
         name: str,
         type: str,
-        compiler: Optional[Callable[[Tree], Tree]] = None,
+        transform_expr: Callable[[Tree], Tree],
     ):
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
         expr = dimension.prepare_expr([self.table.id, *path])
-        if compiler is not None:
-            expr = compiler(expr)
+        if transform_expr is not None:
+            expr = transform_expr(expr)
         column = ColumnCalculation(expr=expr, name=name, type=type)
         self.groupby.append(column)
 

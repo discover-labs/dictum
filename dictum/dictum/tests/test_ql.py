@@ -40,6 +40,30 @@ def test_where_transform():
     )
 
 
+def test_where_transforms():
+    assert parse_ql("select x where y.a(1).b('c').d = 0") == Tree(
+        "query",
+        [
+            Tree("select", [Tree("metric", ["x"])]),
+            Tree(
+                "where",
+                [
+                    Tree(
+                        "filter",
+                        [
+                            Tree("dimension", ["y"]),
+                            Tree("call", ["a", 1]),
+                            Tree("call", ["b", "c"]),
+                            Tree("call", ["d"]),
+                            Tree("call", ["eq", 0]),
+                        ],
+                    )
+                ],
+            ),
+        ],
+    )
+
+
 def test_where_gt():
     assert parse_ql("select x where y > 0") == Tree(
         "query",
@@ -238,11 +262,13 @@ def test_compile_groupby():
     assert compile_query("select x by y") == q
 
 
-def test_compile_groupby_transform():
+def test_compile_groupby_transforms():
     assert compile_query("select x, y by z.p(10)") == Query.parse_obj(
         {
             "metrics": [{"metric": "x"}, {"metric": "y"}],
-            "dimensions": [{"dimension": "z", "transform": {"id": "p", "args": [10]}}],
+            "dimensions": [
+                {"dimension": "z", "transforms": [{"id": "p", "args": [10]}]}
+            ],
         }
     )
 
@@ -251,7 +277,7 @@ def test_compile_where():
     assert compile_query("select x where y.z(10)") == Query.parse_obj(
         {
             "metrics": [{"metric": "x"}],
-            "filters": [{"dimension": "y", "filter": {"id": "z", "args": [10]}}],
+            "filters": [{"dimension": "y", "transforms": [{"id": "z", "args": [10]}]}],
         }
     )
 
@@ -272,17 +298,17 @@ def test_compile_multiple_groupbys():
             "dimensions": [
                 {
                     "dimension": "d",
-                    "transform": {"id": "d", "args": ["d"]},
+                    "transforms": [{"id": "d", "args": ["d"]}],
                 },
                 {"dimension": "c"},
-                {"dimension": "f", "tranform": {"id": "h", "args": [11]}},
+                {"dimension": "f", "tranforms": [{"id": "h", "args": [11]}]},
             ],
             "filters": [
                 {
                     "dimension": "z",
-                    "filter": {"id": "z", "args": [1, 2, 3]},
+                    "transforms": [{"id": "z", "args": [1, 2, 3]}],
                 },
-                {"dimension": "a", "filter": {"id": "b", "args": ["a"]}},
+                {"dimension": "a", "transforms": [{"id": "b", "args": ["a"]}]},
             ],
         }
     )
@@ -297,6 +323,21 @@ def test_compile_dimension_alias():
     )
 
 
+def test_compile_dimension_transform_alias():
+    assert compile_query("select x by y.a.b(10) as z") == Query.parse_obj(
+        {
+            "metrics": [{"metric": "x"}],
+            "dimensions": [
+                {
+                    "dimension": "y",
+                    "transforms": [{"id": "a"}, {"id": "b", "args": [10]}],
+                    "alias": "z",
+                }
+            ],
+        }
+    )
+
+
 def test_parse_filter():
     assert parse_filter("x.y('z')") == Tree(
         "filter", [Tree("dimension", ["x"]), Tree("call", ["y", "z"])]
@@ -305,7 +346,7 @@ def test_parse_filter():
 
 def test_compile_filter():
     assert compile_filter("x.y('z')") == QueryDimensionFilter.parse_obj(
-        {"dimension": "x", "filter": {"id": "y", "args": ["z"]}}
+        {"dimension": "x", "transforms": [{"id": "y", "args": ["z"]}]}
     )
 
 
@@ -320,7 +361,7 @@ def test_filter_null():
 
 def test_compile_filter_null():
     assert compile_filter("x is null") == QueryDimensionFilter.parse_obj(
-        {"dimension": "x", "filter": {"id": "isnull", "args": []}}
+        {"dimension": "x", "transforms": [{"id": "isnull", "args": []}]}
     )
 
 
@@ -334,8 +375,8 @@ def test_parse_grouping():
 def test_compile_grouping():
     assert compile_grouping("x") == QueryDimensionRequest(dimension="x")
     assert compile_grouping("x.y") == QueryDimensionRequest.parse_obj(
-        {"dimension": "x", "transform": {"id": "y"}}
+        {"dimension": "x", "transforms": [{"id": "y"}]}
     )
     assert compile_grouping("x.y('z', 1)") == QueryDimensionRequest.parse_obj(
-        {"dimension": "x", "transform": {"id": "y", "args": ["z", 1]}}
+        {"dimension": "x", "transforms": [{"id": "y", "args": ["z", 1]}]}
     )

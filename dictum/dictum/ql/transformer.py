@@ -19,24 +19,23 @@ class TransformMixin:
         return QueryDimensionTransform(id=id.lower(), args=args)
 
     def filter(self, children: list):
-        dimension, filter = children
-        return QueryDimensionFilter(dimension=dimension, filter=filter)
+        dimension, *transforms = children
+        return QueryDimensionFilter(dimension=dimension, transforms=transforms)
 
     def alias(self, children: list):
         return children[0]
 
     def grouping(self, children: list):
         dimension, *rest = children
-        transform = None
+        transforms = []
         alias = None
-        if len(rest) == 2:
-            transform, alias = rest
-        elif len(rest) == 1 and isinstance(rest[0], QueryDimensionTransform):
-            transform = rest[0]
-        elif len(rest) == 1:
-            alias = rest[0]
+        for item in rest:
+            if isinstance(item, QueryDimensionTransform):
+                transforms.append(item)
+        if rest and not isinstance(item, QueryDimensionTransform):
+            alias = item
         return QueryDimensionRequest(
-            dimension=dimension, transform=transform, alias=alias
+            dimension=dimension, transforms=transforms, alias=alias
         )
 
 

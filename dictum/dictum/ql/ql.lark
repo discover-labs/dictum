@@ -27,21 +27,21 @@ metric: identifier
 dimension: identifier
 _tran: dimension "." call
 
-grouping: (dimension | _tran) [ alias ]
+grouping: dimension ( "." call )* [ op ] [ alias ]
 alias: _AS identifier
 
-?filter: _tran | op
+?filter: dimension ( "." call )* [ op ]
 
 op: eq | ne | gt | ge | lt | le | isnull | isnotnull | isin
-eq: dimension ("=" | "==") literal
-ne: dimension ("!=" | "<>") literal
-gt: dimension ">" literal
-ge: dimension ">=" literal
-lt: dimension "<" literal
-le: dimension "<=" literal
-isnull: dimension _IS _NULL
-isnotnull: dimension _IS _NOT _NULL
-isin: dimension _IN _tuple
+eq: ("=" | "==") literal
+ne: ("!=" | "<>") literal
+gt: ">" literal
+ge: ">=" literal
+lt: "<" literal
+le: "<=" literal
+isnull: _IS _NULL
+isnotnull: _IS _NOT _NULL
+isin: _IN _tuple
 _tuple: "(" literal ("," literal)* ")"
 
 select: _SELECT metric ( "," metric )*

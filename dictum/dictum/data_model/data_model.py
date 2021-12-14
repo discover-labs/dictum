@@ -2,6 +2,8 @@ import dataclasses
 from collections import defaultdict
 from typing import Dict, List
 
+from toolz import compose
+
 from dictum import schema
 from dictum.data_model.calculations import (
     Calculation,
@@ -18,7 +20,7 @@ from dictum.data_model.computation import (
 )
 from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.data_model.table import RelatedTable, Table, TableFilter
-from dictum.data_model.transforms import IsInFilter, Transform
+from dictum.data_model.transforms import IsInTransform, Transform
 
 displayed_fields = {
     "id",
@@ -65,15 +67,10 @@ class DataModel:
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
-        self.filters: Dict[str, Transform] = {}
         self.transforms: Dict[str, Transform] = {}
 
-        # add filters and transforms
-        for filter in data_model.filters.values():
-            self.filters[filter.id] = Transform(
-                **filter.dict(include={"id", "name", "description", "str_expr", "args"})
-            )
-        self.filters["isin"] = IsInFilter()
+        # add transforms
+        self.transforms["isin"] = IsInTransform()
         for transform in data_model.transforms.values():
             self.transforms[transform.id] = Transform(
                 **transform.dict(
@@ -301,20 +298,28 @@ class DataModel:
             if request.dimension not in self.dimensions:
                 raise KeyError(f"Dimension '{request.dimension}' does not exist")
             dimension = self.dimensions.get(request.dimension)
-            compiler, type_ = None, dimension.type
-            if request.transform is not None:
-                transform = self.transforms[request.transform.id]
-                compiler = transform.get_compiler(request.transform.args)
-                type_ = transform.return_type
-            query.add_dimension(dimension.id, request.name, type_, compiler=compiler)
+            type_ = dimension.type
+            expr_transforms = []
+            if len(request.transforms) > 0:
+                for request_transform in request.transforms:
+                    transform = self.transforms[request_transform.id]
+                    expr_transforms.append(
+                        transform.get_compiler(request_transform.args)
+                    )
+                type_ = transform.return_type or type_
+            query.add_dimension(
+                dimension.id,
+                request.name,
+                type_,
+                transform_expr=compose(*expr_transforms),
+            )
 
         for request in filters:
-            filter = self.filters.get(request.filter.id)
-            if filter is None:
-                raise KeyError(f"Filter function {request.filter.id} doesn't exist")
-            query.add_filter(
-                request.dimension, filter.get_compiler(request.filter.args)
-            )
+            expr_transforms = []
+            for request_transform in request.transforms:
+                transform = self.transforms[request_transform.id]
+                expr_transforms.append(transform.get_compiler(request_transform.args))
+            query.add_filter(request.dimension, compose(*expr_transforms))
         # add anchor's table-level filters
         for f in anchor.filters:
             query.add_literal_filter(f.expr)
@@ -348,9 +353,8 @@ class DataModel:
         for request in query.dimensions:
             dimension = self.dimensions.get(request.dimension)
             type_ = dimension.type
-            if request.transform is not None:
-                transform = self.transforms[request.transform.id]
-                type_ = transform.return_type or type_
+            if len(request.transforms) > 0:
+                type_ = self.transforms[request.transforms[-1].id].return_type or type_
             column = Column(name=request.name, type=type_)
             dimensions.append(column)
 

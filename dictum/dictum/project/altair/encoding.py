@@ -1,6 +1,5 @@
-import functools
 from abc import ABC, abstractmethod
-from typing import Literal
+from typing import Literal, Tuple, Union
 
 from altair import (
     ColorGradientFieldDefWithCondition,
@@ -17,32 +16,34 @@ from altair import (
 ChannelInfoType = Literal["axis", "legend", "header", None]
 
 
-def cls_to_into_type(fn):
-    @functools.wraps(fn)
-    def wrapped(self, cls):
-        if issubclass(cls, (PositionFieldDef, LatLongFieldDef, SecondaryFieldDef)):
-            return fn(self, "axis")
-        if issubclass(cls, (FacetEncodingFieldDef, RowColumnEncodingFieldDef)):
-            return fn(self, "header")
-        if issubclass(
-            cls,
-            (
-                ColorGradientFieldDefWithCondition,
-                ShapeFieldDefWithCondition,
-                NumericFieldDefWithCondition,
-                NumericArrayFieldDefWithCondition,
-            ),
-        ):
-            return fn(self, "legend")
-        return fn(self, None)
+def _issubclass(cls, bases: Union[type, Tuple[type, ...]]):
+    if not isinstance(bases, tuple):
+        return issubclass(cls, bases)
+    for base in bases:
+        if issubclass(cls, base):
+            return True
+    return False
 
-    return wrapped
+
+def cls_to_info_type(cls):
+    if _issubclass(cls, (PositionFieldDef, LatLongFieldDef, SecondaryFieldDef)):
+        return "axis"
+    if _issubclass(cls, (FacetEncodingFieldDef, RowColumnEncodingFieldDef)):
+        return "header"
+    if _issubclass(
+        cls,
+        (
+            ColorGradientFieldDefWithCondition,
+            ShapeFieldDefWithCondition,
+            NumericFieldDefWithCondition,
+            NumericArrayFieldDefWithCondition,
+        ),
+    ):
+        return "legend"
+    return None
 
 
 class AltairEncodingChannelHook(ABC):
-    def __init_subclass__(cls):
-        cls.encoding_fields = cls_to_into_type(cls.encoding_fields)
-
     @abstractmethod
     def encoding_fields(self, info: ChannelInfoType) -> dict:
         ...

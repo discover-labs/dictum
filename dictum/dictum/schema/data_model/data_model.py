@@ -17,7 +17,6 @@ class DataModel(BaseModel):
     metrics: Dict[str, Metric] = {}
     unions: Dict[str, DimensionsUnion] = {}
     tables: Dict[str, Table] = {}
-    filters: Dict[str, Transform] = {}
     transforms: Dict[str, Transform] = {}
 
     @classmethod
@@ -27,24 +26,17 @@ class DataModel(BaseModel):
 
         # inject built-in transforms and filters
         builtins = yaml.load(
-            (Path(__file__).parent / "builtins.yml").read_text(), Loader=yaml.SafeLoader
+            (Path(__file__).parent / "transforms.yml").read_text(),
+            Loader=yaml.SafeLoader,
         )
-        config_filters = config.get("filters", {})
         config_transforms = config.get("transforms", {})
-        collision = set(builtins["filters"]) & set(config_filters)
-        if collision:
-            raise ValueError(
-                f"Can't give a filter the same name as a built-in: {collision}"
-            )
-        collision = set(builtins["transforms"]) & set(config_transforms)
+        collision = set(builtins) & set(config_transforms)
         if collision:
             raise ValueError(
                 f"Can't give a transform the same name as a built-in: {collision}"
             )
-        builtins["filters"].update(config_filters)
-        builtins["transforms"].update(config_transforms)
-        config["filters"] = builtins["filters"]
-        config["transforms"] = builtins["transforms"]
+        builtins.update(config_transforms)
+        config["transforms"] = builtins
 
         # inject file-based tables
         tables_dir = config.pop("tables_dir", "tables")
@@ -65,7 +57,6 @@ class DataModel(BaseModel):
     set_metrics_ids = validator("metrics", allow_reuse=True, pre=True)(utils.set_ids)
     set_tables_ids = validator("tables", allow_reuse=True, pre=True)(utils.set_ids)
     set_unions_ids = validator("unions", allow_reuse=True, pre=True)(utils.set_ids)
-    set_filters_ids = validator("filters", allow_reuse=True, pre=True)(utils.set_ids)
     set_transforms_ids = validator("transforms", allow_reuse=True, pre=True)(
         utils.set_ids
     )

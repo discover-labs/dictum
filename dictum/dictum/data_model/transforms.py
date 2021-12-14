@@ -53,10 +53,12 @@ class Transform:
         return compiler
 
 
-class IsInFilter:
+class IsInTransform:
     """This filter is a special case, because you can't implement variable-argument
     functions with user-defined transforms.
     """
+
+    return_type: schema.Type = "bool"
 
     def __init__(self):
         self.id = "in"

@@ -10,6 +10,13 @@ def filter_tree(name: str, dimension: Tree, value):
     return Tree("filter", [dimension, Tree("call", [name, value])])
 
 
+def call_children(name: str):
+    def method(self, children: list):
+        return Tree("call", [name, *children])
+
+    return method
+
+
 class Preprocessor(Transformer):
     def identifier(self, children: list):
         return children[0]
@@ -32,33 +39,15 @@ class Preprocessor(Transformer):
     def op(self, children: list):
         return children[0]
 
-    def gt(self, children: list):
-        return filter_tree("gt", *children)
-
-    def ge(self, children: list):
-        return filter_tree("ge", *children)
-
-    def lt(self, children: list):
-        return filter_tree("lt", *children)
-
-    def le(self, children: list):
-        return filter_tree("le", *children)
-
-    def eq(self, children: list):
-        return filter_tree("eq", *children)
-
-    def ne(self, children: list):
-        return filter_tree("ne", *children)
-
-    def isnull(self, children: list):
-        return Tree("filter", [children[0], Tree("call", ["isnull"])])
-
-    def isnotnull(self, children: list):
-        return Tree("filter", [children[0], Tree("call", ["isnotnull"])])
-
-    def isin(self, children: list):
-        dimension, *values = children
-        return Tree("filter", [dimension, Tree("call", ["isin", *values])])
+    gt = call_children("gt")
+    ge = call_children("ge")
+    lt = call_children("lt")
+    le = call_children("le")
+    eq = call_children("eq")
+    ne = call_children("ne")
+    isnull = call_children("isnull")
+    isnotnull = call_children("isnotnull")
+    isin = call_children("isin")
 
 
 pre = Preprocessor()

@@ -23,10 +23,13 @@ def test_filter(chinook: DataModel, connection):
         {
             "metrics": [{"metric": "items_sold"}],
             "filters": [
-                {"dimension": "genre", "filter": {"id": "isin", "args": ["Rock"]}},
+                {
+                    "dimension": "genre",
+                    "transforms": [{"id": "isin", "args": ["Rock"]}],
+                },
                 {
                     "dimension": "customer_country",
-                    "filter": {"id": "isin", "args": ["USA"]},
+                    "transforms": [{"id": "isin", "args": ["USA"]}],
                 },
             ],
         }

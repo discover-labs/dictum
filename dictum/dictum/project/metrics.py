@@ -2,7 +2,7 @@ import pandas as pd
 
 import dictum.data_model
 import dictum.project
-from dictum.project.altair.encoding import AltairEncodingChannelHook, ChannelInfoType
+from dictum.project.altair.encoding import AltairEncodingChannelHook, cls_to_info_type
 from dictum.project.templates import environment
 from dictum.schema.query import QueryMetricRequest
 
@@ -15,7 +15,7 @@ class ProjectMetric(AltairEncodingChannelHook):
     def __str__(self):
         return self.request.name
 
-    def encoding_fields(self, info: ChannelInfoType) -> dict:
+    def encoding_fields(self, cls) -> dict:
         """https://gist.github.com/saaj/0d6bb9b70964a1313cf5"""
         obj = {
             "field": f"metric:{self.metric.id}",
@@ -30,6 +30,7 @@ class ProjectMetric(AltairEncodingChannelHook):
             # },
         }
         title = {"title": self.metric.name}
+        info = cls_to_info_type(cls)
         if info == "axis":
             obj.update({"axis": title})
         elif info == "header":

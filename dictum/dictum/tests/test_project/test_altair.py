@@ -1,6 +1,7 @@
 import altair as alt
 
 from dictum.project.altair import monkeypatch_altair
+from dictum.project.project import Project
 
 monkeypatch_altair()
 
@@ -58,3 +59,29 @@ def test_fields():
     ch = alt.Chart("#").mark_bar().encode(x="x:Q", y="y:N")
     assert len(list(ch._fields())) == 2
     assert len(list(ch.facet(column=alt.Column("z:N"))._fields())) == 3
+
+
+def test_chart_to_dict(project: Project):
+    d = (
+        project.chart()
+        .mark_bar(stroke="white")
+        .encode(
+            x=project.metrics.track_count,
+            y=alt.Y(project.dimensions.genre, sort="-x"),
+            color=alt.Color(project.dimensions.media_type, sort="-x"),
+            order=alt.Order(project.metrics.track_count, sort="descending"),
+        )
+    ).to_dict()
+    assert d["encoding"]["x"]["field"] == "metric:track_count"
+    assert d["encoding"]["y"]["field"] == "dimension:genre"
+
+    (
+        project.chart()
+        .mark_area()
+        .encode(
+            x=project.d.invoice_date.datetrunc("month"),
+            y=project.m.revenue,
+            color=project.d.genre,
+        )
+        .properties(title="Our Media Library")
+    )._repr_mimebundle_()

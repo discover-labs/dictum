@@ -7,6 +7,13 @@ class QueryDimensionTransform(BaseModel):
     id: str
     args: List = []
 
+    @property
+    def suffix(self):
+        args = "_".join(str(a) for a in self.args)
+        if len(args) > 0:
+            args = f"_{args}"
+        return f"{self.id}{args}"
+
 
 class DimensionTopK(BaseModel):
     k: int
@@ -16,24 +23,25 @@ class DimensionTopK(BaseModel):
 
 class QueryDimensionRequest(BaseModel):
     dimension: str
-    transform: Optional[QueryDimensionTransform]
+    transforms: List[QueryDimensionTransform] = []
     alias: Optional[str]
 
     @property
     def name(self):
         if self.alias is not None:
             return self.alias
-        if self.transform is not None:
-            suffix = "_".join(
-                [self.transform.id, *(str(a) for a in self.transform.args)]
-            )
-            return f"{self.dimension}__{suffix}"
+        suffixes = []
+        for transform in self.transforms:
+            suffixes.append(transform.suffix)
+        if len(suffixes) > 0:
+            _suff = "_".join(suffixes)
+            return f"{self.dimension}__{_suff}"
         return self.dimension
 
 
 class QueryDimensionFilter(BaseModel):
     dimension: str
-    filter: QueryDimensionTransform
+    transforms: List[QueryDimensionTransform] = []
 
 
 class QueryMetricRequest(BaseModel):

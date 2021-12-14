@@ -192,8 +192,7 @@ def test_resolve_related_aggregate_dimension(chinook: DataModel):
 
 
 def test_inject_default_filters_and_transforms(chinook: DataModel):
-    assert len(chinook.transforms) == 11
-    assert len(chinook.filters) == 11
+    assert len(chinook.transforms) == 22
 
 
 def test_metric_missing(chinook: DataModel):
@@ -215,12 +214,12 @@ def test_alias(chinook: DataModel):
             "dimensions": [
                 {
                     "dimension": "invoice_date",
-                    "transform": {"id": "datepart", "args": ["year"]},
+                    "transforms": [{"id": "datepart", "args": ["year"]}],
                     "alias": "year",
                 },
                 {
                     "dimension": "invoice_date",
-                    "transform": {"id": "datepart", "args": ["month"]},
+                    "transforms": [{"id": "datepart", "args": ["month"]}],
                     "alias": "month",
                 },
             ],

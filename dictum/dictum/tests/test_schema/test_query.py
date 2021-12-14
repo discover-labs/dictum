@@ -30,13 +30,13 @@ def test_dimension_request_column_name():
     assert QueryDimensionRequest.parse_obj({"dimension": "x"}).name == "x"
     assert (
         QueryDimensionRequest.parse_obj(
-            {"dimension": "x", "transform": {"id": "y"}}
+            {"dimension": "x", "transforms": [{"id": "y"}]}
         ).name
         == "x__y"
     )
     assert (
         QueryDimensionRequest.parse_obj(
-            {"dimension": "x", "transform": {"id": "y", "args": [1, "n", 2]}}
+            {"dimension": "x", "transforms": [{"id": "y", "args": [1, "n", 2]}]}
         ).name
         == "x__y_1_n_2"
     )
