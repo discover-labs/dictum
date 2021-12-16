@@ -3,14 +3,13 @@ from functools import cached_property
 from pathlib import Path
 from typing import Optional, Union
 
-import altair
 import pandas as pd
 
 import dictum.project.analyses as analyses
 from dictum.backends.base import BackendResult, Connection
 from dictum.backends.profiles import ProfilesConfig
 from dictum.data_model import DataModel
-from dictum.project.altair.data import DictumData
+from dictum.project.chart import ProjectChart
 from dictum.project.dimensions import ProjectDimensions
 from dictum.project.metrics import ProjectMetrics
 from dictum.project.templates import environment
@@ -115,8 +114,9 @@ class Project:
         """
         return analyses.Pivot(self, *metrics)
 
-    def chart(self) -> altair.Chart:
-        return altair.Chart(DictumData(self))
+    @property
+    def chart(self) -> ProjectChart:
+        return ProjectChart(self)
 
     @classmethod
     def example(cls, name: str) -> "CachedProject":

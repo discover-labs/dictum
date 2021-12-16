@@ -15,7 +15,7 @@ class ProjectMetric(AltairEncodingChannelHook):
     def __str__(self):
         return self.request.name
 
-    def encoding_fields(self, cls) -> dict:
+    def encoding_fields(self, cls=None) -> dict:
         """https://gist.github.com/saaj/0d6bb9b70964a1313cf5"""
         obj = {
             "field": f"metric:{self.metric.id}",

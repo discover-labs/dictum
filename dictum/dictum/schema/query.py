@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, validator
 
 
 class QueryDimensionTransform(BaseModel):
@@ -60,7 +60,7 @@ class Query(BaseModel):
     filters: list of boolean expressions. will be concatenated with AND
     """
 
-    metrics: List[QueryMetricRequest] = Field(..., min_items=1)
+    metrics: List[QueryMetricRequest] = []
     dimensions: List[QueryDimensionRequest] = []
     filters: List[QueryDimensionFilter] = []
     formatting: bool = False

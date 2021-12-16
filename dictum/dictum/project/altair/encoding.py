@@ -1,49 +1,94 @@
 from abc import ABC, abstractmethod
-from typing import Literal, Tuple, Union
+from typing import Optional
 
 from altair import (
-    ColorGradientFieldDefWithCondition,
-    FacetEncodingFieldDef,
-    LatLongFieldDef,
-    NumericArrayFieldDefWithCondition,
-    NumericFieldDefWithCondition,
-    PositionFieldDef,
-    RowColumnEncodingFieldDef,
-    SecondaryFieldDef,
-    ShapeFieldDefWithCondition,
+    X2,
+    Y2,
+    Angle,
+    Color,
+    Column,
+    Detail,
+    Facet,
+    Fill,
+    FillOpacity,
+    Href,
+    Key,
+    Latitude,
+    Latitude2,
+    Longitude,
+    Longitude2,
+    Order,
+    Radius,
+    Row,
+    Shape,
+    Size,
+    Stroke,
+    StrokeDash,
+    StrokeOpacity,
+    StrokeWidth,
+    Text,
+    Theta,
+    Theta2,
+    Tooltip,
+    X,
+    XError,
+    XError2,
+    Y,
+    YError,
+    YError2,
 )
 
-ChannelInfoType = Literal["axis", "legend", "header", None]
-
-
-def _issubclass(cls, bases: Union[type, Tuple[type, ...]]):
-    if not isinstance(bases, tuple):
-        return issubclass(cls, bases)
-    for base in bases:
-        if issubclass(cls, base):
-            return True
-    return False
+axis = {
+    X2,
+    Y2,
+    Latitude,
+    Latitude2,
+    Longitude,
+    Longitude2,
+    X,
+    XError,
+    XError2,
+    Y,
+    YError,
+    YError2,
+}
+legend = {
+    Color,
+    Angle,
+    Fill,
+    FillOpacity,
+    Radius,
+    Shape,
+    Size,
+    Stroke,
+    StrokeDash,
+    StrokeOpacity,
+    StrokeWidth,
+}
+header = {Column, Row, Facet}
+none = {
+    Detail,
+    Href,
+    Key,
+    Text,
+    Theta,
+    Theta2,
+    Tooltip,
+    Order,
+}
 
 
 def cls_to_info_type(cls):
-    if _issubclass(cls, (PositionFieldDef, LatLongFieldDef, SecondaryFieldDef)):
+    if cls in axis:
         return "axis"
-    if _issubclass(cls, (FacetEncodingFieldDef, RowColumnEncodingFieldDef)):
+    if cls in header:
         return "header"
-    if _issubclass(
-        cls,
-        (
-            ColorGradientFieldDefWithCondition,
-            ShapeFieldDefWithCondition,
-            NumericFieldDefWithCondition,
-            NumericArrayFieldDefWithCondition,
-        ),
-    ):
+    if cls in legend:
         return "legend"
     return None
 
 
 class AltairEncodingChannelHook(ABC):
     @abstractmethod
-    def encoding_fields(self, info: ChannelInfoType) -> dict:
+    def encoding_fields(self, cls: Optional[type] = None) -> dict:
         ...

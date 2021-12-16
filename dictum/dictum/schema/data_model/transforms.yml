@@ -12,7 +12,7 @@ ge:
 lt:
   name: "<"
   args: [value]
-  expr: "@ = value"
+  expr: "@ < value"
   return_type: bool
 le:
   name: "<="

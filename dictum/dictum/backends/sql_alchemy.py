@@ -251,6 +251,7 @@ def _datetime_mapper(v):
 
 
 _type_mappers = {
+    "bool": bool,
     "float": float,
     "int": int,
     "str": str,

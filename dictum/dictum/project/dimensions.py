@@ -18,6 +18,7 @@ def _repr_other(fn):
 
 
 dimension_to_encoding_type = {
+    "bool": "ordinal",
     "date": "temporal",
     "datetime": "temporal",
     "int": "quantitative",
@@ -77,7 +78,7 @@ class ProjectDimensionRequest(AltairEncodingChannelHook):
             alias = f' as "{self.request.alias}"'
         return f"{self.request.dimension}.{transforms}{alias}"
 
-    def encoding_fields(self, cls) -> dict:
+    def encoding_fields(self, cls=None) -> dict:
         type_ = self.dimension.type
         for req_transform in self.request.transforms:
             transform = self.transforms.get(req_transform.id)
@@ -90,14 +91,10 @@ class ProjectDimensionRequest(AltairEncodingChannelHook):
             "type": dimension_to_encoding_type[type_],
             "field": f"dimension:{self}",
         }
-        title = {"title": self.dimension.name}
         info = cls_to_info_type(cls)
-        if info == "axis":
-            obj.update({"axis": title})
-        elif info == "header":
-            obj.update({"header": title})
-        elif info == "legend":
-            obj.update({"legend": title})
+        if info is None:
+            return obj
+        obj.update({info: {"title": self.dimension.name}})
         return obj
 
 

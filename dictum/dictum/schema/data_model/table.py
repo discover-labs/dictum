@@ -10,6 +10,7 @@ class RelatedTable(BaseModel):
     table: str
     foreign_key: str
     alias: str = Field(alias="id")
+    related_key: Optional[str]
 
 
 class Table(BaseModel):

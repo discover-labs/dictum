@@ -1,11 +1,10 @@
-from functools import cached_property
 from typing import List, Optional, Union
 
 import pandas as pd
 
 import dictum.project
 from dictum.backends.base import BackendResult
-from dictum.project.dimensions import ProjectDimension
+from dictum.project.dimensions import ProjectDimensionRequest
 from dictum.ql import compile_filter, compile_grouping
 from dictum.schema import Query, QueryMetricRequest
 
@@ -25,7 +24,7 @@ class Select:
 
     def by(
         self,
-        dimension: Union[str, ProjectDimension],
+        dimension: Union[str, ProjectDimensionRequest],
         alias: Optional[str] = None,
     ) -> "Select":
         """Add a dimension to the query. Can be called multiple times for adding more
@@ -63,7 +62,10 @@ class Select:
 
 
         """
-        request = compile_grouping(str(dimension))
+        if isinstance(dimension, ProjectDimensionRequest):
+            request = dimension.request
+        else:
+            request = compile_grouping(str(dimension))
         if alias is not None:
             request.alias = alias
         self.query.dimensions.append(request)
@@ -169,11 +171,10 @@ class Pivot(Select):
         super().__init__(project, *metrics)
         self._rows = []
         self._columns = []
-        self._dimensions = []
 
     def rows(
         self,
-        dimension: Union[str, ProjectDimension],
+        dimension: Union[str, ProjectDimensionRequest],
         alias: Optional[str] = None,
     ) -> "Pivot":
         """Add a dimension to the row grouping.
@@ -184,7 +185,7 @@ class Pivot(Select):
 
                 - Dimension ID in string form to add: ``"date"``
                 - String grouping expression with a transform: ``"date.datepart('year')"``
-                - Built grouping expression: ``project["date"].datepart("year")``
+                - Built grouping expression: ``project.date.year.name("year")``
 
             alias: An optional alias for the resulting column name. Use this when you
                 add the same dimension with different transform multiple times.
@@ -192,12 +193,12 @@ class Pivot(Select):
         Returns:
             self
         """
-        dimension = str(dimension)
-        name = alias if alias is not None else dimension
-        self._rows.append(name)
-        if dimension == "$":
+        if isinstance(dimension, str) and dimension == "$":
+            self._rows.append(dimension)
             return self
-        return self.by(dimension, alias)
+        self.by(dimension, alias)
+        self._rows.append(self.query.dimensions[-1].name)
+        return self
 
     def columns(
         self,
@@ -212,7 +213,7 @@ class Pivot(Select):
 
                 - Dimension ID in string form to add: ``"date"``
                 - String grouping expression with a transform: ``"date.datepart('year')"``
-                - Built grouping expression: ``project["date"].datepart("year")``
+                - Built grouping expression: ``project.date.datepart("year")``
 
             alias: An optional alias for the resulting column name. Use this when you
                 add the same dimension with different transform multiple times.
@@ -220,27 +221,26 @@ class Pivot(Select):
         Returns:
             self
         """
-        dimension = str(dimension)
-        name = alias if alias is not None else dimension
-        self._columns.append(name)
-        if dimension == "$":
+        if isinstance(dimension, str) and dimension == "$":
+            self._columns.append(dimension)
             return self
-        return self.by(dimension, alias)
-
-    @cached_property
-    def aliased_dimensions(self):
-        result = []
-        for r in self.query.dimensions:
-            name = r.alias if r.alias is not None else r.dimension
-            result.append(name)
-        return result
+        self.by(dimension, alias)
+        self._columns.append(self.query.dimensions[-1].name)
+        return self
 
     def _get_df(self, data: List[dict]) -> pd.DataFrame:
-        if "$" not in self._rows and "$" not in self._columns:
-            self._rows.append("$")
         df = super()._get_df(data)
-        df = df.melt(id_vars=self.aliased_dimensions, var_name="$", value_name="__")
+        df.columns.rename("$", inplace=True)
+        if len(self._rows) == 0 and len(self._columns) == 0:
+            return df
+        dimensions = [r.name for r in self.query.dimensions]
+        df = df.melt(id_vars=dimensions, value_name="__")
+        if "$" not in self._rows and "$" not in self._columns:
+            self._columns.append("$")
+        if len(self._rows) == 0:
+            df[0] = 0
+            self._rows.append(0)
         df = df.pivot(index=self._rows, columns=self._columns, values="__")
-        if isinstance(df, pd.Series):
-            df = pd.DataFrame(data=df)
+        if df.index.nlevels == 1 and df.index.name == 0:
+            df.index.name = None
         return df
