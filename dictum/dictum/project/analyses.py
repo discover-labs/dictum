@@ -4,7 +4,7 @@ import pandas as pd
 
 import dictum.project
 from dictum.backends.base import BackendResult
-from dictum.project.dimensions import ProjectDimensionRequest
+from dictum.project.calculations import ProjectDimensionRequest
 from dictum.ql import compile_filter, compile_grouping
 from dictum.schema import Query, QueryMetricRequest
 
@@ -119,7 +119,7 @@ class Select:
         return df.to_html()
 
     def dimensions(self):
-        dimensions = self.project.store.suggest_dimensions(self.query)
+        dimensions = self.project.data_model.suggest_dimensions(self.query)
         return pd.DataFrame(
             data=[
                 {"id": d.id, "name": d.name, "description": d.description}
@@ -128,7 +128,7 @@ class Select:
         )
 
     def metrics(self):
-        metrics = self.project.store.suggest_metrics(self.query)
+        metrics = self.project.data_model.suggest_metrics(self.query)
         return pd.DataFrame(
             data=[
                 {"id": m.id, "name": m.name, "description": m.description}

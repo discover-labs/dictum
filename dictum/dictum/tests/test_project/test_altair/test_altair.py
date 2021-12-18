@@ -1,5 +1,6 @@
 import altair as alt
 
+from dictum.project.altair.data import DictumData
 from dictum.project.altair.monkeypatch import monkeypatch_altair
 from dictum.project.project import Project
 from dictum.schema.query import Query
@@ -90,6 +91,9 @@ def test_iterunits_data():
     assert [d for _, d in facet._iterunits()] == [a]
     assert [d for _, d in (ch | facet.properties(data=b))._iterunits()] == [a, b]
 
+    repeat = alt.Chart(a).mark_bar().encode(x="x:N", y="y:Q").repeat(["a"])
+    assert list(repeat._iterunits()) == [(repeat, a)]
+
 
 def test_iterchannels():
     ch = alt.Chart("#").mark_bar().encode(x="x:Q", y="y:N")
@@ -133,3 +137,16 @@ def test_chart_query(project: Project):
             ],
         }
     )
+
+
+def test_repeat_not_resolving_data(project: Project):
+    chart = (
+        project.chart()
+        .mark_line()
+        .encode(x=project.d.genre, y=alt.Y(alt.repeat("layer")))
+        .repeat(layer=[project.m.track_count, project.m.revenue])
+    )
+    assert len(list(chart._iterunits())) > 0
+    unit, data = next(chart._iterunits())
+    assert unit is chart
+    assert isinstance(data, DictumData)

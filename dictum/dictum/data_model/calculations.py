@@ -7,7 +7,7 @@ from lark import Transformer, Tree
 
 import dictum.data_model
 from dictum import schema
-from dictum.data_model.expr.parser import missing_token, parse_expr
+from dictum.data_model.expr.parser import value_to_token, parse_expr
 
 
 class ResolutionError(Exception):
@@ -22,6 +22,10 @@ class Displayed:
     type: schema.Type
     format: Optional[schema.FormatConfig]
     missing: Optional[Any]
+
+    def __post_init__(self):
+        if isinstance(self.format, dict):
+            self.format = schema.FormatConfig.parse_obj(self.format)
 
 
 @dataclass
@@ -164,7 +168,7 @@ class Dimension(TableCalculation):
                 [
                     Tree(
                         "call",
-                        ["coalesce", expr.children[0], missing_token(self.missing)],
+                        ["coalesce", expr.children[0], value_to_token(self.missing)],
                     )
                 ],
             )
@@ -336,7 +340,7 @@ class Metric(Calculation):
                 [
                     Tree(
                         "call",
-                        ["coalesce", expr.children[0], missing_token(self.missing)],
+                        ["coalesce", expr.children[0], value_to_token(self.missing)],
                     )
                 ],
             )

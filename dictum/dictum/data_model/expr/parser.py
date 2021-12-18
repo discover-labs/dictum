@@ -2,6 +2,8 @@ from pathlib import Path
 
 from lark import Lark, Token, Transformer, Tree
 
+from dictum.utils import value_to_token
+
 
 class Preprocessor(Transformer):
     """First pass transform. Replace // with floor and division, unquote strings etc."""
@@ -52,21 +54,11 @@ parser = Lark(grammar.read_text(), start="expr", lexer="standard")
 preprocessor = Preprocessor()
 
 
-def missing_token(value):
-    if isinstance(value, int):
-        return Token("INTEGER", str(value))
-    if isinstance(value, float):
-        return Token("NUMBER", str(value))
-    if isinstance(value, str):
-        return Token("STRING", value)
-    raise ValueError("Missing values must by integers, floats or strings")
-
-
 def parse_expr(expr: str, missing=None):
     result = preprocessor.transform(parser.parse(expr))
     if missing is not None:
         return Tree(
             "expr",
-            [Tree("call", ["coalesce", result.children[0], missing_token(missing)])],
+            [Tree("call", ["coalesce", result.children[0], value_to_token(missing)])],
         )
     return result

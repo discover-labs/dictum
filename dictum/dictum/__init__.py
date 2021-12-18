@@ -1,6 +1,6 @@
-from dictum.project import CachedProject, Project
+from dictum.project import Project
 
-__all__ = ["CachedProject", "Project", "Store"]
+__all__ = ["Project", "Store"]
 
 
 __version__ = "0.1.0"

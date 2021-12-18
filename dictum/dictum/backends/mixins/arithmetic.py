@@ -38,19 +38,19 @@ class ArithmeticCompilerMixin:
     def gt(self, a, b):
         return a > b
 
-    def gte(self, a, b):
+    def ge(self, a, b):
         return a >= b
 
     def lt(self, a, b):
         return a < b
 
-    def lte(self, a, b):
+    def le(self, a, b):
         return a <= b
 
     def eq(self, a, b):
         return a == b
 
-    def neq(self, a, b):
+    def ne(self, a, b):
         return a != b
 
     def IN(self, value, values):

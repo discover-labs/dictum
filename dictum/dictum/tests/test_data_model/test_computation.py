@@ -8,7 +8,7 @@ from dictum.schema import Query, QueryDimensionRequest
 def test_relational_query_add_dimension(chinook: DataModel):
     q = AggregateQuery(table=chinook.tables.get("invoice_items"))
 
-    q.add_dimension("album", "album", "string", identity)
+    q.add_dimension("album", "album", identity)
     assert q.groupby[0].expr.children[0] == Tree(
         "column", ["invoice_items.track.album", "Title"]
     )
@@ -20,7 +20,7 @@ def test_relational_query_add_dimension(chinook: DataModel):
     assert q.joins[0].to.joins[0].alias == "album"
     assert q.joins[0].to.joins[0].to.table.id == "albums"
 
-    q.add_dimension("manager_title", "manager_title", "string", identity)
+    q.add_dimension("manager_title", "manager_title", identity)
     q.groupby[1].expr.children[0] == Tree(
         "column", ["invoice_items.invoice.customer.employee.manager", "Title"]
     )

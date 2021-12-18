@@ -1,6 +1,6 @@
 import dataclasses
 from collections import defaultdict
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 from toolz import compose
 
@@ -19,8 +19,10 @@ from dictum.data_model.computation import (
     Computation,
 )
 from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
+from dictum.data_model.transforms import Transform, transforms
 from dictum.data_model.table import RelatedTable, Table, TableFilter
-from dictum.data_model.transforms import IsInTransform, Transform
+
+# from dictum.data_model.transforms import IsInTransform, Transform
 
 displayed_fields = {
     "id",
@@ -67,24 +69,7 @@ class DataModel:
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
-        self.transforms: Dict[str, Transform] = {}
-
-        # add transforms
-        self.transforms["isin"] = IsInTransform()
-        for transform in data_model.transforms.values():
-            self.transforms[transform.id] = Transform(
-                **transform.dict(
-                    include={
-                        "id",
-                        "name",
-                        "str_expr",
-                        "args",
-                        "description",
-                        "return_type",
-                        "format",
-                    }
-                ),
-            )
+        self.transforms: Dict[str, Callable[..., Transform]] = transforms
 
         # add unions
         for union in data_model.unions.values():
@@ -299,31 +284,27 @@ class DataModel:
             query.add_measure(measure_id)
 
         for request in dimensions:
-            if request.dimension not in self.dimensions:
-                raise KeyError(f"Dimension '{request.dimension}' does not exist")
             dimension = self.dimensions.get(request.dimension)
-            type_ = dimension.type
-            expr_transforms = []
-            if len(request.transforms) > 0:
-                for request_transform in request.transforms:
-                    transform = self.transforms[request_transform.id]
-                    expr_transforms.append(
-                        transform.get_compiler(request_transform.args)
-                    )
-                type_ = transform.return_type or type_
+            transforms = []
+            for request_transform in request.transforms:
+                transform = self.transforms.get(request_transform.id)(
+                    *request_transform.args
+                )
+                transforms.append(transform)
             query.add_dimension(
                 dimension.id,
                 request.name,
-                type_,
-                transform_expr=compose(*expr_transforms),
+                transforms=compose(*transforms),
             )
 
         for request in filters:
-            expr_transforms = []
+            transforms = []
             for request_transform in request.transforms:
-                transform = self.transforms[request_transform.id]
-                expr_transforms.append(transform.get_compiler(request_transform.args))
-            query.add_filter(request.dimension, compose(*expr_transforms))
+                transform = self.transforms[request_transform.id](
+                    *request_transform.args
+                )
+                transforms.append(transform)
+            query.add_filter(request.dimension, compose(*transforms))
         # add anchor's table-level filters
         for f in anchor.filters:
             query.add_literal_filter(f.expr)
@@ -371,3 +352,15 @@ class DataModel:
             queries=queries,
             dimensions=dimensions,
         )
+
+    def get_currencies_for_query(self, query: schema.Query):
+        currencies = set()
+        for request in query.metrics:
+            metric = self.metrics.get(request.metric)
+            if metric.format is not None and metric.format.currency is not None:
+                currencies.add(metric.format.currency)
+        for request in query.dimensions:
+            dimension = self.dimensions.get(request.dimension)
+            if dimension.format is not None and dimension.format.currency is not None:
+                currencies.add(dimension.format.currency)
+        return currencies

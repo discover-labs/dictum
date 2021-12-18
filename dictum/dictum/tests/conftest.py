@@ -7,9 +7,9 @@ from pathlib import Path
 import psycopg2
 import pytest
 
-from dictum.examples import chinook
 from dictum.data_model import DataModel
-from dictum.tests.test_store import configs
+from dictum.examples import chinook
+from dictum.tests.test_data_model import configs
 
 full_config_path = Path(configs.__file__).parent / "full_correct.yml"
 chinook_path = Path(chinook.__file__).parent

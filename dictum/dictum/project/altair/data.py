@@ -4,7 +4,7 @@ import pandas as pd
 from altair.utils.data import to_values
 
 import dictum.project
-import dictum.project.metrics
+import dictum.project.calculations
 from dictum.schema.query import QueryMetricRequest
 
 
@@ -12,7 +12,7 @@ class DictumData:
     def __init__(
         self,
         project: "dictum.project.Project",
-        metrics: List["dictum.project.metrics.ProjectMetric"],
+        metrics: List["dictum.project.calculations.ProjectMetric"],
     ):
         self.project = project
         self.requests = [QueryMetricRequest(metric=m.metric.id) for m in metrics]

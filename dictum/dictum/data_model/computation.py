@@ -47,6 +47,11 @@ class Column:
 class ColumnCalculation(Column):
     expr: Tree
 
+    def apply_transform(self, transform) -> "ColumnCalculation":
+        """A transform is a callable that gets a callable and returns a callable.
+        It can change the name, type and expr.
+        """
+
 
 @dataclass
 class AggregateQuery:
@@ -129,23 +134,30 @@ class AggregateQuery:
         self,
         dimension_id: str,
         name: str,
-        type: str,
-        transform_expr: Callable[[Tree], Tree],
+        transforms: Callable[[ColumnCalculation], ColumnCalculation],
     ):
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
         expr = dimension.prepare_expr([self.table.id, *path])
-        if transform_expr is not None:
-            expr = transform_expr(expr)
-        column = ColumnCalculation(expr=expr, name=name, type=type)
+        column = transforms(
+            ColumnCalculation(expr=expr, name=name, type=dimension.type)
+        )
         self.groupby.append(column)
 
-    def add_filter(self, dimension_id: str, filter: Callable[[Tree], Tree]):
+    def add_filter(
+        self,
+        dimension_id: str,
+        filter: Callable[[ColumnCalculation], ColumnCalculation],
+    ):
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
         expr = dimension.prepare_expr([self.table.id, *path])
-        expr = filter(expr)
-        self.filters.append(expr)
+        column = filter(ColumnCalculation(name=None, type=dimension.type, expr=expr))
+        if column.type != "bool":
+            raise TypeError(
+                f"Filter expression must be of type 'bool', got {column.type}"
+            )
+        self.filters.append(column.expr)
 
     def add_literal_filter(self, expr: Tree):
         expr = deepcopy(expr)

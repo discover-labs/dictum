@@ -192,19 +192,13 @@ def test_resolve_related_aggregate_dimension(chinook: DataModel):
 
 
 def test_inject_default_filters_and_transforms(chinook: DataModel):
-    assert len(chinook.transforms) == 22
+    assert len(chinook.transforms) == 23
 
 
 def test_metric_missing(chinook: DataModel):
     assert chinook.metrics.get("revenue").expr.children[0] == Tree(
         "call", ["coalesce", Tree("measure", ["revenue"]), Token("INTEGER", 0)]
     )
-
-
-def test_transform_compile(chinook: DataModel):
-    assert chinook.transforms.get("datepart").compile(
-        Tree("column", ["dt"]), ["year"]
-    ) == Tree("call", ["datepart", "year", Tree("column", ["dt"])])
 
 
 def test_alias(chinook: DataModel):

@@ -9,9 +9,8 @@ import dictum.project.analyses as analyses
 from dictum.backends.base import BackendResult, Connection
 from dictum.backends.profiles import ProfilesConfig
 from dictum.data_model import DataModel
+from dictum.project.calculations import ProjectDimensions, ProjectMetrics
 from dictum.project.chart import ProjectChart
-from dictum.project.dimensions import ProjectDimensions
-from dictum.project.metrics import ProjectMetrics
 from dictum.project.templates import environment
 from dictum.ql import compile_query
 from dictum.schema import Query
@@ -71,8 +70,8 @@ class Project:
         self.d = ProjectDimensions(self)
         self.dimensions = self.d
 
-    @property
-    def store(self) -> DataModel:
+    @cached_property
+    def data_model(self) -> DataModel:
         return DataModel.from_yaml(self.path)
 
     @cached_property
@@ -81,7 +80,7 @@ class Project:
         return config.get_connection(self.profile)
 
     def execute(self, query: Query) -> BackendResult:
-        computation = self.store.get_computation(query)
+        computation = self.data_model.get_computation(query)
         return self.connection.compute(computation)
 
     def ql(self, query: str):
@@ -119,7 +118,7 @@ class Project:
         return ProjectChart(self)
 
     @classmethod
-    def example(cls, name: str) -> "CachedProject":
+    def example(cls, name: str) -> "Project":
         """Load an example project.
 
         Arguments:
@@ -143,12 +142,12 @@ class Project:
             pandas.DataFrame: metric-dimension compatibility matrix
         """
         print(
-            f"Project '{self.store.name}', {len(self.store.metrics)} metrics, "
-            f"{len(self.store.dimensions)} dimensions. "
+            f"Project '{self.data_model.name}', {len(self.data_model.metrics)} metrics, "
+            f"{len(self.data_model.dimensions)} dimensions. "
             f"Connected to {self.connection}."
         )
         data = []
-        for metric in self.store.metrics.values():
+        for metric in self.data_model.metrics.values():
             for dimension in metric.dimensions:
                 data.append((metric.id, dimension.id, "✚"))
         return (
@@ -160,16 +159,6 @@ class Project:
     def _repr_html_(self):
         template = environment.get_template("project.html.j2")
         return template.render(project=self)
-
-
-class CachedProject(Project):
-    """Same as ``Project``, but reads the configs only once. Use this class for
-    interactive analysis and applications, when you data model is not expected to change.
-    """
-
-    @cached_property
-    def store(self) -> DataModel:
-        return super().store
 
 
 class FuncBuilder:

@@ -1,4 +1,4 @@
 from dictum.project.analyses import Pivot, Select
-from dictum.project.project import CachedProject, Project
+from dictum.project.project import Project
 
-__all__ = ["CachedProject", "Project", "Select", "Pivot"]
+__all__ = ["Project", "Select", "Pivot"]

@@ -1,4 +1,5 @@
 import inspect
+import warnings
 from typing import List
 
 from altair import (
@@ -18,12 +19,17 @@ from altair import (
     Undefined,
     UnitSpec,
     channels,
+    renderers,
 )
 from altair.utils.core import update_nested
 from altair.vegalite.v4.api import _EncodingMixin
 
 from dictum.project.altair.data import DictumData
 from dictum.project.altair.encoding import AltairEncodingChannelHook
+from dictum.project.altair.locale import (
+    cldr_locale_to_d3_number,
+    cldr_locale_to_d3_time,
+)
 from dictum.ql.transformer import compile_grouping
 from dictum.schema.query import Query, QueryMetricRequest
 
@@ -34,6 +40,17 @@ def is_channel_cls(obj):
         and obj is not channels.FieldChannelMixin
         and issubclass(obj, channels.FieldChannelMixin)
     )
+
+
+original_chart_to_dict = TopLevelMixin.to_dict
+
+
+def chart_to_dict(self, *args, **kwargs):
+    """Ignore warnings about data not being a sublcass of altair.Data"""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        result = original_chart_to_dict(self, *args, **kwargs)
+    return result
 
 
 original_encode = _EncodingMixin.encode
@@ -144,14 +161,27 @@ original_repr_mimebundle = TopLevelMixin._repr_mimebundle_
 
 
 def repr_mimebundle(self, *args, **kwargs):
+    self = self.copy(deep=True)  # don't mutate the original
+    currencies = set()
+    currency = None
+    model = None
     for unit, data in self._iterunits():
         if isinstance(data, DictumData):
+            model = data.project.data_model
             query = unit._query()
-            data = data.get_values(query)
-            if "spec" in unit._kwds:
-                unit.spec.data = data
+            currencies |= model.get_currencies_for_query(query)
+            result = data.get_values(query)
+            if "repeat" in unit._kwds:
+                unit.spec.data = result
             else:
-                unit.data = data
+                unit.data = result
+    if len(currencies) == 1:
+        currency = currencies.pop()
+    if model is not None:
+        renderers.set_embed_options(
+            formatLocale=cldr_locale_to_d3_number(model.locale, currency),
+            timeFormatLocale=cldr_locale_to_d3_time(model.locale),
+        )
     return original_repr_mimebundle(self, *args, **kwargs)
 
 
@@ -187,9 +217,11 @@ def iterunits(self, data=None):
     if "mark" in self._kwds:
         yield self, self.data if data is None else data
         return
-    if "spec" in self._kwds:
+    if "facet" in self._kwds:
         yield self, self.data if data is None else data
         return
+    if "repeat" in self._kwds:
+        yield self, self.spec.data if data is None else data
     for item in self._iteritems():
         yield from item._iterunits(self.data if self.data is not Undefined else data)
 
@@ -269,7 +301,7 @@ def query(self):
         repeat = self["repeat"]
         if isinstance(repeat, list):
             requests, names = requests_from_list(repeat)
-            self["repeat"]["name"] = names
+            self["repeat"] = names
             for req in requests:
                 _add_request(req)
         else:
@@ -279,6 +311,19 @@ def query(self):
                 for req in requests:
                     _add_request(req)
     return Query(metrics=metrics, dimensions=dimensions)
+
+
+def render(self):
+    self = self.copy(deep=True)  # don't mutate the original
+    for unit, data in self._iterunits():
+        if isinstance(data, DictumData):
+            query = unit._query()
+            result = data.get_values(query)
+            if "repeat" in unit._kwds:
+                unit.spec.data = result
+            else:
+                unit.data = result
+    return self
 
 
 units = (
@@ -293,6 +338,8 @@ units = (
 
 
 def monkeypatch_altair():
+    TopLevelMixin.to_dict = chart_to_dict
+    TopLevelMixin._render = render
     TopLevelMixin._repr_mimebundle_ = repr_mimebundle
     TopLevelMixin.repeat = repeat
     _EncodingMixin.encode = encode

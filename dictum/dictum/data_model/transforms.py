@@ -1,11 +1,11 @@
-from dataclasses import dataclass, field
-from functools import cached_property
 from typing import List, Optional
 
 from lark import Transformer, Tree
 
 from dictum import schema
-from dictum.data_model.expr.parser import parse_expr
+from dictum.data_model.computation import ColumnCalculation
+from dictum.data_model.expr import parse_expr
+from dictum.utils import value_to_token
 
 
 class TransformTransformer(Transformer):
@@ -20,53 +20,242 @@ class TransformTransformer(Transformer):
     def ARG(self, _):
         return self._arg
 
-    def expr(self, children: list):
+    def expr(self, children):
         return children[0]
 
 
-@dataclass
+transforms = {}
+
+
 class Transform:
     id: str
     name: str
-    str_expr: str
-    args: List[str] = field(default_factory=list)
     description: Optional[str] = None
     return_type: Optional[schema.Type] = None
-    format: Optional[schema.FormatConfig] = None
 
-    @cached_property
-    def expr(self):
-        return parse_expr(self.str_expr)
+    def __init__(self, *args):
+        self._args = [value_to_token(a) for a in args]
 
-    def compile(self, arg, args: dict):
-        if len(args) != len(self.args):
-            raise ValueError(
-                f"Expected {len(self.args)} arguments for {self.id}, got {len(args)}: {args}."
-            )
-        transformer = TransformTransformer(arg, dict(zip(self.args, args)))
-        return transformer.transform(self.expr)
+    def __init_subclass__(cls):
+        if hasattr(cls, "id") and cls.id is not None:
+            transforms[cls.id] = cls
 
-    def get_compiler(self, args: dict):
-        def compiler(arg):
-            return self.compile(arg, args)
+    def get_name(self, name: str) -> str:
+        return name
 
-        return compiler
+    def get_return_type(self, original: schema.Type) -> schema.Type:
+        if self.return_type is not None:
+            return self.return_type
+        return original
+
+    def transform_expr(self, expr: Tree) -> Tree:
+        raise NotImplementedError
+
+    def get_format(self, type_: schema.Type) -> schema.FormatConfig:
+        type_ = self.get_return_type(type_)
+        kind = "string"
+        if type_ in {"date", "datetime"}:
+            kind = type_
+        elif type_ in {"int", "float"}:
+            kind = "decimal"
+        return schema.FormatConfig(kind=kind)
+
+    def __call__(self, col: ColumnCalculation) -> ColumnCalculation:
+        return ColumnCalculation(
+            name=self.get_name(col.name),
+            type=self.get_return_type(col.type),
+            expr=Tree("expr", [self.transform_expr(col.expr.children[0])]),
+        )
 
 
-class IsInTransform:
-    """This filter is a special case, because you can't implement variable-argument
-    functions with user-defined transforms.
-    """
+class LiteralTransform(Transform):
+    expr: str
+    args: List[str] = []
 
-    return_type: schema.Type = "bool"
+    @property
+    def _expr(self) -> Tree:
+        return parse_expr(self.expr)
+
+    def transform_expr(self, expr: Tree):
+        kwargs = dict(zip(self.args, self._args))
+        transformer = TransformTransformer(expr, kwargs)
+        return transformer.transform(self._expr)
+
+
+class BooleanTransform(LiteralTransform):
+    args = ["value"]
+    return_type = "bool"
+    op: str
+
+    def __init_subclass__(cls):
+        cls.id = cls.__name__[:2].lower()
+        cls.name = cls.op
+        cls.expr = f"@ {cls.op} value"
+        super().__init_subclass__()
+
+
+class EqTransform(BooleanTransform):
+    op = "="
+
+
+class NeTransform(BooleanTransform):
+    op = "!="
+
+
+class GtTransform(BooleanTransform):
+    op = ">"
+
+
+class GeTransform(BooleanTransform):
+    op = ">="
+
+
+class LtTransform(BooleanTransform):
+    op = "<"
+
+
+class LeTransform(BooleanTransform):
+    op = "<="
+
+
+class IsNullTransform(LiteralTransform):
+    id = "isnull"
+    name = "IS NULL"
+    return_type = "bool"
+    expr = "@ is null"
+
+
+class IsNotNullTransform(LiteralTransform):
+    id = "isnotnull"
+    name = "IS NOT NULL"
+    return_type = "bool"
+    expr = "@ is not null"
+
+
+class InRangeTransform(LiteralTransform):
+    id = "inrange"
+    name = "in range"
+    return_type = "bool"
+    args = ["min", "max"]
+    expr = "@ >= min and @ <= max"
+
+
+class IsInTransform(Transform):
+    id = "isin"
+    name = "IN"
+    return_type = "bool"
+
+    def transform_expr(self, expr: Tree) -> Tree:
+        return Tree("IN", [expr, *self._args])
+
+
+class LastTransform(LiteralTransform):
+    id = "last"
+    name = "last"
+    return_type = "bool"
+    args = ["n", "part"]
+    expr = "datediff(part, @, now()) <= n"
+
+    def __init__(self, n: int, period: str):
+        super().__init__(n, period)
+
+
+class StepTransform(LiteralTransform):
+    id = "step"
+    name = "step"
+    return_type = "int"
+    args = ["size"]
+    expr = "@ // size * size"
+
+
+class DatepartTransform(LiteralTransform):
+    id = "datepart"
+    name = "date part"
+    args = ["part"]
+    return_type = "int"
+    expr = "datepart(part, @)"
+
+    def __init__(self, part: str):
+        super().__init__(part)
+
+
+class ShortDatepartTransform(DatepartTransform):
+    id = None
 
     def __init__(self):
-        self.id = "in"
-        self.name = "in"
-        self.description = "Filter only given values"
+        super().__init__(self.id)
 
-    def get_compiler(self, args: list):
-        def compiler(arg):
-            return Tree("IN", [arg, *args])
 
-        return compiler
+class YearTransform(ShortDatepartTransform):
+    id = "year"
+    name = "Year"
+
+
+class QuarterTransform(ShortDatepartTransform):
+    id = "quarter"
+    name = "Quarter"
+
+
+class MonthTransform(ShortDatepartTransform):
+    id = "month"
+    name = "Month"
+
+
+class WeekTransform(ShortDatepartTransform):
+    id = "week"
+    name = "Week"
+
+
+class DayTransform(ShortDatepartTransform):
+    id = "day"
+    name = "Day"
+
+
+class HourTransform(ShortDatepartTransform):
+    id = "hour"
+    name = "Hour"
+
+
+class MinuteTransform(ShortDatepartTransform):
+    id = "minute"
+    name = "Minute"
+
+
+class SecondTransform(ShortDatepartTransform):
+    id = "second"
+    name = "Second"
+
+
+date_skeletons = {
+    "year": "y",
+    "quarter": "yQQQ",
+    "month": "yMMM",
+    "week": "yw",
+    "day": "yMd",
+}
+
+
+class DatetruncTransform(Transform):
+    id = "datetrunc"
+    name = "Truncate a date"
+    return_type = "datetime"
+
+    def __init__(self, period: str):
+        super().__init__(period)
+
+    def get_format(self, type_: str) -> schema.FormatConfig:
+        part = self._args[0]
+        if part in date_skeletons:
+            return schema.FormatConfig(kind="date", skeleton=date_skeletons[part])
+        return schema.FormatConfig(kind="datetime")
+
+    def transform_expr(self, expr: Tree):
+        return Tree("call", ["datetrunc", *self._args, expr])
+
+
+class DateTransform(DatetruncTransform):
+    id = "date"
+    name = "Truncate a datetime to a date"
+
+    def __init__(self):
+        super().__init__("day")

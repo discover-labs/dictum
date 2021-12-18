@@ -54,13 +54,13 @@ add: add_ "+" mul_
 sub: add_ "-" mul_
 
 // comparison
-?comp: add_ | gt | gte | lt | lte | eq | neq | isnull | isnotnull
+?comp: add_ | gt | ge | lt | le | eq | ne | isnull | isnotnull
 gt: comp ">" add_
-gte: comp ">=" add_
+ge: comp ">=" add_
 lt: comp "<" add_
-lte: comp "<=" add_
+le: comp "<=" add_
 eq: comp ("==" | "=") add_
-neq: comp ("!=" | "<>") add_
+ne: comp ("!=" | "<>") add_
 // is null / is not null
 _IS: "IS"i
 _NOT: "NOT"i

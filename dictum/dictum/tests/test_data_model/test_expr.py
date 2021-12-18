@@ -58,9 +58,9 @@ def test_mul():
     )
 
 
-def test_neq():
+def test_ne():
     """Test that both != and <> is supported."""
-    tree = Tree("neq", [Token("INTEGER", "1"), Token("INTEGER", "1")])
+    tree = Tree("ne", [Token("INTEGER", "1"), Token("INTEGER", "1")])
     assert parser.parse("1 <> 1").children[0] == tree
     assert parser.parse("1 != 1").children[0] == tree
 
@@ -165,7 +165,7 @@ def test_case_multi():
 
 def test_arg():
     assert parse_expr("@ >= 10").children[0] == Tree(
-        "gte", [Token("ARG", "@"), Token("INTEGER", "10")]
+        "ge", [Token("ARG", "@"), Token("INTEGER", "10")]
     )
 
 

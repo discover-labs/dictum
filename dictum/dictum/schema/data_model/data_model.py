@@ -17,26 +17,14 @@ class DataModel(BaseModel):
     metrics: Dict[str, Metric] = {}
     unions: Dict[str, DimensionsUnion] = {}
     tables: Dict[str, Table] = {}
-    transforms: Dict[str, Transform] = {}
+    transforms: Dict[
+        str, Transform
+    ] = {}  # ignored for now, TODO: load LiteralTransform
 
     @classmethod
     def from_yaml(cls, path: str):
         path = Path(path)
         config = yaml.load(path.read_text(), Loader=yaml.SafeLoader)
-
-        # inject built-in transforms and filters
-        builtins = yaml.load(
-            (Path(__file__).parent / "transforms.yml").read_text(),
-            Loader=yaml.SafeLoader,
-        )
-        config_transforms = config.get("transforms", {})
-        collision = set(builtins) & set(config_transforms)
-        if collision:
-            raise ValueError(
-                f"Can't give a transform the same name as a built-in: {collision}"
-            )
-        builtins.update(config_transforms)
-        config["transforms"] = builtins
 
         # inject file-based tables
         tables_dir = config.pop("tables_dir", "tables")
@@ -52,6 +40,7 @@ class DataModel(BaseModel):
                 config["tables"][path.stem] = yaml.load(
                     path.read_text(), Loader=yaml.SafeLoader
                 )
+
         return cls.parse_obj(config)
 
     set_metrics_ids = validator("metrics", allow_reuse=True, pre=True)(utils.set_ids)

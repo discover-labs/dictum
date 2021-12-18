@@ -94,11 +94,11 @@ class ExpressionTransformer(Transformer):
     add = PassChildrenToCompiler()
     sub = PassChildrenToCompiler()
     gt = PassChildrenToCompiler()
-    gte = PassChildrenToCompiler()
+    ge = PassChildrenToCompiler()
     lt = PassChildrenToCompiler()
-    lte = PassChildrenToCompiler()
+    le = PassChildrenToCompiler()
     eq = PassChildrenToCompiler()
-    neq = PassChildrenToCompiler()
+    ne = PassChildrenToCompiler()
 
     isnull = PassChildrenToCompiler()
 
@@ -201,7 +201,7 @@ class Compiler(ABC):
         """Greater than, a > b"""
 
     @abstractmethod
-    def gte(self, a, b):
+    def ge(self, a, b):
         """Greater than or equal, a >= b"""
 
     @abstractmethod
@@ -209,7 +209,7 @@ class Compiler(ABC):
         """Less than, a < b"""
 
     @abstractmethod
-    def lte(self, a, b):
+    def le(self, a, b):
         """Less than or equal, a <= b"""
 
     @abstractmethod
@@ -217,7 +217,7 @@ class Compiler(ABC):
         """Equality, a equals b"""
 
     @abstractmethod
-    def neq(self, a, b):
+    def ne(self, a, b):
         """Non-equality, a not equals b"""
 
     @abstractmethod
