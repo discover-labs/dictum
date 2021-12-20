@@ -14,12 +14,16 @@ class DataModel(BaseModel):
     name: str
     description: Optional[str]
     locale: str = "en_US"
+
     metrics: Dict[str, Metric] = {}
     unions: Dict[str, DimensionsUnion] = {}
+
     tables: Dict[str, Table] = {}
     transforms: Dict[
         str, Transform
     ] = {}  # ignored for now, TODO: load LiteralTransform
+
+    theme: Optional[dict]
 
     @classmethod
     def from_yaml(cls, path: str):
@@ -34,12 +38,16 @@ class DataModel(BaseModel):
             paths = [p for ext in extensions for p in tables_dir.glob(f"**/*.{ext}")]
             if "tables" not in config:
                 config["tables"] = {}
-            for path in paths:
-                if path.stem in config["tables"]:
-                    raise KeyError(f"Duplicate table: {path.stem}")
-                config["tables"][path.stem] = yaml.load(
-                    path.read_text(), Loader=yaml.SafeLoader
+            for table_path in paths:
+                if table_path.stem in config["tables"]:
+                    raise KeyError(f"Duplicate table: {table_path.stem}")
+                config["tables"][table_path.stem] = yaml.load(
+                    table_path.read_text(), Loader=yaml.SafeLoader
                 )
+
+        theme_path = path.parent / config.get("altair_theme", "altair_theme.yml")
+        if theme_path.is_file():
+            config["theme"] = yaml.load(theme_path.read_text(), Loader=yaml.SafeLoader)
 
         return cls.parse_obj(config)
 

@@ -1,3 +1,4 @@
+import datetime
 from typing import List
 
 import pandas as pd
@@ -15,7 +16,7 @@ class DictumData:
         metrics: List["dictum.project.calculations.ProjectMetric"],
     ):
         self.project = project
-        self.requests = [QueryMetricRequest(metric=m.metric.id) for m in metrics]
+        self.requests = [QueryMetricRequest(metric=m.calculation.id) for m in metrics]
         self.filters = []
 
     def extend_query(self, query):
@@ -29,7 +30,13 @@ class DictumData:
     def get_values(self, query):
         query = self.extend_query(query)
         res = self.project.execute(query)
-        return to_values(pd.DataFrame(res.data))
+        df = pd.DataFrame(res.data)
+
+        # dates are not auto-converted to Pandas datetime and so are not sanitized
+        for col in df.columns:
+            if df[col].apply(lambda x: isinstance(x, datetime.date)).any():
+                df[col] = pd.to_datetime(df[col])
+        return to_values(df)
 
     def to_dict(self):
         return {"name": "__dictum__"}

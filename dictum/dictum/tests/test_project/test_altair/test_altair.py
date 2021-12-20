@@ -1,7 +1,12 @@
 import altair as alt
 
 from dictum.project.altair.data import DictumData
-from dictum.project.altair.monkeypatch import monkeypatch_altair
+from dictum.project.altair.monkeypatch import (
+    is_dictum_definition,
+    monkeypatch_altair,
+    request_from_field,
+    requests_from_channel,
+)
 from dictum.project.project import Project
 from dictum.schema.query import Query
 
@@ -139,6 +144,20 @@ def test_chart_query(project: Project):
     )
 
 
+def test_query_sort(project: Project):
+    chart = (
+        project.chart()
+        .mark_bar()
+        .encode(x=alt.X(project.d.genre, sort=project.m.revenue))
+    )
+    assert chart._query() == Query.parse_obj(
+        {
+            "metrics": [{"metric": "revenue"}],
+            "dimensions": [{"dimension": "genre"}],
+        }
+    )
+
+
 def test_repeat_not_resolving_data(project: Project):
     chart = (
         project.chart()
@@ -150,3 +169,38 @@ def test_repeat_not_resolving_data(project: Project):
     unit, data = next(chart._iterunits())
     assert unit is chart
     assert isinstance(data, DictumData)
+
+
+def test_channel_sort(project: Project):
+    assert alt.X(project.d.genre, sort=project.m.revenue).sort.field == "metric:revenue"
+
+
+def test_is_dictum_definition():
+    assert is_dictum_definition(alt.FieldName("metric:revenue"))
+    assert is_dictum_definition("metric:revenue")
+    assert is_dictum_definition("dimension:x")
+    assert is_dictum_definition("dimension:x.test.blah()")
+    assert not is_dictum_definition("blahblah:Q")
+
+
+def test_request_from_field():
+    assert request_from_field("metric:revenue").metric == "revenue"
+    assert request_from_field(alt.FieldName("metric:revenue")).metric == "revenue"
+    assert request_from_field(alt.FieldName("blah")) is None
+    assert request_from_field("dimension:xx.date").dimension == "xx"
+
+
+def test_requests_from_channel(project: Project):
+    assert len(requests_from_channel(alt.X(field="metric:test"))) == 1
+    assert (
+        len(
+            requests_from_channel(
+                alt.X(
+                    project.d.genre,
+                    sort=alt.EncodingSortField(project.m.revenue, order="descending"),
+                )
+            )
+        )
+        == 2
+    )
+    assert len(requests_from_channel(alt.X("something:Q"))) == 0

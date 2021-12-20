@@ -192,7 +192,7 @@ def test_resolve_related_aggregate_dimension(chinook: DataModel):
 
 
 def test_inject_default_filters_and_transforms(chinook: DataModel):
-    assert len(chinook.transforms) == 23
+    assert len(chinook.transforms) == 24
 
 
 def test_metric_missing(chinook: DataModel):
@@ -236,3 +236,32 @@ def test_missing_join_for_aggregate_dimension(chinook: DataModel):
     )
     comp = chinook.get_computation(q)
     assert len(comp.queries[0].unnested_joins) == 3
+
+
+def test_transform_order(chinook: DataModel):
+    q = Query.parse_obj(
+        {
+            "metrics": [{"metric": "revenue"}],
+            "dimensions": [
+                {
+                    "dimension": "invoice_date",
+                    "transforms": [{"id": "year"}, {"id": "gt", "args": [0]}],
+                }
+            ],
+        }
+    )
+    comp = chinook.get_computation(q)
+    assert comp.queries[0].groupby[0].expr.children[0] == Tree(
+        "gt",
+        [
+            Tree(
+                "call",
+                [
+                    "datepart",
+                    Token("STRING", "year"),
+                    Tree("column", ["invoice_items.invoice", "InvoiceDate"]),
+                ],
+            ),
+            Token("INTEGER", "0"),
+        ],
+    )

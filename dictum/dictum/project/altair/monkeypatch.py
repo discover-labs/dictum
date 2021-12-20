@@ -4,6 +4,7 @@ from typing import List
 
 from altair import (
     Column,
+    EncodingSortField,
     FacetChart,
     FacetedUnitSpec,
     FacetFieldDef,
@@ -23,6 +24,7 @@ from altair import (
 )
 from altair.utils.core import update_nested
 from altair.vegalite.v4.api import _EncodingMixin
+from jsonschema.exceptions import ValidationError
 
 from dictum.project.altair.data import DictumData
 from dictum.project.altair.encoding import AltairEncodingChannelHook
@@ -152,9 +154,26 @@ def build_channel_init(original_channel_init):
                 kwargs = _update_nested(fields, kwargs)
             else:
                 kwargs["shorthand"] = shorthand
+        if "sort" in kwargs and isinstance(kwargs["sort"], AltairEncodingChannelHook):
+            kwargs["sort"] = EncodingSortField(
+                field=kwargs["sort"].encoding_fields()["field"]
+            )
         return original_channel_init(self, *args, **kwargs)
 
     return channel_init
+
+
+original_encoding_sort_field_init = EncodingSortField.__init__
+
+
+def encoding_sort_field_init(
+    self, field=Undefined, op=Undefined, order=Undefined, **kwds
+):
+    if isinstance(field, AltairEncodingChannelHook):
+        field = field.encoding_fields()["field"]
+    return original_encoding_sort_field_init(
+        self, field=field, op=op, order=order, *kwds
+    )
 
 
 original_repr_mimebundle = TopLevelMixin._repr_mimebundle_
@@ -235,12 +254,16 @@ def iterchannels(self):
 
 
 def is_dictum_definition(req):
+    if isinstance(req, FieldName):
+        req = req.to_dict()
     return isinstance(req, str) and (
         req.startswith("metric:") or req.startswith("dimension:")
     )
 
 
 def request_from_definition(defn: str):
+    if isinstance(defn, FieldName):
+        defn = defn.to_dict()
     type_, field = defn.split(":", maxsplit=1)
     if type_ == "metric":
         return QueryMetricRequest(metric=field)
@@ -250,80 +273,75 @@ def request_from_definition(defn: str):
 
 
 def request_from_field(field):
-    if isinstance(field, FieldName):
-        field = field.to_dict()  # to str, really
     if is_dictum_definition(field):
         return request_from_definition(field)
 
 
+def requests_from_channel(channel):
+    result = []
+    if request := request_from_field(channel.field):
+        result = [request]
+        channel.field = request.name
+    if "sort" in channel._kwds:
+        if isinstance(channel.sort, dict):
+            try:
+                channel.sort = EncodingSortField.from_dict(channel.sort)
+            except ValidationError:
+                pass
+        if isinstance(channel.sort, EncodingSortField) and is_dictum_definition(
+            channel.sort.field
+        ):
+            request = request_from_field(channel.sort.field)
+            result.append(request)
+            channel.sort.field = request.name
+    return result
+
+
 def requests_from_list(items: List[str]):
-    requests = []
-    names = []
-    for item in items:
+    result = []
+    for i, item in enumerate(items):
         if (req := request_from_field(item)) is not None:
-            requests.append(req)
-            names.append(req.name)
-        else:
-            names.append(item)
-    return requests, names
+            result.append(req)
+            items[i] = req.name
+    return result
 
 
 def query(self):
     metrics = []
     dimensions = []
 
-    def _add_request(req):
-        if isinstance(req, QueryMetricRequest):
-            if req not in metrics:
-                metrics.append(req)
-        elif req not in dimensions:
-            dimensions.append(req)
+    def _add_requests(*reqs):
+        for req in reqs:
+            if isinstance(req, QueryMetricRequest):
+                if req not in metrics:
+                    metrics.append(req)
+            elif req not in dimensions:
+                dimensions.append(req)
 
     for channel in self._iterchannels():
-        if (
-            isinstance(channel, channels.FieldChannelMixin)
-            and (req := request_from_field(channel.field)) is not None
-        ):
-            _add_request(req)
-            channel.field = req.name
+        if isinstance(channel, channels.FieldChannelMixin):
+            reqs = requests_from_channel(channel)
+            _add_requests(*reqs)
 
     if "facet" in self._kwds:
-        for name, attr in self["facet"]._iterattrs_with_names():
+        for attr in self["facet"]._iterattrs():
             if isinstance(attr, FacetFieldDef):  # facet attribute
                 if (req := request_from_field(attr.field)) is not None:
-                    _add_request(req)
+                    _add_requests(req)
             elif isinstance(attr, (Row, Column)):  # row/column
                 req = request_from_field(attr.field)
-                attr.field = req.name
-                _add_request(req)
+                _add_requests(req)
 
     if "repeat" in self._kwds:
         repeat = self["repeat"]
         if isinstance(repeat, list):
-            requests, names = requests_from_list(repeat)
-            self["repeat"] = names
-            for req in requests:
-                _add_request(req)
+            reqs = requests_from_list(repeat)
+            _add_requests(*reqs)
         else:
-            for name, attr in repeat._iterattrs_with_names():
-                requests, names = requests_from_list(attr)
-                self["repeat"][name] = names
-                for req in requests:
-                    _add_request(req)
+            for attr in repeat._iterattrs():
+                reqs = requests_from_list(attr)
+                _add_requests(*reqs)
     return Query(metrics=metrics, dimensions=dimensions)
-
-
-def render(self):
-    self = self.copy(deep=True)  # don't mutate the original
-    for unit, data in self._iterunits():
-        if isinstance(data, DictumData):
-            query = unit._query()
-            result = data.get_values(query)
-            if "repeat" in unit._kwds:
-                unit.spec.data = result
-            else:
-                unit.data = result
-    return self
 
 
 units = (
@@ -339,11 +357,11 @@ units = (
 
 def monkeypatch_altair():
     TopLevelMixin.to_dict = chart_to_dict
-    TopLevelMixin._render = render
     TopLevelMixin._repr_mimebundle_ = repr_mimebundle
     TopLevelMixin.repeat = repeat
     _EncodingMixin.encode = encode
     _EncodingMixin.facet = facet
+    EncodingSortField.__init__ = encoding_sort_field_init
     for cls in channel_key_to_cls.values():
         cls.__init__ = build_channel_init(cls.__init__)
     inject(iterattrs_with_names, "_iterattrs_with_names", SchemaBase)

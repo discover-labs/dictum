@@ -7,7 +7,7 @@ import dictum.data_model
 import dictum.project
 from dictum import utils
 from dictum.data_model import Transform
-from dictum.project.altair.encoding import AltairEncodingChannelHook, cls_to_info_type
+from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
     ldml_number_to_d3_format,
@@ -61,22 +61,21 @@ class ProjectCalculation(AltairEncodingChannelHook):
         self.locale = locale
 
     def encoding_fields(self, cls=None) -> dict:
-        obj = {
-            "field": f"{self._type}:{self}",
-            "type": type_to_encoding_type[self.calculation.type],
-        }
-
-        info_type = cls_to_info_type(cls)
-        if info_type is None:
-            return obj
-
-        obj.update({info_type: {"title": self.calculation.name}})
+        title = {"title": self.calculation.name}
 
         fmt = format_config_to_d3_format(self.calculation.format, self.locale)
         if fmt is not None:
-            obj[info_type].update({"format": fmt})
+            title["format"] = fmt
 
-        return obj
+        obj = {
+            "field": f"{self._type}:{self}",
+            "type": type_to_encoding_type[self.calculation.type],
+            "axis": title,
+            "legend": title,
+            "header": title,
+        }
+
+        return filter_fields(cls, obj)
 
     @property
     def _type(self) -> str:
@@ -137,14 +136,17 @@ class ProjectDimensionRequest(ProjectCalculation):
     def __gt__(self, other):
         return self.gt(other)
 
-    def __ge__(self, other) -> str:
+    def __ge__(self, other):
         return self.ge(other)
 
-    def __lt__(self, other) -> str:
+    def __lt__(self, other):
         return self.lt(other)
 
-    def __le__(self, other) -> str:
+    def __le__(self, other):
         return self.le(other)
+
+    def __invert__(self):
+        return self.invert()
 
     def __getattr__(self, name: str):
         if name.startswith("_repr_"):
@@ -177,13 +179,12 @@ class ProjectDimensionRequest(ProjectCalculation):
             transform = self.transforms[request_transform.id](*request_transform.args)
             format = transform.get_format(type_)
             type_ = transform.get_return_type(type_)
-        info_type = cls_to_info_type(cls)
-        if (
-            info_type is not None
-            and (fmt := format_config_to_d3_format(format, self.locale)) is not None
-        ):
-            fields[info_type]["format"] = fmt
-        fields["type"] = type_to_encoding_type[type_]
+        if (fmt := format_config_to_d3_format(format, self.locale)) is not None:
+            for key in ["axis", "legend", "header"]:
+                if key in fields:
+                    fields[key]["format"] = fmt
+        if "type" in fields:
+            fields["type"] = type_to_encoding_type[type_]
         return fields
 
 

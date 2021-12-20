@@ -82,6 +82,12 @@ class LiteralTransform(Transform):
         return transformer.transform(self._expr)
 
 
+class InvertTransform(LiteralTransform):
+    id = "invert"
+    return_type = "bool"
+    expr = "not (@)"
+
+
 class BooleanTransform(LiteralTransform):
     args = ["value"]
     return_type = "bool"
@@ -90,7 +96,7 @@ class BooleanTransform(LiteralTransform):
     def __init_subclass__(cls):
         cls.id = cls.__name__[:2].lower()
         cls.name = cls.op
-        cls.expr = f"@ {cls.op} value"
+        cls.expr = f"(@) {cls.op} value"
         super().__init_subclass__()
 
 

@@ -139,9 +139,8 @@ class AggregateQuery:
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
         expr = dimension.prepare_expr([self.table.id, *path])
-        column = transforms(
-            ColumnCalculation(expr=expr, name=name, type=dimension.type)
-        )
+
+        column = transforms(ColumnCalculation(expr=expr, name=name, type=dimension.type))
         self.groupby.append(column)
 
     def add_filter(
@@ -152,6 +151,7 @@ class AggregateQuery:
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
         expr = dimension.prepare_expr([self.table.id, *path])
+
         column = filter(ColumnCalculation(name=None, type=dimension.type, expr=expr))
         if column.type != "bool":
             raise TypeError(

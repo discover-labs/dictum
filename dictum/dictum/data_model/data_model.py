@@ -2,7 +2,7 @@ import dataclasses
 from collections import defaultdict
 from typing import Callable, Dict, List
 
-from toolz import compose
+from toolz import compose_left
 
 from dictum import schema
 from dictum.data_model.calculations import (
@@ -19,10 +19,8 @@ from dictum.data_model.computation import (
     Computation,
 )
 from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
-from dictum.data_model.transforms import Transform, transforms
 from dictum.data_model.table import RelatedTable, Table, TableFilter
-
-# from dictum.data_model.transforms import IsInTransform, Transform
+from dictum.data_model.transforms import Transform, transforms
 
 displayed_fields = {
     "id",
@@ -70,6 +68,8 @@ class DataModel:
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
         self.transforms: Dict[str, Callable[..., Transform]] = transforms
+
+        self.theme = data_model.theme
 
         # add unions
         for union in data_model.unions.values():
@@ -294,7 +294,7 @@ class DataModel:
             query.add_dimension(
                 dimension.id,
                 request.name,
-                transforms=compose(*transforms),
+                transforms=compose_left(*transforms),
             )
 
         for request in filters:
@@ -304,7 +304,7 @@ class DataModel:
                     *request_transform.args
                 )
                 transforms.append(transform)
-            query.add_filter(request.dimension, compose(*transforms))
+            query.add_filter(request.dimension, compose_left(*transforms))
         # add anchor's table-level filters
         for f in anchor.filters:
             query.add_literal_filter(f.expr)
@@ -313,6 +313,9 @@ class DataModel:
 
     def get_computation(self, query: schema.Query) -> Computation:
         """Returns an object that can then be executed on a backend."""
+
+        if len(query.metrics) == 0:
+            raise ValueError("You must request at least one metric")
 
         metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}
         tables = defaultdict(lambda: [])

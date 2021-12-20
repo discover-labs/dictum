@@ -80,4 +80,4 @@ def test_find_all_paths(t1: Table):
 
 def test_allowed_join_paths(t1: Table):
     paths = {t.id: path for t, path in t1.allowed_join_paths.items()}
-    assert paths == {"t2": ["t2"], "t3": ["t2", "t3"], "t6": ["t6"]}
+    assert paths == {"t2": ["t2"], "t3": ["t2", "t3"], "t6": ["t6"], "t1": ["t1"]}

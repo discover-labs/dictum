@@ -3,6 +3,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Optional, Union
 
+import altair as alt
 import pandas as pd
 
 import dictum.project.analyses as analyses
@@ -69,6 +70,9 @@ class Project:
         self.metrics = self.m
         self.d = ProjectDimensions(self)
         self.dimensions = self.d
+        if self.data_model.theme is not None:
+            alt.themes.register("dictum_theme", lambda: self.data_model.theme)
+            alt.themes.enable("dictum_theme")
 
     @cached_property
     def data_model(self) -> DataModel:

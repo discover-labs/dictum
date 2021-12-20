@@ -75,7 +75,10 @@ class Table:
         paths = defaultdict(lambda: [])
         for target, path in self.find_all_paths():
             paths[target].append(path)
-        return {t: v[0] for t, v in paths.items() if len(v) == 1}
+        result = {t: v[0] for t, v in paths.items() if len(v) == 1}
+        for rel in self.related.values():
+            result[rel.table] = [rel.alias]
+        return result
 
     @cached_property
     def dimension_join_paths(self) -> Dict[str, List[str]]:

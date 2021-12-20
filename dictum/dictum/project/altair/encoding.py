@@ -39,18 +39,12 @@ from altair import (
 )
 
 axis = {
-    X2,
-    Y2,
     Latitude,
-    Latitude2,
     Longitude,
-    Longitude2,
     X,
     XError,
-    XError2,
     Y,
     YError,
-    YError2,
 }
 legend = {
     Color,
@@ -72,23 +66,34 @@ none = {
     Key,
     Text,
     Theta,
-    Theta2,
     Tooltip,
     Order,
 }
-
-
-def cls_to_info_type(cls):
-    if cls in axis:
-        return "axis"
-    if cls in header:
-        return "header"
-    if cls in legend:
-        return "legend"
-    return None
+field_only = {
+    Theta2,
+    YError2,
+    X2,
+    Y2,
+    Latitude2,
+    Longitude2,
+    XError2,
+}
 
 
 class AltairEncodingChannelHook(ABC):
     @abstractmethod
     def encoding_fields(self, cls: Optional[type] = None) -> dict:
         ...
+
+
+def filter_fields(cls, fields: dict):
+    keys = ["field", "type"]
+    if cls in axis:
+        keys.append("axis")
+    if cls in legend:
+        keys.append("legend")
+    if cls in header:
+        keys.append("header")
+    if cls in field_only:
+        keys.remove("type")
+    return {k: fields[k] for k in keys}

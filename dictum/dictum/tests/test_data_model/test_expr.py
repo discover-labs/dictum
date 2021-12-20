@@ -182,3 +182,26 @@ def test_null():
     assert parse_expr("x is not null").children[0] == Tree(
         "NOT", [Tree("isnull", [Tree("column", ["x"])])]
     )
+
+
+def test_not_precedence():
+    assert parse_expr("not if(x > 0, 1, 0) = 0").children[0] == Tree(
+        "NOT",
+        [
+            Tree(
+                "eq",
+                [
+                    Tree(
+                        "call",
+                        [
+                            "IF",
+                            Tree("gt", [Tree("column", ["x"]), Token("INTEGER", "0")]),
+                            Token("INTEGER", "1"),
+                            Token("INTEGER", "0"),
+                        ],
+                    ),
+                    Token("INTEGER", "0"),
+                ],
+            )
+        ],
+    )
