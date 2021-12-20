@@ -1,9 +1,11 @@
+import warnings
 from functools import cached_property
 from typing import Dict, List
 
 import pandas as pd
 import sqlparse
 from sqlalchemy import Integer, String, create_engine
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql import Select, case, cast, func
 
 from dictum.backends.base import BackendResult, Timer
@@ -160,6 +162,11 @@ class SQLiteConnection(SQLAlchemyConnection):
     @cached_property
     def engine(self):
         return create_engine(self.url)
+
+    def execute(self, query: Select) -> List[dict]:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SAWarning)
+            return super().execute(query)
 
     def compute(self, computation: Computation) -> BackendResult:
         """Call SQLAlchemyCompiler's compile() to get a fake raw query. Coerce types."""
