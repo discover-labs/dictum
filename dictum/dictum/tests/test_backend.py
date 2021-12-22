@@ -11,7 +11,10 @@ from dictum.schema import Query
 
 def test_groupby(chinook: DataModel, connection):
     q = Query.parse_obj(
-        {"metrics": [{"metric": "track_count"}], "dimensions": [{"dimension": "genre"}]}
+        {
+            "metrics": [{"metric": {"id": "track_count"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+        }
     )
     comp = chinook.get_computation(q)
     df = connection.compute_df(comp)
@@ -21,14 +24,14 @@ def test_groupby(chinook: DataModel, connection):
 def test_filter(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
             "filters": [
                 {
-                    "dimension": "genre",
+                    "id": "genre",
                     "transforms": [{"id": "isin", "args": ["Rock"]}],
                 },
                 {
-                    "dimension": "customer_country",
+                    "id": "customer_country",
                     "transforms": [{"id": "isin", "args": ["USA"]}],
                 },
             ],
@@ -39,7 +42,8 @@ def test_filter(chinook: DataModel, connection):
     assert df.iloc[0][0] == 157
 
 
-def _test_convert_datetime(chinook: DataModel, connection):
+@pytest.mark.skip
+def test_convert_datetime(chinook: DataModel, connection):
     """Temporarily off, because not sure if this is needed. SQLite's datetime()
     returns a string, not a datetime (unlike a raw column), but everything is sent
     as a string to the frontend anyway. Only problem is the Python API, which we don't
@@ -58,9 +62,9 @@ def test_metric_not_measure(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
             "metrics": [
-                {"metric": "revenue"},
-                {"metric": "track_count"},
-                {"metric": "revenue_per_track"},
+                {"metric": {"id": "revenue"}},
+                {"metric": {"id": "track_count"}},
+                {"metric": {"id": "revenue_per_track"}},
             ]
         }
     )
@@ -72,8 +76,8 @@ def test_metric_not_measure(chinook: DataModel, connection):
 def test_metric_with_groupby(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "arppu"}, {"metric": "track_count"}],
-            "dimensions": [{"dimension": "genre"}],
+            "metrics": [{"metric": {"id": "arppu"}}, {"metric": {"id": "track_count"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
     comp = chinook.get_computation(q)
@@ -83,7 +87,12 @@ def test_metric_with_groupby(chinook: DataModel, connection):
 
 def test_multiple_facts(chinook: DataModel, connection):
     q = Query.parse_obj(
-        {"metrics": [{"metric": "items_sold"}, {"metric": "track_count"}]}
+        {
+            "metrics": [
+                {"metric": {"id": "items_sold"}},
+                {"metric": {"id": "track_count"}},
+            ]
+        }
     )
     comp = chinook.get_computation(q)
     df = connection.compute_df(comp)
@@ -93,8 +102,11 @@ def test_multiple_facts(chinook: DataModel, connection):
 def test_multiple_facts_dimensions(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}, {"metric": "track_count"}],
-            "dimensions": [{"dimension": "genre"}],
+            "metrics": [
+                {"metric": {"id": "items_sold"}},
+                {"metric": {"id": "track_count"}},
+            ],
+            "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
     comp = chinook.get_computation(q)
@@ -109,8 +121,11 @@ def test_if(chinook: DataModel, connection):
     """Test if() function and case when ... then ... else ... end constructs"""
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
-            "dimensions": [{"dimension": "invoice_year"}, {"dimension": "leap_year"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
+            "dimensions": [
+                {"dimension": {"id": "invoice_year"}},
+                {"dimension": {"id": "leap_year"}},
+            ],
         }
     )
     comp = chinook.get_computation(q)
@@ -121,8 +136,8 @@ def test_if(chinook: DataModel, connection):
 def test_subquery_join(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
-            "dimensions": [{"dimension": "customer_orders_amount_10_bins"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
+            "dimensions": [{"dimension": {"id": "customer_orders_amount_10_bins"}}],
         }
     )
     comp = chinook.get_computation(q)
@@ -223,8 +238,8 @@ def test_datediff(compute):
 def test_date(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "invoice_date"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "invoice_date"}}],
         }
     )
     comp = chinook.get_computation(q)
@@ -238,8 +253,8 @@ def test_date(chinook: DataModel, connection):
 def test_datetime(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "invoice_datetime"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "invoice_datetime"}}],
         }
     )
     comp = chinook.get_computation(q)
@@ -253,16 +268,20 @@ def test_datetime(chinook: DataModel, connection):
 def test_alias(chinook: DataModel, connection):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [
                 {
-                    "dimension": "invoice_date",
-                    "transform": {"id": "datepart", "args": ["year"]},
+                    "dimension": {
+                        "id": "invoice_date",
+                        "transform": {"id": "datepart", "args": ["year"]},
+                    },
                     "alias": "year",
                 },
                 {
-                    "dimension": "invoice_date",
-                    "transform": {"id": "datepart", "args": ["month"]},
+                    "dimension": {
+                        "id": "invoice_date",
+                        "transform": {"id": "datepart", "args": ["month"]},
+                    },
                     "alias": "month",
                 },
             ],

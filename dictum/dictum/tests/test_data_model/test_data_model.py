@@ -24,17 +24,19 @@ def test_store_parses_expr(chinook: DataModel):
 
 
 def test_store_measure_related_column(chinook: DataModel):
-    q = Query.parse_obj({"metrics": [{"metric": "unique_paying_customers"}]})
+    q = Query.parse_obj({"metrics": [{"metric": {"id": "unique_paying_customers"}}]})
     comp = chinook.get_computation(q)
     assert len(comp.queries[0].joins) == 1
 
 
 def test_suggest_metrics_no_dims(chinook: DataModel):
-    q = Query.parse_obj({"metrics": [{"metric": "track_count"}]})
+    q = Query.parse_obj({"metrics": [{"metric": {"id": "track_count"}}]})
     metrics = chinook.suggest_metrics(q)
     assert len(metrics) == 12
 
-    q = Query.parse_obj({"metrics": [{"metric": "track_count"}, {"metric": "revenue"}]})
+    q = Query.parse_obj(
+        {"metrics": [{"metric": {"id": "track_count"}}, {"metric": {"id": "revenue"}}]}
+    )
     metrics = chinook.suggest_metrics(q)
     assert len(metrics) == 12
 
@@ -42,8 +44,8 @@ def test_suggest_metrics_no_dims(chinook: DataModel):
 def test_suggest_metrics_with_dims(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "customer_country"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "customer_country"}}],
         }
     )
     metrics = chinook.suggest_metrics(q)
@@ -57,7 +59,10 @@ def test_suggest_metrics_with_dims(chinook: DataModel):
     }
 
     q = Query.parse_obj(
-        {"metrics": [{"metric": "revenue"}], "dimensions": [{"dimension": "genre"}]}
+        {
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+        }
     )
     metrics = chinook.suggest_metrics(q)
     assert len(metrics) == 10
@@ -66,8 +71,11 @@ def test_suggest_metrics_with_dims(chinook: DataModel):
 def test_suggest_dimensions(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "track_count"}, {"metric": "revenue"}],
-            "dimensions": [{"dimension": "album"}],
+            "metrics": [
+                {"metric": {"id": "track_count"}},
+                {"metric": {"id": "revenue"}},
+            ],
+            "dimensions": [{"dimension": {"id": "album"}}],
         }
     )
     dimensions = chinook.suggest_dimensions(q)
@@ -82,8 +90,8 @@ def test_suggest_dimensions(chinook: DataModel):
 def test_suggest_metrics_with_union(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "n_customers"}],
-            "dimensions": [{"dimension": "country"}],
+            "metrics": [{"metric": {"id": "n_customers"}}],
+            "dimensions": [{"dimension": {"id": "country"}}],
         }
     )
     metrics = chinook.suggest_metrics(q)
@@ -94,8 +102,8 @@ def test_suggest_metrics_with_union(chinook: DataModel):
 def test_suggest_dimensions_with_union(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "n_customers"}],
-            "dimensions": [{"dimension": "country"}],
+            "metrics": [{"metric": {"id": "n_customers"}}],
+            "dimensions": [{"dimension": {"id": "country"}}],
         }
     )
     dimensions = chinook.suggest_dimensions(q)
@@ -128,8 +136,11 @@ def test_resolve_metrics(chinook: DataModel):
 def test_compute_union(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "n_customers"}, {"metric": "n_employees"}],
-            "dimensions": [{"dimension": "country"}],
+            "metrics": [
+                {"metric": {"id": "n_customers"}},
+                {"metric": {"id": "n_employees"}},
+            ],
+            "dimensions": [{"dimension": {"id": "country"}}],
         }
     )
     comp = chinook.get_computation(q)
@@ -204,16 +215,20 @@ def test_metric_missing(chinook: DataModel):
 def test_alias(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [
                 {
-                    "dimension": "invoice_date",
-                    "transforms": [{"id": "datepart", "args": ["year"]}],
+                    "dimension": {
+                        "id": "invoice_date",
+                        "transforms": [{"id": "datepart", "args": ["year"]}],
+                    },
                     "alias": "year",
                 },
                 {
-                    "dimension": "invoice_date",
-                    "transforms": [{"id": "datepart", "args": ["month"]}],
+                    "dimension": {
+                        "id": "invoice_date",
+                        "transforms": [{"id": "datepart", "args": ["month"]}],
+                    },
                     "alias": "month",
                 },
             ],
@@ -227,10 +242,10 @@ def test_alias(chinook: DataModel):
 def test_missing_join_for_aggregate_dimension(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
             "dimensions": [
-                {"dimension": "customer_country"},
-                {"dimension": "first_order_cohort_month"},
+                {"dimension": {"id": "customer_country"}},
+                {"dimension": {"id": "first_order_cohort_month"}},
             ],
         }
     )
@@ -241,11 +256,13 @@ def test_missing_join_for_aggregate_dimension(chinook: DataModel):
 def test_transform_order(chinook: DataModel):
     q = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [
                 {
-                    "dimension": "invoice_date",
-                    "transforms": [{"id": "year"}, {"id": "gt", "args": [0]}],
+                    "dimension": {
+                        "id": "invoice_date",
+                        "transforms": [{"id": "year"}, {"id": "gt", "args": [0]}],
+                    },
                 }
             ],
         }

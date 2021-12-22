@@ -1,75 +1,82 @@
-from lark import Transformer
+from lark import Transformer, Tree
 
-from dictum.ql.parser import parse_filter, parse_grouping, parse_ql
-from dictum.schema import (
+from dictum.ql.parser import (
+    parse_dimension,
+    parse_dimension_request,
+    parse_metric_request,
+    parse_ql,
+)
+from dictum.schema.query import (
     Query,
-    QueryDimensionFilter,
+    QueryDimension,
     QueryDimensionRequest,
-    QueryDimensionTransform,
+    QueryMetric,
     QueryMetricRequest,
+    QueryScalarTransform,
+    QueryTableTransform,
 )
 
 
-class TransformMixin:
-    def dimension(self, children: list):
-        return children[0]
+class QlTransformer(Transformer):
+    """Compiles a QL query AST into a Query object."""
 
-    def call(self, children: list):
+    def table_transform(self, children: list):
+        id, *rest = children
+        args = []
+        of, within = [], []
+        for item in rest:
+            if isinstance(item, Tree):
+                if item.data == "of":
+                    of = item.children
+                elif item.data == "within":
+                    within = item.children
+            else:
+                args.append(item)
+        return QueryTableTransform(id=id.lower(), args=args, of=of, within=within)
+
+    def metric(self, children: list):
+        id, *transforms = children
+        return QueryMetric(id=id, transforms=transforms)
+
+    def scalar_transform(self, children: list):
         id, *args = children
-        return QueryDimensionTransform(id=id.lower(), args=args)
+        return QueryScalarTransform(id=id.lower(), args=args)
 
-    def filter(self, children: list):
-        dimension, *transforms = children
-        return QueryDimensionFilter(dimension=dimension, transforms=transforms)
+    def dimension(self, children: list):
+        id, *transforms = children
+        return QueryDimension(id=id, transforms=transforms)
 
     def alias(self, children: list):
         return children[0]
 
-    def grouping(self, children: list):
+    def dimension_request(self, children: list):
         dimension, *rest = children
-        transforms = []
-        alias = None
-        for item in rest:
-            if isinstance(item, QueryDimensionTransform):
-                transforms.append(item)
-        if rest and not isinstance(item, QueryDimensionTransform):
-            alias = item
-        return QueryDimensionRequest(
-            dimension=dimension, transforms=transforms, alias=alias
-        )
+        alias = rest[0] if rest else None
+        return QueryDimensionRequest(dimension=dimension, alias=alias)
 
-
-class QlTransformer(TransformMixin, Transformer):
-    """Compiles a QL query AST into a Query object."""
-
-    def metric(self, children: list):
-        """Return metric name as a string"""
-        return QueryMetricRequest(metric=children[0])
+    def metric_request(self, children: list):
+        metric, *rest = children
+        alias = rest[0] if rest else None
+        return QueryMetricRequest(metric=metric, alias=alias)
 
     def select(self, children: list):
-        """Just return a list of metric names"""
-        return children
-
-    def where(self, children: list):
-        return children
-
-    def groupby(self, children: list):
         return children
 
     def query(self, children: list):
         metrics, *rest = children
-        filters, dimensions = [], []
-        if len(rest) > 0:
-            if len(rest) == 2:
-                filters, dimensions = rest
-            elif isinstance(rest[0][0], QueryDimensionFilter):
-                filters = rest[0]
-            else:
-                dimensions = rest[0]
+        filters, dimensions, limit = [], [], []
+        for item in rest:
+            if item.data == "where":
+                filters = item.children
+            elif item.data == "groupby":
+                dimensions = item.children
+            elif item.data == "limit":
+                limit = item.children
         return Query(
             metrics=metrics,
             dimensions=dimensions,
             filters=filters,
+            limit=limit,
         )
 
 
@@ -80,23 +87,13 @@ def compile_query(query: str) -> Query:
     return ql_transformer.transform(parse_ql(query))
 
 
-class FilterTrasformer(TransformMixin, Transformer):
-    pass
+def compile_dimension(expr: str) -> QueryDimension:
+    return ql_transformer.transform(parse_dimension(expr))
 
 
-filter_transformer = FilterTrasformer()
+def compile_dimension_request(expr: str) -> QueryDimensionRequest:
+    return ql_transformer.transform(parse_dimension_request(expr))
 
 
-def compile_filter(expr: str) -> QueryDimensionFilter:
-    return filter_transformer.transform(parse_filter(expr))
-
-
-class GroupingTransformer(TransformMixin, Transformer):
-    pass
-
-
-grouping_transformer = GroupingTransformer()
-
-
-def compile_grouping(expr: str) -> QueryDimensionRequest:
-    return grouping_transformer.transform(parse_grouping(expr))
+def compile_metric_request(expr: str) -> QueryMetricRequest:
+    return ql_transformer.transform(parse_metric_request(expr))

@@ -1,42 +1,57 @@
-import pytest
-from pydantic import ValidationError
+from dictum.schema.query import (
+    QueryDimension,
+    QueryDimensionRequest,
+    QueryScalarTransform,
+    QueryMetric,
+    QueryMetricRequest,
+    QueryTableTransform,
+)
 
-from dictum.schema import Query, QueryDimensionRequest
+
+def test_calculation():
+    assert (
+        QueryDimensionRequest(dimension=QueryDimension(id="test")).calculation.id
+        == "test"
+    )
+    assert QueryMetricRequest(metric=QueryMetric(id="test")).calculation.id == "test"
 
 
-def test_query_duplicate_dimensions():
-    Query.parse_obj(
-        {
-            "metrics": [{"metric": "x"}, {"metric": "y"}],
-            "dimensions": [
-                {"dimension": "z", "alias": "a"},
-                {"dimension": "z", "alias": "b"},
+def test_calculation_name():
+    assert QueryDimension(id="x").name == "x"
+    assert (
+        QueryDimension(id="x", transforms=[QueryScalarTransform(id="a")]).name == "x__a"
+    )
+    assert (
+        QueryDimension(
+            id="x", transforms=[QueryScalarTransform(id="y", args=["a", 1])]
+        ).name
+        == "x__y_a_1"
+    )
+
+    assert QueryMetric(id="x").name == "x"
+    assert (
+        QueryMetric(
+            id="x",
+            transforms=[
+                QueryTableTransform(
+                    id="y",
+                    args=[1],
+                    of=[QueryDimension(id="a")],
+                    within=[
+                        QueryDimension(
+                            id="b",
+                            transforms=[QueryScalarTransform(id="s", args=["ab"])],
+                        )
+                    ],
+                )
             ],
-        }
+        ).name
+        == "x__y_1_of_a_within_b__s_ab"
     )
-    with pytest.raises(ValidationError):
-        Query.parse_obj(
-            {
-                "metrics": [{"metric": "x"}, {"metric": "y"}],
-                "dimensions": [
-                    {"dimension": "z", "alias": "a"},
-                    {"dimension": "f", "alias": "a"},
-                ],
-            }
-        )
 
 
-def test_dimension_request_column_name():
-    assert QueryDimensionRequest.parse_obj({"dimension": "x"}).name == "x"
+def test_request_name():
+    assert QueryMetricRequest(metric=QueryMetric(id="a"), alias="b").name == "b"
     assert (
-        QueryDimensionRequest.parse_obj(
-            {"dimension": "x", "transforms": [{"id": "y"}]}
-        ).name
-        == "x__y"
-    )
-    assert (
-        QueryDimensionRequest.parse_obj(
-            {"dimension": "x", "transforms": [{"id": "y", "args": [1, "n", 2]}]}
-        ).name
-        == "x__y_1_n_2"
+        QueryDimensionRequest(dimension=QueryDimension(id="a"), alias="b").name == "b"
     )

@@ -7,7 +7,7 @@ from dictum.data_model.computation import (
 )
 from dictum.data_model.data_model import DataModel
 from dictum.data_model.table import RelatedTable, Table
-from dictum.data_model.transforms import Transform
+from dictum.data_model.transforms.dimension import DimensionTransform
 
 __all__ = [
     "AggregateQuery",
@@ -19,5 +19,5 @@ __all__ = [
     "Metric",
     "RelatedTable",
     "Table",
-    "Transform",
+    "DimensionTransform",
 ]

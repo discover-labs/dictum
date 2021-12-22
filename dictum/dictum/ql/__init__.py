@@ -1,3 +1,13 @@
-from dictum.ql.transformer import compile_filter, compile_grouping, compile_query
+from dictum.ql.transformer import (
+    compile_dimension,
+    compile_dimension_request,
+    compile_metric_request,
+    compile_query,
+)
 
-__all__ = ["compile_query", "compile_filter", "compile_grouping"]
+__all__ = [
+    "compile_query",
+    "compile_dimension",
+    "compile_dimension_request",
+    "compile_metric_request",
+]

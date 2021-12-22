@@ -2,7 +2,7 @@ from altair import Chart
 
 import dictum.project
 from dictum.project.altair.data import DictumData
-from dictum.ql.transformer import compile_filter
+from dictum.ql.transformer import compile_dimension
 
 
 class ProjectChart:
@@ -19,7 +19,7 @@ class ProjectChart:
         return Chart(self.data)
 
     def where(self, *filters) -> Chart:
-        self.data.filters.extend(compile_filter(str(f)) for f in filters)
+        self.data.filters.extend(compile_dimension(str(f)) for f in filters)
         return self.chart
 
     def __getattr__(self, name: str):

@@ -10,10 +10,12 @@ from dictum.schema.data_model.table import Table
 from dictum.schema.data_model.type import Type
 from dictum.schema.query import (
     Query,
-    QueryDimensionFilter,
+    QueryTransform,
+    QueryDimension,
     QueryDimensionRequest,
-    QueryDimensionTransform,
+    QueryMetric,
     QueryMetricRequest,
+    QueryTableTransform,
 )
 
 __all__ = [
@@ -24,10 +26,12 @@ __all__ = [
     "Measure",
     "Metric",
     "Query",
-    "QueryDimensionFilter",
+    "QueryTransform",
+    "QueryDimension",
     "QueryDimensionRequest",
-    "QueryDimensionTransform",
+    "QueryMetric",
     "QueryMetricRequest",
+    "QueryTableTransform",
     "Table",
     "Type",
 ]

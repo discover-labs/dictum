@@ -5,8 +5,12 @@ import pandas as pd
 import dictum.project
 from dictum.backends.base import BackendResult
 from dictum.project.calculations import ProjectDimensionRequest
-from dictum.ql import compile_filter, compile_grouping
-from dictum.schema import Query, QueryMetricRequest
+from dictum.ql import (
+    compile_dimension,
+    compile_dimension_request,
+    compile_metric_request,
+)
+from dictum.schema import Query
 
 
 class Select:
@@ -20,7 +24,7 @@ class Select:
 
     def __init__(self, project: "dictum.project.Project", *metrics):
         self.project = project
-        self.query = Query(metrics=[QueryMetricRequest(metric=str(m)) for m in metrics])
+        self.query = Query(metrics=[compile_metric_request(str(m)) for m in metrics])
 
     def by(
         self,
@@ -65,7 +69,7 @@ class Select:
         if isinstance(dimension, ProjectDimensionRequest):
             request = dimension.request
         else:
-            request = compile_grouping(str(dimension))
+            request = compile_dimension_request(str(dimension))
         if alias is not None:
             request.alias = alias
         self.query.dimensions.append(request)
@@ -95,7 +99,7 @@ class Select:
             ```
         """
         for f in filters:
-            self.query.filters.append(compile_filter(str(f)))
+            self.query.filters.append(compile_dimension(str(f)))
         return self
 
     def _execute(self) -> BackendResult:

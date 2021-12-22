@@ -44,7 +44,11 @@ def test_relational_query_add_dimension(chinook: DataModel):
 def test_relational_query_measure_dimension(chinook: DataModel):
     q = chinook.get_aggregate_query(
         measures=["items_sold"],
-        dimensions=[QueryDimensionRequest(dimension="customer_orders_amount")],
+        dimensions=[
+            QueryDimensionRequest.parse_obj(
+                {"dimension": {"id": "customer_orders_amount"}}
+            )
+        ],
     )
     joins = list(q._unnested_joins())
     assert len(joins) == 3
@@ -56,11 +60,11 @@ def test_unique_joins(chinook: DataModel):
         query=Query.parse_obj(
             {
                 "metrics": [
-                    {"metric": "revenue"},
-                    {"metric": "unique_paying_customers"},
-                    {"metric": "arppu"},
+                    {"metric": {"id": "revenue"}},
+                    {"metric": {"id": "unique_paying_customers"}},
+                    {"metric": {"id": "arppu"}},
                 ],
-                "dimensions": [{"dimension": "invoice_date"}],
+                "dimensions": [{"dimension": {"id": "invoice_date"}}],
             }
         )
     )

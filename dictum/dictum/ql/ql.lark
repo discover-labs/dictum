@@ -11,26 +11,32 @@ FALSE: "FALSE"i
 QUOTED_IDENTIFIER: "\"" _STRING_ESC_INNER "\""
 IDENTIFIER: /[a-z_]\w*/i
 identifier: IDENTIFIER | QUOTED_IDENTIFIER
-call: identifier ["(" [ literal ("," literal)* ] ")"]
 
 // keywords
 _SELECT: "SELECT"i
 _WHERE: "WHERE"i
 _GROUPBY: /(GROUP\s+)?BY/i
+_LIMIT: /LIMIT/i
 _AS: "AS"i
 _IS: "IS"i
 _NOT: "NOT"i
 _NULL: "NULL"i
 _IN: "IN"i
+_OF: "OF"i
+_WITHIN: "WITHIN"i
 
-metric: identifier
-dimension: identifier
-_tran: dimension "." call
-
-grouping: dimension ( "." call )* [ op ] [ alias ]
 alias: _AS identifier
 
-?filter: dimension ( "." call )* [ op ]
+scalar_transform: identifier [ "(" [ literal ( "," literal )* ] ")" ]
+table_transform: identifier [ "(" [ literal ( "," literal )* ] ")" ] [ of ] [ within ]
+
+metric: identifier [ "." table_transform ] [ op ]
+metric_request: metric [ alias ]
+of: _OF "(" dimension ( "," dimension )* ")"
+within: _WITHIN "(" dimension ( "," dimension )* ")"
+
+dimension: identifier ( "." scalar_transform )* [ op ]
+dimension_request: dimension [ alias ]
 
 op: eq | ne | gt | ge | lt | le | isnull | isnotnull | isin
 eq: ("=" | "==") literal
@@ -44,10 +50,11 @@ isnotnull: _IS _NOT _NULL
 isin: _IN _tuple
 _tuple: "(" literal ("," literal)* ")"
 
-select: _SELECT metric ( "," metric )*
-where: _WHERE filter ( "," filter )*
-groupby: _GROUPBY grouping ( "," grouping )*
+select: _SELECT metric_request ( "," metric_request )*
+where: _WHERE dimension ( "," dimension )*
+groupby: _GROUPBY dimension_request ( "," dimension_request )*
+limit: _LIMIT metric ( "," metric )*
 
-query: select [ where ] [ groupby ]
+query: select [ where ] [ groupby [ limit ] ]
 
 %ignore /\s/

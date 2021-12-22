@@ -1,9 +1,9 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, root_validator
 
 
-class QueryDimensionTransform(BaseModel):
+class QueryTransform(BaseModel):
     id: str
     args: List = []
 
@@ -15,40 +15,75 @@ class QueryDimensionTransform(BaseModel):
         return f"{self.id}{args}"
 
 
-class DimensionTopK(BaseModel):
-    k: int
-    on: str
-    top: bool = True
+class QueryScalarTransform(QueryTransform):
+    pass
 
 
-class QueryDimensionRequest(BaseModel):
-    dimension: str
-    transforms: List[QueryDimensionTransform] = []
-    alias: Optional[str]
+class QueryTableTransform(QueryTransform):
+    of: List["QueryDimension"] = []
+    within: List["QueryDimension"] = []
+
+    @property
+    def suffix(self) -> str:
+        suffix = super().suffix
+        for request in self.of:
+            suffix += f"_of_{request.name}"
+        for request in self.within:
+            suffix += f"_within_{request.name}"
+        return suffix
+
+
+class QueryCalculation(BaseModel):
+    id: str
+    transforms: List[QueryTransform] = []
 
     @property
     def name(self):
-        if self.alias is not None:
-            return self.alias
         suffixes = []
         for transform in self.transforms:
             suffixes.append(transform.suffix)
         if len(suffixes) > 0:
             _suff = "_".join(suffixes)
-            return f"{self.dimension}__{_suff}"
+            return f"{self.id}__{_suff}"
+        return self.id
+
+
+class QueryCalculationRequest(BaseModel):
+    alias: Optional[str]
+
+    @property
+    def name(self) -> str:
+        if self.alias is not None:
+            return self.alias
+        return self.calculation.name
+
+    @property
+    def calculation(self) -> QueryCalculation:
+        raise NotImplementedError
+
+
+class QueryDimension(QueryCalculation):
+    transforms: List[QueryScalarTransform] = []
+
+
+class QueryDimensionRequest(QueryCalculationRequest):
+    dimension: QueryDimension
+
+    @property
+    def calculation(self) -> QueryDimension:
         return self.dimension
 
 
-class QueryDimensionFilter(BaseModel):
-    dimension: str
-    transforms: List[QueryDimensionTransform] = []
+class QueryMetric(QueryCalculation):
+    transforms: List[QueryTableTransform] = []
 
 
-class QueryMetricRequest(BaseModel):
-    metric: str
+class QueryMetricRequest(QueryCalculationRequest):
+    metric: QueryMetric
+    alias: Optional[str]
 
     @property
-    def name(self):
+    def calculation(self) -> QueryMetric:
         return self.metric
 
 
@@ -62,16 +97,23 @@ class Query(BaseModel):
 
     metrics: List[QueryMetricRequest] = []
     dimensions: List[QueryDimensionRequest] = []
-    filters: List[QueryDimensionFilter] = []
-    formatting: bool = False
+    filters: List[QueryDimension] = []
+    limit: List[QueryMetric] = []
 
-    @validator("dimensions", always=True)
-    def validate_dimensions(cls, value: dict):
-        """Assert that the requested dimensions do not have duplicate names."""
+    @root_validator(skip_on_failure=True)
+    def validate_names(cls, values: dict):
         names = set()
-        for v in value:
-            request = QueryDimensionRequest.parse_obj(v)
+        for item in values.get("metrics", []):
+            request = QueryMetricRequest.parse_obj(item)
             if request.name in names:
-                raise ValueError(f"Duplicate dimension names in query: {request.name}")
+                raise ValueError(f"Duplicate column name in query: {request.name}")
             names.add(request.name)
-        return value
+        for item in values.get("dimensions", []):
+            request = QueryDimensionRequest.parse_obj(item)
+            if request.name in names:
+                raise ValueError(f"Duplicate column name in query: {request.name}")
+            names.add(request.name)
+        return values
+
+
+QueryTableTransform.update_forward_refs()

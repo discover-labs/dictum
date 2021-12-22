@@ -32,7 +32,7 @@ from dictum.project.altair.locale import (
     cldr_locale_to_d3_number,
     cldr_locale_to_d3_time,
 )
-from dictum.ql.transformer import compile_grouping
+from dictum.ql.transformer import compile_dimension_request, compile_metric_request
 from dictum.schema.query import Query, QueryMetricRequest
 
 
@@ -266,9 +266,9 @@ def request_from_definition(defn: str):
         defn = defn.to_dict()
     type_, field = defn.split(":", maxsplit=1)
     if type_ == "metric":
-        return QueryMetricRequest(metric=field)
+        return compile_metric_request(field)
     if type_ == "dimension":
-        return compile_grouping(field)
+        return compile_dimension_request(field)
     raise ValueError(f"{defn} is not a valid Dictum definition.")
 
 

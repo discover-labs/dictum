@@ -6,7 +6,7 @@ from babel.dates import match_skeleton
 import dictum.data_model
 import dictum.project
 from dictum import utils
-from dictum.data_model import Transform
+from dictum.data_model.transforms.dimension import DimensionTransform
 from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
@@ -15,9 +15,11 @@ from dictum.project.altair.format import (
 from dictum.project.altair.locale import get_default_format_for_kind, load_locale
 from dictum.project.templates import environment
 from dictum.schema.query import (
+    QueryDimension,
     QueryDimensionRequest,
-    QueryDimensionTransform,
+    QueryMetric,
     QueryMetricRequest,
+    QueryTransform,
 )
 
 type_to_encoding_type = {
@@ -105,7 +107,7 @@ class ProjectCalculation(AltairEncodingChannelHook):
 class ProjectMetric(ProjectCalculation):
     def __init__(self, calculation, locale: str):
         super().__init__(calculation, locale)
-        self.request = QueryMetricRequest(metric=calculation.id)
+        self.request = QueryMetricRequest(metric=QueryMetric(id=calculation.id))
 
 
 class ProjectMetrics:
@@ -122,8 +124,12 @@ class ProjectMetrics:
 
 
 class ProjectDimensionRequest(ProjectCalculation):
-    def __init__(self, calculation, locale: str, transforms: Dict[str, Transform]):
-        self.request = QueryDimensionRequest(dimension=calculation.id)
+    def __init__(
+        self, calculation, locale: str, transforms: Dict[str, DimensionTransform]
+    ):
+        self.request = QueryDimensionRequest(
+            dimension=QueryDimension(id=calculation.id)
+        )
         self.transforms = transforms
         super().__init__(calculation, locale)
 
@@ -151,16 +157,16 @@ class ProjectDimensionRequest(ProjectCalculation):
     def __getattr__(self, name: str):
         if name.startswith("_repr_"):
             raise AttributeError(name)  # for Jupyter checking for _repr_html_ etc.
-        self.request.transforms.append(QueryDimensionTransform(id=name))
+        self.request.dimension.transforms.append(QueryTransform(id=name))
         return self
 
     def __call__(self, *args):
-        self.request.transforms[-1].args = list(args)
+        self.request.dimension.transforms[-1].args = list(args)
         return self
 
     def __str__(self):
         transforms = []
-        for transform in self.request.transforms:
+        for transform in self.request.dimension.transforms:
             args = ", ".join(utils.repr_expr_constant(a) for a in transform.args)
             if len(args) > 0:
                 args = f"({args})"
@@ -169,13 +175,13 @@ class ProjectDimensionRequest(ProjectCalculation):
         alias = ""
         if self.request.alias is not None:
             alias = f' as "{self.request.alias}"'
-        return f"{self.request.dimension}.{transforms}{alias}"
+        return f"{self.request.dimension.id}.{transforms}{alias}"
 
     def encoding_fields(self, cls=None) -> dict:
         fields = super().encoding_fields(cls=cls)
         format = self.calculation.format
         type_ = self.calculation.type
-        for request_transform in self.request.transforms:
+        for request_transform in self.request.dimension.transforms:
             transform = self.transforms[request_transform.id](*request_transform.args)
             format = transform.get_format(type_)
             type_ = transform.get_return_type(type_)

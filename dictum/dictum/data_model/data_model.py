@@ -20,7 +20,7 @@ from dictum.data_model.computation import (
 )
 from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.data_model.table import RelatedTable, Table, TableFilter
-from dictum.data_model.transforms import Transform, transforms
+from dictum.data_model.transforms.dimension import DimensionTransform, transforms
 
 displayed_fields = {
     "id",
@@ -67,7 +67,7 @@ class DataModel:
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
-        self.transforms: Dict[str, Callable[..., Transform]] = transforms
+        self.transforms: Dict[str, Callable[..., DimensionTransform]] = transforms
 
         self.theme = data_model.theme
 
@@ -214,7 +214,7 @@ class DataModel:
         Only metrics that can be used with all the dimensions from the query
         """
         result = []
-        query_dims = set(r.dimension for r in query.dimensions)
+        query_dims = set(r.dimension.id for r in query.dimensions)
         for metric in self.metrics.values():
             if metric.id in query.metrics:
                 continue
@@ -227,9 +227,9 @@ class DataModel:
         """Suggest a list of possible dimensions based on a query. Only dimensions
         shared by all measures that are already in the query.
         """
-        dims = set(self.dimensions) - set(r.dimension for r in query.dimensions)
+        dims = set(self.dimensions) - set(r.dimension.id for r in query.dimensions)
         for request in query.metrics:
-            metric = self.metrics.get(request.metric)
+            metric = self.metrics.get(request.metric.id)
             for measure in metric.measures:
                 dims = dims & set(measure.table.allowed_dimensions)
         return sorted([self.dimensions[d] for d in dims], key=lambda x: x.name)
@@ -270,7 +270,7 @@ class DataModel:
         self,
         measures: List[str],
         dimensions: List[schema.QueryDimensionRequest] = [],
-        filters: List[schema.QueryDimensionFilter] = [],
+        filters: List[schema.QueryDimension] = [],
     ) -> AggregateQuery:
         measure_id, *measures = measures
 
@@ -284,9 +284,9 @@ class DataModel:
             query.add_measure(measure_id)
 
         for request in dimensions:
-            dimension = self.dimensions.get(request.dimension)
+            dimension = self.dimensions.get(request.dimension.id)
             transforms = []
-            for request_transform in request.transforms:
+            for request_transform in request.dimension.transforms:
                 transform = self.transforms.get(request_transform.id)(
                     *request_transform.args
                 )
@@ -304,7 +304,7 @@ class DataModel:
                     *request_transform.args
                 )
                 transforms.append(transform)
-            query.add_filter(request.dimension, compose_left(*transforms))
+            query.add_filter(request.id, compose_left(*transforms))
         # add anchor's table-level filters
         for f in anchor.filters:
             query.add_literal_filter(f.expr)
@@ -317,7 +317,7 @@ class DataModel:
         if len(query.metrics) == 0:
             raise ValueError("You must request at least one metric")
 
-        metrics = {m.metric: self.metrics.get(m.metric) for m in query.metrics}
+        metrics = {m.metric.id: self.metrics.get(m.metric.id) for m in query.metrics}
         tables = defaultdict(lambda: [])
 
         # group measures by anchor
@@ -339,10 +339,13 @@ class DataModel:
         # get dimensions for the top level
         dimensions = []
         for request in query.dimensions:
-            dimension = self.dimensions.get(request.dimension)
+            dimension = self.dimensions.get(request.dimension.id)
             type_ = dimension.type
-            if len(request.transforms) > 0:
-                type_ = self.transforms[request.transforms[-1].id].return_type or type_
+            for request_transform in request.dimension.transforms:
+                transform = self.transforms.get(request_transform.id)(
+                    *request_transform.args
+                )
+                type_ = transform.get_return_type(type_)
             column = Column(name=request.name, type=type_)
             dimensions.append(column)
 
@@ -350,6 +353,7 @@ class DataModel:
             ColumnCalculation(expr=m.expr, name=id, type=m.type)
             for id, m in metrics.items()
         ]
+
         return Computation(
             metrics=metrics,
             queries=queries,

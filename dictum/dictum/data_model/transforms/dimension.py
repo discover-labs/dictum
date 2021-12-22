@@ -1,11 +1,10 @@
-from typing import List, Optional
+from typing import List
 
 from lark import Transformer, Tree
 
 from dictum import schema
-from dictum.data_model.computation import ColumnCalculation
 from dictum.data_model.expr import parse_expr
-from dictum.utils import value_to_token
+from dictum.data_model.transforms.base import Transform
 
 
 class TransformTransformer(Transformer):
@@ -27,48 +26,13 @@ class TransformTransformer(Transformer):
 transforms = {}
 
 
-class Transform:
-    id: str
-    name: str
-    description: Optional[str] = None
-    return_type: Optional[schema.Type] = None
-
-    def __init__(self, *args):
-        self._args = [value_to_token(a) for a in args]
-
+class DimensionTransform(Transform):
     def __init_subclass__(cls):
         if hasattr(cls, "id") and cls.id is not None:
             transforms[cls.id] = cls
 
-    def get_name(self, name: str) -> str:
-        return name
 
-    def get_return_type(self, original: schema.Type) -> schema.Type:
-        if self.return_type is not None:
-            return self.return_type
-        return original
-
-    def transform_expr(self, expr: Tree) -> Tree:
-        raise NotImplementedError
-
-    def get_format(self, type_: schema.Type) -> schema.FormatConfig:
-        type_ = self.get_return_type(type_)
-        kind = "string"
-        if type_ in {"date", "datetime"}:
-            kind = type_
-        elif type_ in {"int", "float"}:
-            kind = "decimal"
-        return schema.FormatConfig(kind=kind)
-
-    def __call__(self, col: ColumnCalculation) -> ColumnCalculation:
-        return ColumnCalculation(
-            name=self.get_name(col.name),
-            type=self.get_return_type(col.type),
-            expr=Tree("expr", [self.transform_expr(col.expr.children[0])]),
-        )
-
-
-class LiteralTransform(Transform):
+class LiteralTransform(DimensionTransform):
     expr: str
     args: List[str] = []
 
@@ -146,7 +110,7 @@ class InRangeTransform(LiteralTransform):
     expr = "@ >= min and @ <= max"
 
 
-class IsInTransform(Transform):
+class IsInTransform(DimensionTransform):
     id = "isin"
     name = "IN"
     return_type = "bool"
@@ -241,7 +205,7 @@ date_skeletons = {
 }
 
 
-class DatetruncTransform(Transform):
+class DatetruncTransform(DimensionTransform):
     id = "datetrunc"
     name = "Truncate a date"
     return_type = "datetime"

@@ -135,10 +135,10 @@ def test_chart_query(project: Project):
     )
     assert chart._query() == Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [
-                {"dimension": "media_type"},
-                {"dimension": "invoice_date", "transforms": [{"id": "year"}]},
+                {"dimension": {"id": "media_type"}},
+                {"dimension": {"id": "invoice_date", "transforms": [{"id": "year"}]}},
             ],
         }
     )
@@ -152,8 +152,8 @@ def test_query_sort(project: Project):
     )
     assert chart._query() == Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "genre"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
 
@@ -184,10 +184,11 @@ def test_is_dictum_definition():
 
 
 def test_request_from_field():
-    assert request_from_field("metric:revenue").metric == "revenue"
-    assert request_from_field(alt.FieldName("metric:revenue")).metric == "revenue"
+    assert request_from_field("metric:revenue").metric.id == "revenue"
+    assert request_from_field(alt.FieldName("metric:revenue")).metric.id == "revenue"
     assert request_from_field(alt.FieldName("blah")) is None
-    assert request_from_field("dimension:xx.date").dimension == "xx"
+    assert request_from_field("dimension:xx.date").dimension.id == "xx"
+    assert request_from_field("dimension:xx.date").dimension.transforms[0].id == "date"
 
 
 def test_requests_from_channel(project: Project):
