@@ -346,18 +346,16 @@ class Compiler(ABC):
         """Merge a list of relational queries on the relevant level of detail."""
 
     @abstractmethod
-    def calculate_metrics(self, merged):
-        """Calculate"""
+    def calculate(self, computation: Computation, merged):
+        """Calculate expressions, apply post-filters"""
 
     def compile(self, computation: Computation):
         """Compile a computation returned by the store into an object that
         the connection will understand.
         """
         queries = [self.compile_query(q) for q in computation.queries]
-        merged = self.merge_queries(
-            queries, merge_on=[c.name for c in computation.dimensions]
-        )
-        return self.calculate_metrics(computation, merged)
+        merged = self.merge_queries(queries, merge_on=computation.merge_on)
+        return self.calculate(computation, merged)
 
 
 class Connection(ABC):

@@ -120,7 +120,7 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
     # compile
 
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
-        """SQLite doesn't support outer joins, so we have to materialize here and
+        """SQLite doesn't support full outer joins, so we have to materialize here and
         proceed with Pandas.
         """
         dfs = [pd.DataFrame(self.connection.execute(q.select())) for q in queries]
@@ -131,18 +131,14 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
             res = res.reset_index()
         return res
 
-    def calculate_metrics(
-        self, computation: Computation, merged: pd.DataFrame
-    ) -> pd.DataFrame:
+    def calculate(self, computation: Computation, merged: pd.DataFrame) -> pd.DataFrame:
         compiler = PandasCompiler()
-        transformer = PandasColumnTransformer([merged])
-        for column in computation.metrics:
+        transformer = PandasColumnTransformer({None: merged})
+        for column in computation.columns:
             merged[column.name] = compiler.transformer.transform(
                 transformer.transform(column.expr)
             )
-        metric_names = [c.name for c in computation.metrics]
-        dimension_names = [c.name for c in computation.dimensions]
-        return merged[dimension_names + metric_names]
+        return merged
 
 
 class SQLiteRawQueryCompiler(

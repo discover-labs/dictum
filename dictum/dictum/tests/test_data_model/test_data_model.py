@@ -203,7 +203,7 @@ def test_resolve_related_aggregate_dimension(chinook: DataModel):
 
 
 def test_inject_default_filters_and_transforms(chinook: DataModel):
-    assert len(chinook.transforms) == 24
+    assert len(chinook.scalar_transforms) == 24
 
 
 def test_metric_missing(chinook: DataModel):
@@ -235,8 +235,8 @@ def test_alias(chinook: DataModel):
         }
     )
     comp = chinook.get_computation(q)
-    assert comp.dimensions[0].name == "year"
-    assert comp.dimensions[1].name == "month"
+    assert comp.columns[0].name == "year"
+    assert comp.columns[1].name == "month"
 
 
 def test_missing_join_for_aggregate_dimension(chinook: DataModel):

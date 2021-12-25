@@ -1,10 +1,11 @@
 import dataclasses
 from collections import defaultdict
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 from toolz import compose_left
 
 from dictum import schema
+from dictum.data_model import utils
 from dictum.data_model.calculations import (
     Calculation,
     Dimension,
@@ -12,15 +13,10 @@ from dictum.data_model.calculations import (
     Measure,
     Metric,
 )
-from dictum.data_model.computation import (
-    AggregateQuery,
-    Column,
-    ColumnCalculation,
-    Computation,
-)
+from dictum.data_model.computation import AggregateQuery, ColumnCalculation, Computation
 from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.data_model.table import RelatedTable, Table, TableFilter
-from dictum.data_model.transforms.dimension import DimensionTransform, transforms
+from dictum.data_model.transforms.scalar import transforms
 
 displayed_fields = {
     "id",
@@ -67,7 +63,8 @@ class DataModel:
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
-        self.transforms: Dict[str, Callable[..., DimensionTransform]] = transforms
+        self.scalar_transforms = transforms
+        self.table_transforms = {}
 
         self.theme = data_model.theme
 
@@ -194,7 +191,7 @@ class DataModel:
             _type = dimension.type
             _format = dimension.format
             if request.transform is not None:
-                transform = self.transforms[request.transform.id]
+                transform = self.scalar_transforms[request.transform.id]
                 _type = (
                     dimension.type
                     if transform.return_type is None
@@ -290,7 +287,7 @@ class DataModel:
             dimension = self.dimensions.get(request.dimension.id)
             transforms = []
             for request_transform in request.dimension.transforms:
-                transform = self.transforms.get(request_transform.id)(
+                transform = self.scalar_transforms.get(request_transform.id)(
                     *request_transform.args
                 )
                 transforms.append(transform)
@@ -303,7 +300,7 @@ class DataModel:
         for request in filters:
             transforms = []
             for request_transform in request.transforms:
-                transform = self.transforms[request_transform.id](
+                transform = self.scalar_transforms[request_transform.id](
                     *request_transform.args
                 )
                 transforms.append(transform)
@@ -320,10 +317,44 @@ class DataModel:
         if len(query.metrics) == 0:
             raise ValueError("You must request at least one metric")
 
-        metrics = {m.metric.id: self.metrics.get(m.metric.id) for m in query.metrics}
-        tables = defaultdict(lambda: [])
+        computation_transforms = []
+        columns = []
 
-        # group measures by anchor
+        # get dimensions for the top level
+        merge_on = []
+        for request in query.dimensions:
+            dimension = self.dimensions.get(request.dimension.id)
+
+            # figure out the resulting type by fake-applying transforms
+            type_ = dimension.type
+            for request_transform in request.dimension.transforms:
+                transform = self.scalar_transforms.get(request_transform.id)(
+                    *request_transform.args
+                )
+                type_ = transform.get_return_type(type_)
+
+            column = ColumnCalculation(
+                name=request.name, type=type_, expr=utils.merged_expr(request.name)
+            )
+            columns.append(column)
+            merge_on.append(request.name)
+
+        # populate metrics dict and apply transforms to metric expressions
+        metrics = {}
+        for request in query.metrics:
+            metric = self.metrics.get(request.metric.id)
+            metrics[metric.id] = metric
+            column = ColumnCalculation(
+                name=request.name, type=metric.type, expr=metric.merged_expr
+            )
+            for request_transform in request.metric.transforms:
+                transform = self.table_transforms.get(request_transform.id)
+                column = transform(column)
+                computation_transforms.append(transform.transform_computation)
+            columns.append(column)
+
+        # group measures by table
+        tables = defaultdict(lambda: [])
         for metric in metrics.values():
             for measure in metric.measures:
                 tables[measure.table.id].append(measure.id)
@@ -339,28 +370,10 @@ class DataModel:
                 )
             )
 
-        # get dimensions for the top level
-        dimensions = []
-        for request in query.dimensions:
-            dimension = self.dimensions.get(request.dimension.id)
-            type_ = dimension.type
-            for request_transform in request.dimension.transforms:
-                transform = self.transforms.get(request_transform.id)(
-                    *request_transform.args
-                )
-                type_ = transform.get_return_type(type_)
-            column = Column(name=request.name, type=type_)
-            dimensions.append(column)
-
-        metrics = [
-            ColumnCalculation(expr=m.expr, name=id, type=m.type)
-            for id, m in metrics.items()
-        ]
-
         return Computation(
-            metrics=metrics,
             queries=queries,
-            dimensions=dimensions,
+            merge_on=merge_on,
+            columns=columns,
         )
 
     def get_currencies_for_query(self, query: schema.Query):

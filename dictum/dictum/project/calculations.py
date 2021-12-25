@@ -6,7 +6,7 @@ from babel.dates import match_skeleton
 import dictum.data_model
 import dictum.project
 from dictum import utils
-from dictum.data_model.transforms.dimension import DimensionTransform
+from dictum.data_model.transforms.scalar import ScalarTransform
 from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
@@ -125,7 +125,7 @@ class ProjectMetrics:
 
 class ProjectDimensionRequest(ProjectCalculation):
     def __init__(
-        self, calculation, locale: str, transforms: Dict[str, DimensionTransform]
+        self, calculation, locale: str, transforms: Dict[str, ScalarTransform]
     ):
         self.request = QueryDimensionRequest(
             dimension=QueryDimension(id=calculation.id)
@@ -214,7 +214,7 @@ class ProjectDimension(ProjectDimensionRequest):
 
 class ProjectDimensions:
     def __init__(self, project: "dictum.project.Project"):
-        transforms = project.data_model.transforms
+        transforms = project.data_model.scalar_transforms
         for dimension in project.data_model.dimensions.values():
             setattr(
                 self,

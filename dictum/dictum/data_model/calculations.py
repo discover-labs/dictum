@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple
@@ -334,6 +335,15 @@ class Metric(Calculation):
                     )
                 ],
             )
+        return expr
+
+    @cached_property
+    def merged_expr(self) -> Tree:
+        """Same as expr, but measures are selected as column from the merged table"""
+        expr = deepcopy(self.expr)
+        for ref in expr.find_data("measure"):
+            ref.data = "column"
+            ref.children = [None, *ref.children]
         return expr
 
     @cached_property

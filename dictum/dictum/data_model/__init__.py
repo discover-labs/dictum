@@ -4,10 +4,11 @@ from dictum.data_model.computation import (
     ColumnCalculation,
     Computation,
     Join,
+    OrderItem,
 )
 from dictum.data_model.data_model import DataModel
 from dictum.data_model.table import RelatedTable, Table
-from dictum.data_model.transforms.dimension import DimensionTransform
+from dictum.data_model.transforms.scalar import ScalarTransform
 
 __all__ = [
     "AggregateQuery",
@@ -15,9 +16,10 @@ __all__ = [
     "Computation",
     "DataModel",
     "Dimension",
+    "ScalarTransform",
     "Join",
     "Metric",
+    "OrderItem",
     "RelatedTable",
     "Table",
-    "DimensionTransform",
 ]

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from lark import Tree
 
@@ -33,6 +33,7 @@ class UnnestedJoin:
     expr: Tree
     right_identity: str
     right: Union[str, "AggregateQuery"]
+    inner: bool
 
 
 @dataclass
@@ -44,6 +45,12 @@ class Column:
 @dataclass
 class ColumnCalculation(Column):
     expr: Tree
+
+
+@dataclass
+class OrderItem:
+    expr: Tree
+    ascending: bool = False  # default is False because we mostly order desc
 
 
 @dataclass
@@ -118,6 +125,8 @@ class AggregateQuery:
     filters: List[Tree] = field(default_factory=list)
     joins: List[Join] = field(default_factory=list)
     subquery: bool = False
+    order: List[OrderItem] = field(default_factory=list)
+    limit: Optional[int] = None
 
     @staticmethod
     def prefix_columns(prefix: List[str], expr: Tree):
@@ -267,6 +276,7 @@ class AggregateQuery:
                 expr=utils.prepare_expr(join.expr, path),
                 right_identity=".".join(prefix),
                 right=join.to,
+                inner=join.inner,
             )
             if not join.to.subquery:
                 yield from join.to._unnested_joins((*path, join.alias))
@@ -286,14 +296,10 @@ class Computation:
     """What the backend gets to compile and execute."""
 
     queries: List[AggregateQuery]
-    metrics: List[ColumnCalculation]
-    dimensions: List[ColumnCalculation] = field(default_factory=list)
+    columns: List[ColumnCalculation]
+    merge_on: List[str] = field(default_factory=list)
+    filters: List[Tree] = field(default_factory=list)
 
     @property
     def types(self) -> Dict[str, str]:
-        result = {}
-        for metric in self.metrics:
-            result[metric.name] = metric.type
-        for dimension in self.dimensions:
-            result[dimension.name] = dimension.type
-        return result
+        return {c.name: c.type for c in self.columns}

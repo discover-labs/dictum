@@ -4,6 +4,10 @@ from typing import List
 from lark import Tree
 
 
+def merged_expr(name: str):
+    return Tree("expr", [Tree("column", [None, name])])
+
+
 def prefixed_expr(expr: Tree, prefix: List[str]) -> Tree:
     """Prefix the expression with the given join path."""
     result = deepcopy(expr)

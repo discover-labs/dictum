@@ -26,10 +26,10 @@ class QueryTableTransform(QueryTransform):
     @property
     def suffix(self) -> str:
         suffix = super().suffix
-        for request in self.of:
-            suffix += f"_of_{request.name}"
-        for request in self.within:
-            suffix += f"_within_{request.name}"
+        for dim in self.of:
+            suffix += f"_of_{dim.name}"
+        for dim in self.within:
+            suffix += f"_within_{dim.name}"
         return suffix
 
 

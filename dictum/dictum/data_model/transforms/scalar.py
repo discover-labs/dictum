@@ -26,13 +26,13 @@ class TransformTransformer(Transformer):
 transforms = {}
 
 
-class DimensionTransform(Transform):
+class ScalarTransform(Transform):
     def __init_subclass__(cls):
         if hasattr(cls, "id") and cls.id is not None:
             transforms[cls.id] = cls
 
 
-class LiteralTransform(DimensionTransform):
+class LiteralTransform(ScalarTransform):
     expr: str
     args: List[str] = []
 
@@ -110,7 +110,7 @@ class InRangeTransform(LiteralTransform):
     expr = "@ >= min and @ <= max"
 
 
-class IsInTransform(DimensionTransform):
+class IsInTransform(ScalarTransform):
     id = "isin"
     name = "IN"
     return_type = "bool"
@@ -205,7 +205,7 @@ date_skeletons = {
 }
 
 
-class DatetruncTransform(DimensionTransform):
+class DatetruncTransform(ScalarTransform):
     id = "datetrunc"
     name = "Truncate a date"
     return_type = "datetime"

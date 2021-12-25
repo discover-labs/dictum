@@ -56,9 +56,6 @@ class ColumnTransformer(Transformer):
         identity, field = children
         return get_case_insensitive_column(self._tables[identity], field)
 
-    def measure(self, children: list):
-        return get_case_insensitive_column(self._tables[0], children[0])
-
 
 class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def __init__(self, connection: "SQLAlchemyConnection"):
@@ -145,7 +142,11 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         table: Table = self._table(query.table.source)
 
         tables = {query.table.id: table}
+
+        # replaces column refs with actual SQLA column objs
         column_transformer = ColumnTransformer(tables)
+
+        # join the tables
         for join in query.unnested_joins:
             if join.right.subquery:
                 right_table = self.compile_query(join.right)
@@ -156,8 +157,10 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             join_expr = self.transformer.transform(
                 column_transformer.transform(join.expr)
             )
-            table = table.outerjoin(right_table, join_expr)
+            table = table.join(right_table, join_expr, isouter=(not join.inner))
+            # table = table.outerjoin(right_table, join_expr)
 
+        # add calcs
         aggregate = {}
         groupby = {}
         for column in query.aggregate:
@@ -178,9 +181,23 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             .group_by(*groupby.values())
         )
 
+        # apply filters
         for expr in query.filters:
             condition = self.transformer.transform(column_transformer.transform(expr))
             stmt = stmt.where(condition)
+
+        # apply order and limit
+        # order only makes sense at this stage if there's a limit
+        if query.limit and query.order:
+            order_clauses = []
+            for item in query.order:
+                expr = self.transformer.transform(
+                    column_transformer.transform(item.expr)
+                )
+                if not item.ascending:
+                    expr = expr.desc()
+                order_clauses.append(expr)
+            stmt = stmt.order_by(*order_clauses).limit(query.limit)
 
         return stmt.subquery()
 
@@ -210,23 +227,15 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             )
         return table
 
-    def calculate_metrics(self, computation: Computation, merged: Select) -> Select:
-        metrics = []
-        transformer = ColumnTransformer([merged])
-        for column in computation.metrics:
-            resolved_metrics = transformer.transform(column.expr)
-            sql_expr = self.transformer.transform(resolved_metrics).label(column.name)
-            metrics.append(sql_expr)
-        merge = [c.name for c in computation.dimensions]
-        order_by = [merged.c[name] for name in merge]
-        return (
-            select(
-                *(merged.c[c] for c in merge),
-                *metrics,
-            )
-            .select_from(merged)
-            .order_by(*order_by)
-        )
+    def calculate(self, computation: Computation, merged: Select) -> Select:
+        columns = []
+        transformer = ColumnTransformer({None: merged})
+        for column in computation.columns:
+            resolved_column = transformer.transform(column.expr)
+            sql_expr = self.transformer.transform(resolved_column).label(column.name)
+            columns.append(sql_expr)
+        order_by = [merged.c[c] for c in computation.merge_on]
+        return select(*columns).select_from(merged).order_by(*order_by)
 
 
 def _date_mapper(v):

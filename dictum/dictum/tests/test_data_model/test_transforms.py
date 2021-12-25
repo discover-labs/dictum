@@ -2,9 +2,9 @@ import pytest
 from lark import Token, Tree
 
 from dictum.data_model.computation import ColumnCalculation
-from dictum.data_model.transforms.dimension import (
+from dictum.data_model.transforms.scalar import (
     LiteralTransform,
-    DimensionTransform,
+    ScalarTransform,
     transforms,
 )
 from dictum.schema import FormatConfig
@@ -20,7 +20,7 @@ def col():
 
 
 def test_transform():
-    transform = DimensionTransform()
+    transform = ScalarTransform()
     assert transform.get_return_type("test") == "test"
     assert transform.get_format("test") == FormatConfig(kind="string")
     with pytest.raises(NotImplementedError):

@@ -1,10 +1,17 @@
 import datetime
 
 import pytest
+from lark import Tree
 from pandas.api.types import is_datetime64_any_dtype
 
 from dictum.backends.base import BackendResult
-from dictum.data_model import AggregateQuery, ColumnCalculation, Computation, DataModel
+from dictum.data_model import (
+    AggregateQuery,
+    ColumnCalculation,
+    Computation,
+    DataModel,
+    OrderItem,
+)
 from dictum.data_model.expr.parser import parse_expr
 from dictum.schema import Query
 
@@ -150,16 +157,22 @@ def test_subquery_join(chinook: DataModel, connection):
 def compute(chinook: DataModel, connection):
     def computer(expr: str, type="datetime"):
         expr = parse_expr(expr)
-        dims = [ColumnCalculation(name="value", expr=expr, type=type)]
+        columns = [ColumnCalculation(name="value", expr=expr, type=type)]
         comp = Computation(
             queries=[
                 AggregateQuery(
                     table=chinook.tables.get("media_types"),
-                    groupby=dims,
+                    groupby=columns,
                 )
             ],
-            dimensions=dims,
-            metrics=[],
+            columns=[
+                ColumnCalculation(
+                    name="value",
+                    type=type,
+                    expr=Tree("expr", [Tree("column", [None, "value"])]),
+                )
+            ],
+            merge_on=["value"],
         )
         df = connection.compute_df(comp)
         return str(df.iloc[0, 0])
@@ -290,3 +303,19 @@ def test_alias(chinook: DataModel, connection):
     comp = chinook.get_computation(q)
     result = connection.compute(comp)
     assert set(result.data[0]) == {"revenue", "year", "month"}
+
+
+def test_order_limit(chinook: DataModel, connection):
+    query = Query.parse_obj(
+        {
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+        }
+    )
+    comp = chinook.get_computation(query)
+    aggq = comp.queries[0]
+    aggq.limit = 3
+    aggq.order = [OrderItem(expr=aggq.aggregate[0].expr)]
+    result = connection.compute(comp)
+    assert len(result.data) == 3
+    assert set(map(lambda x: x["genre"], result.data)) == {"Latin", "Metal", "Rock"}

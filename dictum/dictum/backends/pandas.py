@@ -24,9 +24,6 @@ class PandasColumnTransformer(Transformer):
         identity, column = children
         return self._tables[identity][column]
 
-    def measure(self, children: list):
-        return self._tables[0][children[0]]
-
 
 class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def column(self, table: str, name: str):
@@ -143,6 +140,6 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 
-    def calculate_metrics(self, merged):
+    def calculate(self, merged):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
