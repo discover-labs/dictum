@@ -145,6 +145,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         table: Table = self._table(query.table.source)
 
         tables = {query.table.id: table}
+        column_transformer = ColumnTransformer(tables)
         for join in query.unnested_joins:
             if join.right.subquery:
                 right_table = self.compile_query(join.right)
@@ -152,15 +153,13 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
                 right_table = self._table(join.right.table.source)
             right_table = right_table.alias(join.right_identity)
             tables[join.right_identity] = right_table
-            related_key = get_case_insensitive_column(right_table, join.right_key)
-            foreign_key = get_case_insensitive_column(
-                tables[join.left_identity], join.left_key
+            join_expr = self.transformer.transform(
+                column_transformer.transform(join.expr)
             )
-            table = table.outerjoin(right_table, foreign_key == related_key)
+            table = table.outerjoin(right_table, join_expr)
 
         aggregate = {}
         groupby = {}
-        column_transformer = ColumnTransformer(tables)
         for column in query.aggregate:
             aggregate[column.name] = self.transformer.transform(
                 column_transformer.transform(column.expr)

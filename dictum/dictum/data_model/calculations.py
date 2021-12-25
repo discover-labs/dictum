@@ -1,4 +1,3 @@
-from copy import deepcopy
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Tuple
@@ -7,7 +6,8 @@ from lark import Transformer, Tree
 
 import dictum.data_model
 from dictum import schema
-from dictum.data_model.expr.parser import value_to_token, parse_expr
+from dictum.data_model import utils
+from dictum.data_model.expr.parser import parse_expr, value_to_token
 
 
 class ResolutionError(Exception):
@@ -76,21 +76,10 @@ class Calculation(Displayed):
         return result
 
     def prefixed_expr(self, prefix: List[str]) -> Tree:
-        """Prefix the expression with the given join path."""
-        result = deepcopy(self.expr)
-        for ref in result.find_data("column"):
-            # skip first child: host table's name
-            _, *path, field = ref.children
-            ref.children = [*prefix, *path, field]
-        return result
+        return utils.prefixed_expr(self.expr, prefix)
 
     def prepare_expr(self, prefix: List[str]) -> Tree:
-        """Prepare the expression for query: turn prefixed path into .-delimited string"""
-        expr = self.prefixed_expr(prefix)
-        for ref in expr.find_data("column"):
-            *path, field = ref.children
-            ref.children = [".".join(path), field]
-        return expr
+        return utils.prepare_expr(self.expr, prefix)
 
     def prepare_range_expr(self, base_path: List[str]) -> Tuple[Tree, Tree]:
         return (
@@ -220,11 +209,12 @@ class Dimension(TableCalculation):
                 expr=expr, name=self.table.primary_key, type="number"
             )
             subquery.groupby.append(column)
-            result[f"__subquery__{measure_id}"] = dictum.data_model.RelatedTable(
+            result[f"__subquery__{measure_id}"] = dictum.data_model.RelatedTable.create(
+                parent=self.table,
                 table=subquery,
                 foreign_key=self.table.primary_key,
                 related_key=self.table.primary_key,
-                alias=measure_id,
+                alias=f"__subquery__{measure_id}",
             )
         return result
 

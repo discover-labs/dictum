@@ -17,7 +17,32 @@ class RelatedTable:
     table: Union["Table", "dictum.data_model.AggregateQuery"]
     foreign_key: str
     related_key: str
+    join_expr: Tree
     alias: str
+
+    @classmethod
+    def create(
+        self, parent: str, table: str, foreign_key: str, related_key: str, alias: str
+    ) -> "RelatedTable":
+        join_expr = Tree(
+            "expr",
+            [
+                Tree(
+                    "eq",
+                    [
+                        Tree("column", [parent.id, foreign_key]),
+                        Tree("column", [parent.id, alias, related_key]),
+                    ],
+                )
+            ],
+        )
+        return RelatedTable(
+            table=table,
+            foreign_key=foreign_key,
+            related_key=related_key,
+            alias=alias,
+            join_expr=join_expr,
+        )
 
 
 @dataclass

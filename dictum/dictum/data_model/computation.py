@@ -4,6 +4,7 @@ from typing import Callable, Dict, List, Tuple, Union
 
 from lark import Tree
 
+from dictum.data_model import utils
 from dictum.data_model.table import Table
 
 
@@ -11,15 +12,15 @@ from dictum.data_model.table import Table
 class Join:
     """A single join in the join tree"""
 
-    foreign_key: str
-    related_key: str
+    expr: Tree
     alias: str
     to: "AggregateQuery"
+    inner: bool = False
 
     def __eq__(self, other: "Join"):
         return (
-            self.foreign_key == other.foreign_key
-            and self.related_key == other.related_key
+            isinstance(other, Join)
+            and self.expr == other.expr
             and self.alias == other.alias
             and self.to == other.to
         )
@@ -29,12 +30,9 @@ class Join:
 class UnnestedJoin:
     """A flat join"""
 
-    left_identity: str
-    left_key: str
-
-    right: Union[str, "AggregateQuery"]
+    expr: Tree
     right_identity: str
-    right_key: str
+    right: Union[str, "AggregateQuery"]
 
 
 @dataclass
@@ -47,11 +45,6 @@ class Column:
 class ColumnCalculation(Column):
     expr: Tree
 
-    def apply_transform(self, transform) -> "ColumnCalculation":
-        """A transform is a callable that gets a callable and returns a callable.
-        It can change the name, type and expr.
-        """
-
 
 @dataclass
 class AggregateQuery:
@@ -61,6 +54,62 @@ class AggregateQuery:
     Each table is supplied with an identity to be used in the select list to signify
     on which column to perform a calculation. To be used as e.g. SQL aliases or prefixes
     for pandas column names.
+
+    Notes:
+        >> Can't implement for COUNTD without subquery joins :(
+                                            on multiple keys!
+        >> percent() depends on total()
+        >> need to convert AggregateQuery join condition into an expression
+        >> table transforms need to be able to manipulate AggregateQuery directly
+        >> Tableau calculates percent of total from distinct with two separate
+            queries, and then inside Tableau
+        >> looks like Tableau calculates ANY percentages of total locally
+        >> result sets are small, maybe this makes sense
+        >> what about top-10 users with Ms of users? that's calculated in SQL
+            with LIMIT
+        >> implement table transforms with Pandas (except top/bottom)
+        >> add order + limit to each AggregateQuery
+        >> final merge across queries in Pandas?
+
+        TOTAL
+        >> calculate additive totals locally
+        >> calculate non-additive totals with a separate query, join in Pandas
+            select paying_users
+                , paying_users.total() of (city) within (category)
+                    as paying_users__total
+            by country, city, category
+
+
+        PERCENT
+            select paying_users.percent() of (city) within (country)
+                        as paying_users__percent_of_city_within_country
+            by city, country, category
+
+            Calculate totals, join and divide in Pandas
+
+        TOP
+        >> inner join on subquery at the appropriate level with order by and limit
+        >> applied after merging of AggregateQueries (which is terrible performance-wise)
+        >> another option: support top only for measures
+            select paying_users
+            by country, city, category
+            limit paying_users.top(10) of (country),
+                  paying_users.top(3) of (city) within (country),
+                  paying_users.top(1) of (category) within (country, city)
+
+            An inner join + order + limit for each filter.
+                Changes for AggregateQuery and Join:
+                    - Join.inner: bool
+                    - Join.expression: Tree
+
+        RUNNING_SUM, RUNNING_AVG, RUNNING_MIN, RUNNING_MAX
+        >> needs ordering!
+        >> for COUNTD? Tableau doesn't support this, "Running Total" is calculated
+           using sum by default (customizable)
+
+        calculated locally
+
+        RUNNING_PERCENT
     """
 
     table: Table
@@ -94,7 +143,7 @@ class AggregateQuery:
         self, dimension_id: str, _path: Tuple[str, ...] = ()
     ) -> Tuple["AggregateQuery", Tuple[str, ...]]:
         """Add the necessary joins for a dimension.
-        Returns innermost AggregateQuery.
+        Returns innermost AggregateQuery and the join path to it.
         """
         # termination: dimension is right here
         if dimension_id in self.table.dimensions:
@@ -122,8 +171,7 @@ class AggregateQuery:
         alias = path[0]
         related = self.table.related[alias]
         join = Join(
-            foreign_key=related.foreign_key,
-            related_key=related.table.primary_key,
+            expr=related.join_expr,
             alias=alias,
             to=AggregateQuery(table=related.table),
         )
@@ -140,7 +188,9 @@ class AggregateQuery:
         dimension = query.table.dimensions.get(dimension_id)
         expr = dimension.prepare_expr([self.table.id, *path])
 
-        column = transforms(ColumnCalculation(expr=expr, name=name, type=dimension.type))
+        column = transforms(
+            ColumnCalculation(expr=expr, name=name, type=dimension.type)
+        )
         self.groupby.append(column)
 
     def add_filter(
@@ -181,8 +231,7 @@ class AggregateQuery:
             else AggregateQuery(table=related.table)
         )
         join = Join(
-            foreign_key=related.foreign_key,
-            related_key=related.related_key,
+            expr=related.join_expr,
             to=to,
             alias=table_or_alias,
         )
@@ -215,18 +264,12 @@ class AggregateQuery:
         for join in self.joins:
             prefix = [*path, join.alias]
             yield UnnestedJoin(
-                left_identity=".".join(path),
-                left_key=join.foreign_key,
-                right=join.to,
+                expr=utils.prepare_expr(join.expr, path),
                 right_identity=".".join(prefix),
-                right_key=join.related_key,
+                right=join.to,
             )
             if not join.to.subquery:
                 yield from join.to._unnested_joins((*path, join.alias))
-
-    def _print(self):
-        for join in self.unnested_joins:
-            print(join.left_identity, join.right_identity)
 
     def __eq__(self, other: "AggregateQuery"):
         return (

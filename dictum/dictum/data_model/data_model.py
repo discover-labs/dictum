@@ -87,18 +87,21 @@ class DataModel:
                         f"for table {table.id}, but it's not defined in the config."
                     )
                 related_table = data_model.tables[related.table]
-                related_key = related.related_key
-                if related_table.primary_key is None and related_key is None:
+                if related_table.primary_key is None and related.related_key is None:
                     raise ValueError(
                         f"Table {related.table} is a related table for {table.id}, but "
                         "it doesn't have a primary key. You have to set related_key for "
                         "the relation or primary_key on the related table itself."
                     )
-                table.related[related.alias] = RelatedTable(
+                related_key = (
+                    related_table.primary_key
+                    if related.related_key is None
+                    else related.related_key
+                )
+                table.related[related.alias] = RelatedTable.create(
+                    parent=table,
                     table=self.ensure_table(related_table),
-                    related_key=related_table.primary_key
-                    if related_key is None
-                    else related_key,
+                    related_key=related_key,
                     **related.dict(include={"foreign_key", "alias"}),
                 )
 

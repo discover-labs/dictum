@@ -1,14 +1,28 @@
+from lark import Tree
+
 from dictum.data_model import DataModel
 
 
 def test_table_calculation_joins(chinook: DataModel):
     assert chinook.measures.get("revenue").joins == []
     join = chinook.measures.get("unique_paying_customers").joins[0]
-    assert join.foreign_key == "InvoiceId"
+    assert join.expr.children[0] == Tree(
+        "eq",
+        [
+            Tree("column", ["invoice_items", "InvoiceId"]),
+            Tree("column", ["invoice_items", "invoice", "InvoiceId"]),
+        ],
+    )
     assert join.alias == "invoice"
 
     join = chinook.dimensions.get("manager_title").joins[0]
-    assert join.foreign_key == "ReportsTo"
+    join.expr.children[0] == Tree(
+        "eq",
+        [
+            Tree("column", ["employees", "ReportsTo"]),
+            Tree("column", ["employees", "manager", "EmployeeId"]),
+        ],
+    )
     assert join.alias == "manager"
 
 

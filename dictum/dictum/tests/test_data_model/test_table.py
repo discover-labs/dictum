@@ -42,27 +42,31 @@ def t1() -> Table:
 
     Returns: t1
     """
+
+    def create_rel(parent, table):
+        return RelatedTable.create(
+            table=table,
+            alias=table.id,
+            foreign_key=f"{table.id}_id",
+            related_key="id",
+            parent=parent,
+        )
+
     t1 = Table(id="t1", source="test")
-    t1rel = RelatedTable(table=t1, alias="t1", foreign_key="t1_id", related_key="id")
     t2 = Table(id="t2", source="test")
-    t2rel = RelatedTable(table=t2, alias="t2", foreign_key="t2_id", related_key="id")
     t3 = Table(id="t3", source="test")
-    t3rel = RelatedTable(table=t3, alias="t3", foreign_key="t3_id", related_key="id")
     t4 = Table(id="t4", source="test")
-    t4rel = RelatedTable(table=t4, alias="t4", foreign_key="t4_id", related_key="id")
     t5 = Table(id="t5", source="test")
-    t5rel = RelatedTable(table=t5, alias="t5", foreign_key="t5_id", related_key="id")
     t6 = Table(id="t6", source="test")
-    t6rel = RelatedTable(table=t6, alias="t6", foreign_key="t6_id", related_key="id")
-    t1.related["t1"] = t1rel
-    t1.related["t2"] = t2rel
-    t1.related["t6"] = t6rel
-    t2.related["t3"] = t3rel
-    t3.related["t3"] = t3rel
-    t3.related["t4"] = t4rel
-    t4.related["t5"] = t5rel
-    t5.related["t4"] = t4rel
-    t6.related["t5"] = t5rel
+    t1.related["t1"] = create_rel(t1, t1)
+    t1.related["t2"] = create_rel(t1, t2)
+    t1.related["t6"] = create_rel(t1, t6)
+    t2.related["t3"] = create_rel(t2, t3)
+    t3.related["t3"] = create_rel(t3, t3)
+    t3.related["t4"] = create_rel(t3, t4)
+    t4.related["t5"] = create_rel(t4, t5)
+    t5.related["t4"] = create_rel(t5, t4)
+    t6.related["t5"] = create_rel(t6, t5)
     return t1
 
 
