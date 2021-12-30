@@ -199,10 +199,7 @@ class Dimension(TableCalculation):
                 [
                     Tree(
                         "column",
-                        [
-                            ".".join([source_table.id, *path]),
-                            self.table.primary_key,
-                        ],
+                        [source_table.id, *path, self.table.primary_key],
                     )
                 ],
             )
@@ -300,6 +297,7 @@ class MetricTransformer(Transformer):
 @dataclass(repr=False)
 class Metric(Calculation):
     store: "dictum.data_model.DataModel"
+    is_measure: bool = False
 
     @classmethod
     def from_measure(
@@ -314,6 +312,7 @@ class Metric(Calculation):
             type=measure.type,
             format=measure.format,
             missing=measure.missing,
+            is_measure=True,
         )
 
     @cached_property

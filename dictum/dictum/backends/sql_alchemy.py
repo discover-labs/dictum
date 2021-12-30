@@ -103,6 +103,24 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def countd(self, args):
         return func.count(distinct(*args))
 
+    def call_window(
+        self, fn: str, args: list, partition: list, order: list, rows: list
+    ):
+        if order:
+            order_by = []
+            for item in order:
+                col, asc = item.children
+                col = col.asc() if asc else col.desc()
+                order_by.append(col)
+            order = order_by
+        return super().call_window(fn, args, partition, order, rows)
+
+    def window_sum(self, args, partition, order, rows):
+        return func.sum(*args).over(partition_by=partition, order_by=order)
+
+    def window_row_number(self, args, partition, order, rows):
+        return func.row_number(*args).over(partition_by=partition, order_by=order)
+
     def floor(self, args):
         return func.floor(*args)
 
@@ -302,8 +320,11 @@ class SQLAlchemyConnection(Connection):
     def metadata(self) -> MetaData:
         return MetaData(self.engine)
 
-    def get_raw_query(self, query):
-        return sqlparse.format(str(query.compile()), reindent=True)
+    def get_raw_query(self, query: Select):
+        return sqlparse.format(
+            str(query.compile(bind=self.engine)),
+            reindent=True,
+        )
 
     def execute(self, query: Select) -> List[dict]:
         cur = self.engine.execute(query)

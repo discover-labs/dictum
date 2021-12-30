@@ -282,3 +282,38 @@ def test_transform_order(chinook: DataModel):
             Token("INTEGER", "0"),
         ],
     )
+
+
+def test_metric_transform(chinook: DataModel):
+    query = Query.parse_obj(
+        {
+            "metrics": [
+                {"metric": {"id": "revenue"}},
+                {"metric": {"id": "revenue", "transforms": [{"id": "sum"}]}},
+            ],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+        }
+    )
+    comp = chinook.get_computation(query)
+    assert comp.columns[2].expr == Tree(
+        "expr",
+        [
+            Tree(
+                "call_window",
+                [
+                    "sum",
+                    Tree(
+                        "call",
+                        [
+                            "coalesce",
+                            Tree("column", [None, "revenue"]),
+                            Token("INTEGER", "0"),
+                        ],
+                    ),
+                    Tree("partition_by", []),
+                    None,
+                    None,
+                ],
+            )
+        ],
+    )

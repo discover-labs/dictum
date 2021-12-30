@@ -121,6 +121,16 @@ class ExpressionTransformer(Transformer):
         fn, *args = children
         return self.compiler.call(fn, args)
 
+    def order_by(self, children: list):
+        return children
+
+    def call_window(self, children: list):
+        fn, *args, partition, order, rows = children
+        return self.compiler.call_window(fn, args, partition, order, rows)
+
+    def partition_by(self, children: list):
+        return children
+
 
 class Compiler(ABC):
     """Takes in a computation, returns an object that a connection will understand."""
@@ -168,9 +178,15 @@ class Compiler(ABC):
         call = getattr(self, fn)
         return call(args)
 
+    def call_window(
+        self, fn: str, args: list, partition: list, order: list, rows: list
+    ):
+        fn = getattr(self, f"window_{fn}")
+        return fn(args, partition, order, rows)
+
     @abstractmethod
     def exp(self, a, b):
-        """Exponentiation — "power" operator, a to the power of b"""
+        """Exponentiation — "power" operator, a to the power of b"""
 
     @abstractmethod
     def neg(self, value):
@@ -272,6 +288,28 @@ class Compiler(ABC):
     @abstractmethod
     def countd(self, args: list):
         """Aggregate distinct count"""
+
+    # window functions
+
+    @abstractmethod
+    def window_sum(self, args, partition_by, order_by, rows):
+        """A windowed version of aggregate sum function"""
+
+    @abstractmethod
+    def window_row_number(self, args, partition_by, order_by, rows):
+        """Same as SQL row_number"""
+
+    def window_avg(self, args, partition, order, rows):
+        """TODO"""
+
+    def window_min(self, args, partition, order, rows):
+        """TODO"""
+
+    def window_max(self, args, partition, order, rows):
+        """TODO"""
+
+    def window_count(self, args, partition, order, rows):
+        """TODO"""
 
     # scalar functions
 

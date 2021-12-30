@@ -8,6 +8,13 @@ from dictum.data_model import utils
 from dictum.data_model.table import Table
 
 
+def prepare_expr(expr: Tree) -> Tree:
+    expr = deepcopy(expr)
+    for ref in expr.find_data("column"):
+        ref.children = [".".join(ref.children[:-1]), ref.children[-1]]
+    return expr
+
+
 @dataclass
 class Join:
     """A single join in the join tree"""
@@ -128,18 +135,10 @@ class AggregateQuery:
     order: List[OrderItem] = field(default_factory=list)
     limit: Optional[int] = None
 
-    @staticmethod
-    def prefix_columns(prefix: List[str], expr: Tree):
-        result = deepcopy(expr)
-        for ref in result.find_data("column"):
-            *tables, field = ref.children
-            ref.children = [".".join([*prefix, *tables]), field]
-        return result
-
     def add_measure(self, measure_id: str):
         measure = self.table.measures.get(measure_id)
         column = ColumnCalculation(
-            expr=measure.prepare_expr([self.table.id]),
+            expr=measure.expr,
             name=measure.id,
             type=measure.type,
         )
@@ -195,7 +194,7 @@ class AggregateQuery:
     ):
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
-        expr = dimension.prepare_expr([self.table.id, *path])
+        expr = dimension.prefixed_expr([self.table.id, *path])
 
         column = transforms(
             ColumnCalculation(expr=expr, name=name, type=dimension.type)
@@ -209,7 +208,7 @@ class AggregateQuery:
     ):
         query, path = self.join_dimension(dimension_id)
         dimension = query.table.dimensions.get(dimension_id)
-        expr = dimension.prepare_expr([self.table.id, *path])
+        expr = dimension.prefixed_expr([self.table.id, *path])
 
         column = filter(ColumnCalculation(name=None, type=dimension.type, expr=expr))
         if column.type != "bool":
@@ -221,9 +220,8 @@ class AggregateQuery:
     def add_literal_filter(self, expr: Tree):
         expr = deepcopy(expr)
         for ref in expr.find_data("column"):
-            anchor, *path, field = ref.children
+            _, *path, _ = ref.children
             self.add_path(path)
-            ref.children = [".".join([anchor, *path]), field]
         self.filters.append(expr)
 
     def add_path(self, tables: List[str]):
@@ -281,6 +279,14 @@ class AggregateQuery:
             if not join.to.subquery:
                 yield from join.to._unnested_joins((*path, join.alias))
 
+    def prepare(self):
+        for column in self.groupby + self.aggregate:
+            column.expr = prepare_expr(column.expr)
+        self.filters = list(map(prepare_expr, self.filters))
+        for join in self.joins:
+            if isinstance(join.to, AggregateQuery):
+                join.to.prepare()
+
     def __eq__(self, other: "AggregateQuery"):
         return (
             isinstance(other, AggregateQuery)
@@ -299,7 +305,18 @@ class Computation:
     columns: List[ColumnCalculation]
     merge_on: List[str] = field(default_factory=list)
     filters: List[Tree] = field(default_factory=list)
+    order: List[OrderItem] = field(default_factory=list)
 
     @property
     def types(self) -> Dict[str, str]:
         return {c.name: c.type for c in self.columns}
+
+    def prepare(self):
+        """Mutate in-place. Replace table references in columns with .-delimited
+        strings, so that each one has only to children.
+        Only column expressions and filters are transformed, joins are prepared with
+        unnested_joins.
+        Call before sending to the backend.
+        """
+        for query in self.queries:
+            query.prepare()

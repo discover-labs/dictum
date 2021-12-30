@@ -163,29 +163,3 @@ class Project:
     def _repr_html_(self):
         template = environment.get_template("project.html.j2")
         return template.render(project=self)
-
-
-class FuncBuilder:
-    def __init__(self, name: str):
-        self.name = name
-
-    @staticmethod
-    def convert(arg):
-        if isinstance(arg, str):
-            return f"'{arg}'"
-        return str(arg)
-
-    def __call__(self, *args):
-        arglist = ", ".join(self.convert(a) for a in args)
-        return f"{self.name}({arglist})"
-
-    def __str__(self):
-        return f"{self.name}()"
-
-
-class Func:
-    def __getattr__(self, name: str):
-        return FuncBuilder(name)
-
-
-func = Func()

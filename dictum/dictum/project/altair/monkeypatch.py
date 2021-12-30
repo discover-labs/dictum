@@ -9,6 +9,7 @@ from altair import (
     FacetedUnitSpec,
     FacetFieldDef,
     FieldName,
+    LayerChart,
     NormalizedFacetSpec,
     NormalizedSpec,
     RepeatSpec,
@@ -179,7 +180,7 @@ def encoding_sort_field_init(
 original_repr_mimebundle = TopLevelMixin._repr_mimebundle_
 
 
-def repr_mimebundle(self, *args, **kwargs):
+def render_self(self):
     self = self.copy(deep=True)  # don't mutate the original
     currencies = set()
     currency = None
@@ -201,6 +202,15 @@ def repr_mimebundle(self, *args, **kwargs):
             formatLocale=cldr_locale_to_d3_number(model.locale, currency),
             timeFormatLocale=cldr_locale_to_d3_time(model.locale),
         )
+    return self
+
+
+def rendered_dict(self):
+    return self._render_self().to_dict()
+
+
+def repr_mimebundle(self, *args, **kwargs):
+    self = self._render_self()
     return original_repr_mimebundle(self, *args, **kwargs)
 
 
@@ -251,6 +261,8 @@ def iterchannels(self):
         return
     if self.encoding is not Undefined:
         yield from self.encoding._iterattrs()
+    for item in self._iteritems():
+        yield from item._iterchannels()
 
 
 def is_dictum_definition(req):
@@ -324,13 +336,14 @@ def query(self):
             _add_requests(*reqs)
 
     if "facet" in self._kwds:
-        for attr in self["facet"]._iterattrs():
-            if isinstance(attr, FacetFieldDef):  # facet attribute
-                if (req := request_from_field(attr.field)) is not None:
-                    _add_requests(req)
-            elif isinstance(attr, (Row, Column)):  # row/column
-                req = request_from_field(attr.field)
-                _add_requests(req)
+        if isinstance(self.facet, FacetFieldDef):
+            reqs = requests_from_channel(self.facet)
+            _add_requests(*reqs)
+        else:
+            for attr in self.facet._iterattrs():
+                if isinstance(attr, (Row, Column)):  # row/column
+                    reqs = requests_from_channel(attr)
+                    _add_requests(*reqs)
 
     if "repeat" in self._kwds:
         repeat = self["repeat"]
@@ -352,11 +365,14 @@ units = (
     RepeatSpec,
     FacetChart,
     TopLevelRepeatSpec,
+    LayerChart,
 )
 
 
 def monkeypatch_altair():
     TopLevelMixin.to_dict = chart_to_dict
+    TopLevelMixin._render_self = render_self
+    TopLevelMixin._rendered_dict = rendered_dict
     TopLevelMixin._repr_mimebundle_ = repr_mimebundle
     TopLevelMixin.repeat = repeat
     _EncodingMixin.encode = encode

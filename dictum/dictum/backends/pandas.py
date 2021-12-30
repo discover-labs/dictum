@@ -71,6 +71,24 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def countd(self, args: list):
         return args[0].unique().shape[0]
 
+    # window functions
+
+    def window_sum(self, args, partition, order, rows):
+        val = args[0]
+        if partition:
+            return val.groupby(partition).transform(sum)
+        return val.groupby(pd.Series(0, index=val.index)).transform(sum)
+
+    def window_row_number(self, args, partition, order, rows):
+        val = args[0]
+        if order:
+            cols, asc = zip(i.children for i in order)
+            df = pd.concat([val, *cols])
+            val = df.sort_values(by=df.columns[1:], ascending=asc)
+        if partition:
+            val = val.groupby([partition])
+        return val.cumcount() + 1
+
     # scalar functions
 
     def abs(self, args: list):

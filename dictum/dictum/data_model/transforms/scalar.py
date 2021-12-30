@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 
 from lark import Transformer, Tree
 
 from dictum import schema
 from dictum.data_model.expr import parse_expr
-from dictum.data_model.transforms.base import Transform
+from dictum.data_model.transforms.base import BaseTransform
 
 
 class TransformTransformer(Transformer):
@@ -26,13 +26,26 @@ class TransformTransformer(Transformer):
 transforms = {}
 
 
-class ScalarTransform(Transform):
+class ScalarTransform(BaseTransform):
+    """A scalar transform. Transforms a given ColumnCalculation. Can change it's expr,
+    name and type.
+    """
+
+    id: str
+    name: str
+    description: Optional[str] = None
+    return_type: Optional[schema.Type] = None
+
     def __init_subclass__(cls):
         if hasattr(cls, "id") and cls.id is not None:
             transforms[cls.id] = cls
 
 
 class LiteralTransform(ScalarTransform):
+    """A kind of ScalarTransform that's defined with a literal expression.
+    @ token gets replaced with expr of the argument.
+    """
+
     expr: str
     args: List[str] = []
 

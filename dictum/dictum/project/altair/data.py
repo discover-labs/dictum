@@ -6,7 +6,6 @@ from altair.utils.data import to_values
 
 import dictum.project
 import dictum.project.calculations
-from dictum.schema.query import QueryMetricRequest
 
 
 class DictumData:
@@ -16,7 +15,7 @@ class DictumData:
         metrics: List["dictum.project.calculations.ProjectMetric"],
     ):
         self.project = project
-        self.requests = [QueryMetricRequest(metric=m.calculation.id) for m in metrics]
+        self.requests = [m.request for m in metrics]
         self.filters = []
 
     def extend_query(self, query):

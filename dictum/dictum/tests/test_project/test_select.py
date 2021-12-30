@@ -20,13 +20,6 @@ def test_select_where(project: Project):
 
 def test_select_alias(project: Project):
     select = project.select(project.m.revenue).by(
-        project.d.invoice_date.year, alias="year"
-    )
-    assert "year" in select.execute().columns
-
-
-def test_select_test_alias_by_name(project: Project):
-    select = project.select(project.m.revenue).by(
         project.d.invoice_date.year.name("year")
     )
     assert "year" in select.execute().columns

@@ -10,6 +10,10 @@ def repr_expr_constant(val):
 
 
 def value_to_token(value):
+    if value is True:
+        return Token("TRUE", "True")
+    if value is False:
+        return Token("FALSE", "False")
     if isinstance(value, int):
         return Token("INTEGER", str(value))
     if isinstance(value, float):

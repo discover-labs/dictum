@@ -319,3 +319,117 @@ def test_order_limit(chinook: DataModel, connection):
     result = connection.compute(comp)
     assert len(result.data) == 3
     assert set(map(lambda x: x["genre"], result.data)) == {"Latin", "Metal", "Rock"}
+
+
+def test_table_transform_sum(chinook: DataModel, connection):
+    query = Query.parse_obj(
+        {
+            "metrics": [
+                {"metric": {"id": "revenue"}},
+                {"metric": {"id": "revenue", "transforms": [{"id": "sum"}]}},
+            ],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+        }
+    )
+    comp = chinook.get_computation(query)
+    result = connection.compute(comp)
+    assert all(i["revenue__sum"] == 2328.6 for i in result.data)
+
+    query = Query.parse_obj(
+        {
+            "metrics": [
+                {"metric": {"id": "revenue"}},
+                {
+                    "metric": {
+                        "id": "revenue",
+                        "transforms": [{"id": "sum", "within": [{"id": "genre"}]}],
+                    }
+                },
+            ],
+            "dimensions": [
+                {"dimension": {"id": "genre"}},
+                {"dimension": {"id": "customer_country"}},
+            ],
+        }
+    )
+    comp = chinook.get_computation(query)
+    result = connection.compute(comp)
+    assert len(set([i["revenue__sum_within_genre"] for i in result.data])) == 22
+
+
+def test_table_transform_top_basic(chinook: DataModel, connection):
+    query = Query.parse_obj(
+        {
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+            "limit": [{"id": "revenue", "transforms": [{"id": "top", "args": [5]}]}],
+        }
+    )
+    comp = chinook.get_computation(query)
+    res = connection.compute(comp)
+    assert len(res.data) == 5
+
+
+def test_table_transform_top_within(chinook: DataModel, connection):
+    query = Query.parse_obj(
+        {
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [
+                {"dimension": {"id": "genre"}},
+                {"dimension": {"id": "customer_country"}},
+            ],
+            "limit": [
+                {
+                    "id": "revenue",
+                    "transforms": [
+                        {
+                            "id": "top",
+                            "args": [1],
+                            "within": [{"id": "customer_country"}],
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    comp = chinook.get_computation(query)
+    res = connection.compute(comp)
+    assert len(res.data) == 24
+
+
+def test_table_transform_top_general(chinook: DataModel, connection):
+    query = Query.parse_obj(
+        {
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [
+                {"dimension": {"id": "genre"}},
+                {"dimension": {"id": "customer_country"}},
+            ],
+            "limit": [
+                {
+                    "id": "revenue",
+                    "transforms": [
+                        {
+                            "id": "top",
+                            "args": [3],
+                            "within": [{"id": "customer_country"}],
+                            "of": [{"id": "genre"}],
+                        }
+                    ],
+                },
+                {
+                    "id": "revenue",
+                    "transforms": [
+                        {
+                            "id": "top",
+                            "args": [3],
+                            "of": [{"id": "customer_country"}],
+                        }
+                    ],
+                },
+            ],
+        }
+    )
+    comp = chinook.get_computation(query)
+    res = connection.compute(comp)
+    assert len(res.data) == 9

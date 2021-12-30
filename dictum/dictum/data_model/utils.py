@@ -25,3 +25,12 @@ def prepare_expr(expr: Tree, prefix: List[str]) -> Tree:
         *path, field = ref.children
         ref.children = [".".join(path), field]
     return expr
+
+
+def join_exprs_with_and(exprs: List[Tree]):
+    expr, *rest = exprs
+    if len(rest) == 0:
+        return expr
+    if len(rest) > 1:
+        return Tree("AND", [expr, join_exprs_with_and(rest)])
+    return Tree("AND", [expr, rest[0]])

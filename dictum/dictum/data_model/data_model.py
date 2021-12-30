@@ -16,7 +16,9 @@ from dictum.data_model.calculations import (
 from dictum.data_model.computation import AggregateQuery, ColumnCalculation, Computation
 from dictum.data_model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.data_model.table import RelatedTable, Table, TableFilter
-from dictum.data_model.transforms.scalar import transforms
+from dictum.data_model.transforms.scalar import transforms as scalar_transforms
+from dictum.data_model.transforms.table import TopBottomTransform
+from dictum.data_model.transforms.table import transforms as table_transforms
 
 displayed_fields = {
     "id",
@@ -63,8 +65,8 @@ class DataModel:
         self.measures = MeasureDict()
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
-        self.scalar_transforms = transforms
-        self.table_transforms = {}
+        self.scalar_transforms = scalar_transforms
+        self.table_transforms = table_transforms
 
         self.theme = data_model.theme
 
@@ -326,6 +328,7 @@ class DataModel:
             dimension = self.dimensions.get(request.dimension.id)
 
             # figure out the resulting type by fake-applying transforms
+            # TODO: a transform might potentially alter the column name
             type_ = dimension.type
             for request_transform in request.dimension.transforms:
                 transform = self.scalar_transforms.get(request_transform.id)(
@@ -348,18 +351,44 @@ class DataModel:
                 name=request.name, type=metric.type, expr=metric.merged_expr
             )
             for request_transform in request.metric.transforms:
-                transform = self.table_transforms.get(request_transform.id)
+                if request_transform.id in {"top", "bottom"}:
+                    raise ValueError(
+                        "Top and bottom transforms are only allowed in limit"
+                    )
+                transform = self.table_transforms.get(request_transform.id)(
+                    *request_transform.args,
+                    within=request_transform.within,
+                    of=request_transform.of,
+                )
                 column = transform(column)
-                computation_transforms.append(transform.transform_computation)
+                if hasattr(transform, "transform_computation"):
+                    computation_transforms.append(transform.transform_computation)
             columns.append(column)
 
-        # group measures by table
+        # apply table filters
+        for item in query.limit:
+            metric = metrics[item.id]
+            for limit_transform in item.transforms:
+                if limit_transform.id in {"top", "bottom"}:
+                    ascending = limit_transform.id == "bottom"
+                    transform = TopBottomTransform(
+                        limit_transform.args[0],
+                        ascending,
+                        metric,
+                        of=limit_transform.of,
+                        within=limit_transform.within,
+                    )
+                    computation_transforms.append(transform.transform_computation)
+                else:
+                    pass  # TODO: normal flow
+
+        # group measures by anchor table
         tables = defaultdict(lambda: [])
         for metric in metrics.values():
             for measure in metric.measures:
                 tables[measure.table.id].append(measure.id)
 
-        # get a query for each anchor
+        # get a query for each anchor table
         queries = []
         for measures in tables.values():
             queries.append(
@@ -370,20 +399,19 @@ class DataModel:
                 )
             )
 
-        return Computation(
-            queries=queries,
-            merge_on=merge_on,
-            columns=columns,
-        )
+        result = Computation(queries=queries, merge_on=merge_on, columns=columns)
+        result = compose_left(*computation_transforms)(result)
+        result.prepare()
+        return result
 
     def get_currencies_for_query(self, query: schema.Query):
         currencies = set()
         for request in query.metrics:
-            metric = self.metrics.get(request.metric)
+            metric = self.metrics.get(request.metric.id)
             if metric.format is not None and metric.format.currency is not None:
                 currencies.add(metric.format.currency)
         for request in query.dimensions:
-            dimension = self.dimensions.get(request.dimension)
+            dimension = self.dimensions.get(request.dimension.id)
             if dimension.format is not None and dimension.format.currency is not None:
                 currencies.add(dimension.format.currency)
         return currencies

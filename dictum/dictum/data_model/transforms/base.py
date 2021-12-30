@@ -1,5 +1,3 @@
-from typing import Optional
-
 from lark import Tree
 
 from dictum import schema
@@ -7,12 +5,7 @@ from dictum.data_model.computation import ColumnCalculation
 from dictum.utils import value_to_token
 
 
-class Transform:
-    id: str
-    name: str
-    description: Optional[str] = None
-    return_type: Optional[schema.Type] = None
-
+class BaseTransform:
     def __init__(self, *args):
         self._args = [value_to_token(a) for a in args]
 
@@ -24,9 +17,6 @@ class Transform:
             return self.return_type
         return original
 
-    def transform_expr(self, expr: Tree) -> Tree:
-        raise NotImplementedError
-
     def get_format(self, type_: schema.Type) -> schema.FormatConfig:
         type_ = self.get_return_type(type_)
         kind = "string"
@@ -35,6 +25,9 @@ class Transform:
         elif type_ in {"int", "float"}:
             kind = "decimal"
         return schema.FormatConfig(kind=kind)
+
+    def transform_expr(self, expr: Tree) -> Tree:
+        raise NotImplementedError
 
     def __call__(self, col: ColumnCalculation) -> ColumnCalculation:
         return ColumnCalculation(

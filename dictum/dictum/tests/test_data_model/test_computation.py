@@ -10,7 +10,7 @@ def test_relational_query_add_dimension(chinook: DataModel):
 
     query.add_dimension("album", "album", identity)
     assert query.groupby[0].expr.children[0] == Tree(
-        "column", ["invoice_items.track.album", "Title"]
+        "column", ["invoice_items", "track", "album", "Title"]
     )
     assert query.joins[0].expr.children[0] == Tree(
         "eq",
@@ -34,7 +34,8 @@ def test_relational_query_add_dimension(chinook: DataModel):
 
     query.add_dimension("manager_title", "manager_title", identity)
     query.groupby[1].expr.children[0] == Tree(
-        "column", ["invoice_items.invoice.customer.employee.manager", "Title"]
+        "column",
+        ["invoice_items", "invoice", "customer", "employee", "manager", "Title"],
     )
     assert query.joins[1].expr.children[0] == Tree(
         "eq",
