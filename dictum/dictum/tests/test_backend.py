@@ -4,32 +4,46 @@ import pytest
 from lark import Tree
 from pandas.api.types import is_datetime64_any_dtype
 
-from dictum.backends.base import BackendResult
-from dictum.data_model import (
-    AggregateQuery,
-    ColumnCalculation,
-    Computation,
-    DataModel,
-    OrderItem,
-)
-from dictum.data_model.expr.parser import parse_expr
+from dictum.backends.base import BackendResult, Connection
+from dictum.engine import Column, Computation, Engine, OrderItem, RelationalQuery
+from dictum.model import Model
+from dictum.model.expr.parser import parse_expr
 from dictum.schema import Query
 
 
-def test_groupby(chinook: DataModel, connection):
-    q = Query.parse_obj(
+@pytest.fixture(scope="module")
+def compute_df(chinook: Model, engine: Engine, connection: Connection):
+    def compute(query: Query):
+        resolved = chinook.get_resolved_query(query)
+        computation = engine.get_computation(resolved)
+        return connection.compute_df(computation)
+
+    return compute
+
+
+@pytest.fixture(scope="module")
+def compute_result(chinook: Model, engine: Engine, connection: Connection):
+    def compute(query: Query):
+        resolved = chinook.get_resolved_query(query)
+        computation = engine.get_computation(resolved)
+        return connection.compute(computation)
+
+    return compute
+
+
+def test_groupby(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "track_count"}}],
             "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df[df["genre"] == "Rock"].iloc[0]["track_count"] == 1297
 
 
-def test_filter(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_filter(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "items_sold"}}],
             "filters": [
@@ -44,13 +58,12 @@ def test_filter(chinook: DataModel, connection):
             ],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df.iloc[0][0] == 157
 
 
 @pytest.mark.skip
-def test_convert_datetime(chinook: DataModel, connection):
+def test_convert_datetime(chinook: Model, connection):
     """Temporarily off, because not sure if this is needed. SQLite's datetime()
     returns a string, not a datetime (unlike a raw column), but everything is sent
     as a string to the frontend anyway. Only problem is the Python API, which we don't
@@ -65,8 +78,8 @@ def test_convert_datetime(chinook: DataModel, connection):
     assert is_datetime64_any_dtype(df["invoice_date"].dtype)
 
 
-def test_metric_not_measure(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_metric_not_measure(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [
                 {"metric": {"id": "revenue"}},
@@ -75,25 +88,23 @@ def test_metric_not_measure(chinook: DataModel, connection):
             ]
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 0.66)
 
 
-def test_metric_with_groupby(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_metric_with_groupby(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "arppu"}}, {"metric": {"id": "track_count"}}],
             "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df.shape == (25, 3)
 
 
-def test_multiple_facts(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_multiple_facts(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [
                 {"metric": {"id": "items_sold"}},
@@ -101,13 +112,12 @@ def test_multiple_facts(chinook: DataModel, connection):
             ]
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert tuple(df.iloc[0]) == (2240, 3503)
 
 
-def test_multiple_facts_dimensions(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_multiple_facts_dimensions(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [
                 {"metric": {"id": "items_sold"}},
@@ -116,17 +126,16 @@ def test_multiple_facts_dimensions(chinook: DataModel, connection):
             "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert tuple(df[df["genre"] == "Rock"].iloc[0][["items_sold", "track_count"]]) == (
         835,
         1297,
     )
 
 
-def test_if(chinook: DataModel, connection):
+def test_if(compute_df: callable):
     """Test if() function and case when ... then ... else ... end constructs"""
-    q = Query.parse_obj(
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "items_sold"}}],
             "dimensions": [
@@ -135,38 +144,37 @@ def test_if(chinook: DataModel, connection):
             ],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df[df["leap_year"] == "Yes"].iloc[0]["invoice_year"] == 2012
 
 
-def test_subquery_join(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_subquery_join(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "items_sold"}}],
             "dimensions": [{"dimension": {"id": "customer_orders_amount_10_bins"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df.shape == (2, 2)
     assert df[df["customer_orders_amount_10_bins"] == 30].iloc[0].items_sold == 1708
 
 
 @pytest.fixture(scope="module")
-def compute(chinook: DataModel, connection):
+def compute(chinook: Model, connection):
     def computer(expr: str, type="datetime"):
         expr = parse_expr(expr)
-        columns = [ColumnCalculation(name="value", expr=expr, type=type)]
+        columns = [Column(name="value", expr=expr, type=type)]
         comp = Computation(
             queries=[
-                AggregateQuery(
-                    table=chinook.tables.get("media_types"),
-                    groupby=columns,
+                RelationalQuery(
+                    source=chinook.tables.get("media_types"),
+                    _groupby=columns,
+                    joins=[],
                 )
             ],
             columns=[
-                ColumnCalculation(
+                Column(
                     name="value",
                     type=type,
                     expr=Tree("expr", [Tree("column", [None, "value"])]),
@@ -248,38 +256,36 @@ def test_datediff(compute):
     assert datediff("second", "2021-12-31 04:59:59", "2021-12-31 04:59:59") == 0
 
 
-def test_date(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_date(compute_result: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [{"dimension": {"id": "invoice_date"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    result = connection.compute(comp)
+    result = compute_result(query)
     assert isinstance(result, BackendResult)
     assert isinstance(result.data, list)
     assert isinstance(result.data[0], dict)
     assert isinstance(result.data[0]["invoice_date"], datetime.date)
 
 
-def test_datetime(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_datetime(compute_result: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [{"dimension": {"id": "invoice_datetime"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    result = connection.compute(comp)
+    result = compute_result(query)
     assert isinstance(result, BackendResult)
     assert isinstance(result.data, list)
     assert isinstance(result.data[0], dict)
     assert isinstance(result.data[0]["invoice_datetime"], datetime.datetime)
 
 
-def test_alias(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_alias(compute_result: callable):
+    query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [
@@ -300,28 +306,28 @@ def test_alias(chinook: DataModel, connection):
             ],
         }
     )
-    comp = chinook.get_computation(q)
-    result = connection.compute(comp)
+    result = compute_result(query)
     assert set(result.data[0]) == {"revenue", "year", "month"}
 
 
-def test_order_limit(chinook: DataModel, connection):
+def test_order_limit(chinook: Model, engine: Engine, connection: Connection):
     query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
             "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(query)
+    resolved = chinook.get_resolved_query(query)
+    comp = engine.get_computation(resolved)
     aggq = comp.queries[0]
     aggq.limit = 3
-    aggq.order = [OrderItem(expr=aggq.aggregate[0].expr)]
+    aggq.order = [OrderItem(expr=aggq.columns[1].expr, ascending=False)]
     result = connection.compute(comp)
     assert len(result.data) == 3
     assert set(map(lambda x: x["genre"], result.data)) == {"Latin", "Metal", "Rock"}
 
 
-def test_table_transform_sum(chinook: DataModel, connection):
+def test_table_transform_sum(compute_result: callable):
     query = Query.parse_obj(
         {
             "metrics": [
@@ -331,8 +337,7 @@ def test_table_transform_sum(chinook: DataModel, connection):
             "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(query)
-    result = connection.compute(comp)
+    result = compute_result(query)
     assert all(i["revenue__sum"] == 2328.6 for i in result.data)
 
     query = Query.parse_obj(
@@ -352,12 +357,11 @@ def test_table_transform_sum(chinook: DataModel, connection):
             ],
         }
     )
-    comp = chinook.get_computation(query)
-    result = connection.compute(comp)
+    result = compute_result(query)
     assert len(set([i["revenue__sum_within_genre"] for i in result.data])) == 22
 
 
-def test_table_transform_top_basic(chinook: DataModel, connection):
+def test_table_transform_top_basic(compute_result: callable):
     query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
@@ -365,12 +369,11 @@ def test_table_transform_top_basic(chinook: DataModel, connection):
             "limit": [{"id": "revenue", "transforms": [{"id": "top", "args": [5]}]}],
         }
     )
-    comp = chinook.get_computation(query)
-    res = connection.compute(comp)
+    res = compute_result(query)
     assert len(res.data) == 5
 
 
-def test_table_transform_top_within(chinook: DataModel, connection):
+def test_table_transform_top_within(compute_result: callable):
     query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
@@ -392,12 +395,11 @@ def test_table_transform_top_within(chinook: DataModel, connection):
             ],
         }
     )
-    comp = chinook.get_computation(query)
-    res = connection.compute(comp)
+    res = compute_result(query)
     assert len(res.data) == 24
 
 
-def test_table_transform_top_general(chinook: DataModel, connection):
+def test_table_transform_top_general(compute_result: callable):
     query = Query.parse_obj(
         {
             "metrics": [{"metric": {"id": "revenue"}}],
@@ -430,6 +432,47 @@ def test_table_transform_top_general(chinook: DataModel, connection):
             ],
         }
     )
-    comp = chinook.get_computation(query)
-    res = connection.compute(comp)
+    res = compute_result(query)
     assert len(res.data) == 9
+
+
+def test_table_transform_top_general_multiple_queries(compute_result: callable):
+    query = Query.parse_obj(
+        {
+            "metrics": [
+                {"alias": None, "metric": {"id": "revenue", "transforms": []}},
+                {"alias": None, "metric": {"id": "track_count", "transforms": []}},
+            ],
+            "dimensions": [
+                {"alias": None, "dimension": {"id": "genre", "transforms": []}},
+                {"alias": None, "dimension": {"id": "artist", "transforms": []}},
+            ],
+            "filters": [],
+            "limit": [
+                {
+                    "id": "track_count",
+                    "transforms": [
+                        {
+                            "id": "top",
+                            "args": [5],
+                            "of": [{"id": "genre", "transforms": []}],
+                            "within": [],
+                        }
+                    ],
+                },
+                {
+                    "id": "track_count",
+                    "transforms": [
+                        {
+                            "id": "top",
+                            "args": [3],
+                            "of": [{"id": "artist", "transforms": []}],
+                            "within": [{"id": "genre", "transforms": []}],
+                        }
+                    ],
+                },
+            ],
+        }
+    )
+    res = compute_result(query)
+    assert len(res.data) == 15

@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from babel.dates import format_date, format_datetime
 from babel.numbers import format_currency, format_decimal, format_number, format_percent
 
-from dictum.data_model.calculations import Calculation
+from dictum.model.calculations import Calculation
 
 
 class Formatter:

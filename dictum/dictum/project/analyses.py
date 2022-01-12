@@ -123,7 +123,7 @@ class Select:
         return df.to_html(max_rows=20)
 
     def dimensions(self):
-        dimensions = self.project.data_model.suggest_dimensions(self.query)
+        dimensions = self.project.model.suggest_dimensions(self.query)
         return pd.DataFrame(
             data=[
                 {"id": d.id, "name": d.name, "description": d.description}
@@ -132,7 +132,7 @@ class Select:
         )
 
     def metrics(self):
-        metrics = self.project.data_model.suggest_metrics(self.query)
+        metrics = self.project.model.suggest_metrics(self.query)
         return pd.DataFrame(
             data=[
                 {"id": m.id, "name": m.name, "description": m.description}
@@ -142,7 +142,8 @@ class Select:
 
     @property
     def raw_query(self) -> str:
-        computation = self.project.data_model.get_computation(self.query)
+        resolved = self.project.model.get_resolved_query(self.query)
+        computation = self.project.engine.get_computation(resolved)
         compiled = self.project.connection.compile(computation)
         return self.project.connection.get_raw_query(compiled)
 

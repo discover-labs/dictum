@@ -27,19 +27,19 @@ markdown_extensions:
 nav:
   - Introduction: index.md
   - Data Model Guide:
-    - Getting Started: data_model/getting_started.md
-    # - Query Intro: data_model/query_intro.md
-    - Tables and Measures: data_model/tables.md
-    - Dimensions: data_model/dimensions.md
-    - Table Relationships: data_model/table_relationships.md
-    - Reusable Expressions: data_model/reusable_expressions.md
-    - Union Dimensions: data_model/union_dimensions.md
-    - Metrics and Measures: data_model/metrics_and_measures.md
-    - Aggregate Dimensions: data_model/aggregate_dimensions.md
-    - Types and Formatting: data_model/types_formatting.md
-    - Organizing a Larger Project with Multiple Files: data_model/multiple_files.md
-    - Default Transforms and Filters: data_model/dimension_transforms.md
-    - Transforms: data_model/transforms.md
+    - Getting Started: model/getting_started.md
+    # - Query Intro: model/query_intro.md
+    - Tables and Measures: model/tables.md
+    - Dimensions: model/dimensions.md
+    - Table Relationships: model/table_relationships.md
+    - Reusable Expressions: model/reusable_expressions.md
+    - Union Dimensions: model/union_dimensions.md
+    - Metrics and Measures: model/metrics_and_measures.md
+    - Aggregate Dimensions: model/aggregate_dimensions.md
+    - Types and Formatting: model/types_formatting.md
+    - Organizing a Larger Project with Multiple Files: model/multiple_files.md
+    - Default Transforms and Filters: model/dimension_transforms.md
+    - Transforms: model/transforms.md
   # - Interactive Analytics Guide:
   #   - Selecting and Grouping Metrics: analysis/metrics.md
   #   - Pivot Tables: analysis/pivot.md

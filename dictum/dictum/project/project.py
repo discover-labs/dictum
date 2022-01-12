@@ -9,7 +9,8 @@ import pandas as pd
 import dictum.project.analyses as analyses
 from dictum.backends.base import BackendResult, Connection
 from dictum.backends.profiles import ProfilesConfig
-from dictum.data_model import DataModel
+from dictum.engine import Engine
+from dictum.model import Model
 from dictum.project.calculations import ProjectDimensions, ProjectMetrics
 from dictum.project.chart import ProjectChart
 from dictum.project.templates import environment
@@ -69,14 +70,15 @@ class Project:
         self.m = ProjectMetrics(self)
         self.metrics = self.m
         self.d = ProjectDimensions(self)
+        self.engine = Engine()
         self.dimensions = self.d
-        if self.data_model.theme is not None:
-            alt.themes.register("dictum_theme", lambda: self.data_model.theme)
+        if self.model.theme is not None:
+            alt.themes.register("dictum_theme", lambda: self.model.theme)
             alt.themes.enable("dictum_theme")
 
     @cached_property
-    def data_model(self) -> DataModel:
-        return DataModel.from_yaml(self.path)
+    def model(self) -> Model:
+        return Model.from_yaml(self.path)
 
     @cached_property
     def connection(self) -> Connection:
@@ -84,7 +86,8 @@ class Project:
         return config.get_connection(self.profile)
 
     def execute(self, query: Query) -> BackendResult:
-        computation = self.data_model.get_computation(query)
+        resolved = self.model.get_resolved_query(query)
+        computation = self.engine.get_computation(resolved)
         return self.connection.compute(computation)
 
     def ql(self, query: str):
@@ -146,12 +149,12 @@ class Project:
             pandas.DataFrame: metric-dimension compatibility matrix
         """
         print(
-            f"Project '{self.data_model.name}', {len(self.data_model.metrics)} metrics, "
-            f"{len(self.data_model.dimensions)} dimensions. "
+            f"Project '{self.model.name}', {len(self.model.metrics)} metrics, "
+            f"{len(self.model.dimensions)} dimensions. "
             f"Connected to {self.connection}."
         )
         data = []
-        for metric in self.data_model.metrics.values():
+        for metric in self.model.metrics.values():
             for dimension in metric.dimensions:
                 data.append((metric.id, dimension.id, "✚"))
         return (

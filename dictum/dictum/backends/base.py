@@ -6,7 +6,7 @@ from typing import Dict, List
 import pandas as pd
 from lark import Token, Transformer
 
-from dictum.data_model import AggregateQuery, Computation
+from dictum.engine import Computation, RelationalQuery
 
 
 class Timer:
@@ -376,8 +376,8 @@ class Compiler(ABC):
     # compilation
 
     @abstractmethod
-    def compile_query(self, query: AggregateQuery):
-        """Compile a single relation query into connection query."""
+    def compile_query(self, query: RelationalQuery):
+        """Compile a single relational query into connection query."""
 
     @abstractmethod
     def merge_queries(self, queries: List, merge_on: List[str]):

@@ -12,7 +12,7 @@ from dictum.backends.base import BackendResult, Timer
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
-from dictum.data_model import Computation
+from dictum.engine import Computation
 
 trunc_modifiers = {
     "year": ["start of year"],
@@ -134,11 +134,14 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
     def calculate(self, computation: Computation, merged: pd.DataFrame) -> pd.DataFrame:
         compiler = PandasCompiler()
         transformer = PandasColumnTransformer({None: merged})
+        result = []
         for column in computation.columns:
-            merged[column.name] = compiler.transformer.transform(
-                transformer.transform(column.expr)
+            result.append(
+                compiler.transformer.transform(
+                    transformer.transform(column.expr)
+                ).rename(column.name)
             )
-        return merged
+        return pd.concat(result, axis=1)
 
 
 class SQLiteRawQueryCompiler(

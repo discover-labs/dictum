@@ -1,13 +1,13 @@
-from dictum.schema.data_model.calculations import (
+from dictum.schema.model.calculations import (
     Dimension,
     DimensionsUnion,
     Measure,
     Metric,
 )
-from dictum.schema.data_model.data_model import DataModel
-from dictum.schema.data_model.format import FormatConfig
-from dictum.schema.data_model.table import Table
-from dictum.schema.data_model.type import Type
+from dictum.schema.model.model import Model
+from dictum.schema.model.format import FormatConfig
+from dictum.schema.model.table import Table
+from dictum.schema.model.type import Type
 from dictum.schema.query import (
     Query,
     QueryTransform,
@@ -19,7 +19,7 @@ from dictum.schema.query import (
 )
 
 __all__ = [
-    "DataModel",
+    "Model",
     "Dimension",
     "DimensionsUnion",
     "FormatConfig",

@@ -1,6 +1,6 @@
-<h1>{{ project.data_model.name }}</h1>
+<h1>{{ project.model.name }}</h1>
 <p>Connected to <code>{{ project.connection }}</code></p>
-{% if project.data_model.description %}
-<p>{{ project.data_model.description }}</p>
+{% if project.model.description %}
+<p>{{ project.model.description }}</p>
 {% endif %}
-<p>{{ project.data_model.metrics | length }} metrics, {{ project.data_model.dimensions | length }} dimensions</p>
+<p>{{ project.model.metrics | length }} metrics, {{ project.model.dimensions | length }} dimensions</p>

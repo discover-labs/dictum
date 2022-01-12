@@ -27,9 +27,10 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.functions import coalesce
 
+import dictum.model
 from dictum.backends.base import Compiler, Connection
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
-from dictum.data_model import AggregateQuery, Computation
+from dictum.engine import Computation, RelationalQuery
 
 
 def get_case_insensitive_column(table: Table, column: str):
@@ -156,47 +157,47 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             return self.connection.table(table, schema)
         raise ValueError(f"Source must be a str or a dict for a {self.type} backend")
 
-    def compile_query(self, query: AggregateQuery):
-        table: Table = self._table(query.table.source)
+    def compile_query(self, query: RelationalQuery):
+        if isinstance(query.source, dictum.model.Table):
+            id_ = query.source.id
+            table = self._table(query.source.source)
+        elif isinstance(query.source, RelationalQuery):
+            id_ = None
+            table = self.compile_query(query.source)
 
-        tables = {query.table.id: table}
+        tables = {id_: table}
 
         # replaces column refs with actual SQLA column objs
         column_transformer = ColumnTransformer(tables)
 
         # join the tables
         for join in query.unnested_joins:
-            if join.right.subquery:
+            if isinstance(join.right, RelationalQuery):
                 right_table = self.compile_query(join.right)
             else:
-                right_table = self._table(join.right.table.source)
+                right_table = self._table(join.right.source)
             right_table = right_table.alias(join.right_identity)
             tables[join.right_identity] = right_table
             join_expr = self.transformer.transform(
                 column_transformer.transform(join.expr)
             )
             table = table.join(right_table, join_expr, isouter=(not join.inner))
-            # table = table.outerjoin(right_table, join_expr)
 
         # add calcs
-        aggregate = {}
-        groupby = {}
-        for column in query.aggregate:
-            aggregate[column.name] = self.transformer.transform(
+        columns = {}
+        for column in query.columns:
+            columns[column.name] = self.transformer.transform(
                 column_transformer.transform(column.expr)
             )
-        for column in query.groupby:
-            groupby[column.name] = self.transformer.transform(
-                column_transformer.transform(column.expr)
-            )
+        groupby = []
+        for expr in query.groupby:
+            compiled = self.transformer.transform(column_transformer.transform(expr))
+            groupby.append(compiled)
 
         stmt = (
-            select(
-                *(v.label(k) for k, v in groupby.items()),
-                *(v.label(k) for k, v in aggregate.items()),
-            )
+            select(*(v.label(k) for k, v in columns.items()))
             .select_from(table)
-            .group_by(*groupby.values())
+            .group_by(*groupby)
         )
 
         # apply filters
@@ -218,12 +219,6 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             stmt = stmt.order_by(*order_clauses).limit(query.limit)
 
         return stmt.subquery()
-
-    def cross_join(queries: List[Select]):
-        table, *tables = queries
-        for t in tables:
-            table = table.join(t, true())
-        return table
 
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
         table, *tables = queries

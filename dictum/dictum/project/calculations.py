@@ -3,10 +3,10 @@ from typing import Dict
 import pandas as pd
 from babel.dates import match_skeleton
 
-import dictum.data_model
+import dictum.model
 import dictum.project
-from dictum.data_model.transforms.scalar import ScalarTransform
-from dictum.data_model.transforms.table import TableTransform
+from dictum.model.transforms.scalar import ScalarTransform
+from dictum.model.transforms.table import TableTransform
 from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
@@ -92,7 +92,7 @@ class ProjectCalculation(AltairEncodingChannelHook):
 
     @property
     def _type(self) -> str:
-        if isinstance(self.calculation, dictum.data_model.Metric):
+        if isinstance(self.calculation, dictum.model.Metric):
             return "metric"
         return "dimension"
 
@@ -100,7 +100,7 @@ class ProjectCalculation(AltairEncodingChannelHook):
         template = environment.get_template("calculation.html.j2")
         calculation = self.calculation
         if (
-            isinstance(calculation, dictum.data_model.Metric)
+            isinstance(calculation, dictum.model.Metric)
             and len(calculation.measures) == 1
         ):
             calculation = calculation.measures[0]
@@ -181,18 +181,18 @@ class ProjectMetric(ProjectMetricRequest):
 class ProjectMetrics:
     def __init__(self, project: "dictum.project.Project"):
         self.__project = project
-        transforms = project.data_model.table_transforms
-        for metric in project.data_model.metrics.values():
+        transforms = project.model.table_transforms
+        for metric in project.model.metrics.values():
             setattr(
                 self,
                 metric.id,
-                ProjectMetric(metric, project.data_model.locale, transforms),
+                ProjectMetric(metric, project.model.locale, transforms),
             )
 
     def _repr_html_(self):
         return pd.DataFrame(
             {"id": m.id, "name": m.name}
-            for m in self.__project.data_model.metrics.values()
+            for m in self.__project.model.metrics.values()
         ).to_html()
 
 
@@ -239,12 +239,12 @@ class ProjectDimension(ProjectDimensionRequest):
 
 class ProjectDimensions:
     def __init__(self, project: "dictum.project.Project"):
-        transforms = project.data_model.scalar_transforms
-        for dimension in project.data_model.dimensions.values():
+        transforms = project.model.scalar_transforms
+        for dimension in project.model.dimensions.values():
             setattr(
                 self,
                 dimension.id,
                 ProjectDimension(
-                    dimension, locale=project.data_model.locale, transforms=transforms
+                    dimension, locale=project.model.locale, transforms=transforms
                 ),
             )

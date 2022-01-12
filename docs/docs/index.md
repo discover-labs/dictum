@@ -25,7 +25,7 @@ If your team already uses Dictum and you want to learn how to query it, read the
 [Query Guide](query/intro.md).
 
 If you want to learn how to describe your data, read the
-[Data model guide](data_model/getting_started.md).
+[Data model guide](model/getting_started.md).
 
 
 ## Querying

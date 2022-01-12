@@ -187,7 +187,7 @@ def render_self(self):
     model = None
     for unit, data in self._iterunits():
         if isinstance(data, DictumData):
-            model = data.project.data_model
+            model = data.project.model
             query = unit._query()
             currencies |= model.get_currencies_for_query(query)
             result = data.get_values(query)

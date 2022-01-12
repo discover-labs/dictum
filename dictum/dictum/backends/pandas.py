@@ -8,7 +8,7 @@ from lark import Transformer
 from dictum.backends.base import Compiler
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.data_model import AggregateQuery
+from dictum.engine import RelationalQuery
 
 
 class PandasColumnTransformer(Transformer):
@@ -150,7 +150,7 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
 
     # compilation
 
-    def compile_query(self, query: AggregateQuery):
+    def compile_query(self, query: RelationalQuery):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 
