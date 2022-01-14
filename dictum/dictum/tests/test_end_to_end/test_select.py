@@ -107,12 +107,182 @@ def test_datetrunc_and_inrange(project: Project):
     assert result.shape == (81, 2)
 
 
-def test_top_basic(project: Project):
+def test_top_with_measure_basic(project: Project):
     result = (
         project.select(project.m.revenue)
         .by(project.d.genre)
         .limit(project.m.revenue.top(5))
         .execute()
     )
-    breakpoint()
-    assert result.shape == (5, 2)
+    assert set(result.genre) == {
+        "Metal",
+        "Latin",
+        "Rock",
+        "Alternative & Punk",
+        "TV Shows",
+    }
+
+
+def test_top_with_metrics_basic(project: Project):
+    result = (
+        project.select(project.m.revenue)
+        .by(project.d.genre)
+        .limit(project.m.revenue_per_track.top(5))
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Bossa Nova",
+        "Sci Fi & Fantasy",
+        "TV Shows",
+        "Comedy",
+        "Science Fiction",
+    }
+
+
+def test_top_with_multiple_basic(project: Project):
+    result = (
+        project.select(project.m.revenue)
+        .by(project.d.genre)
+        .limit(
+            project.m.revenue.top(10),
+            project.m.revenue_per_track.top(10),
+        )
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Blues",
+        "TV Shows",
+        "Drama",
+        "Alternative & Punk",
+        "Metal",
+        "R&B/Soul",
+    }
+
+
+def test_top_with_multiple_basic_reverse_order(project: Project):
+    result = (
+        project.select(project.m.revenue)
+        .by(project.d.genre)
+        .limit(
+            project.m.revenue_per_track.top(10),
+            project.m.revenue.top(10),
+        )
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Blues",
+        "TV Shows",
+        "Drama",
+        "Alternative & Punk",
+        "Metal",
+        "R&B/Soul",
+    }
+
+
+def test_top_with_measure_basic_metric(project: Project):
+    result = (
+        project.select(project.m.revenue_per_track)
+        .by(project.d.genre)
+        .limit(project.m.revenue.top(5))
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Metal",
+        "Latin",
+        "Rock",
+        "Alternative & Punk",
+        "TV Shows",
+    }
+
+
+def test_top_with_metric_basic_metric(project: Project):
+    result = (
+        project.select(project.m.revenue_per_track)
+        .by(project.d.genre)
+        .limit(project.m.revenue_per_track.top(5))
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Bossa Nova",
+        "Sci Fi & Fantasy",
+        "TV Shows",
+        "Comedy",
+        "Science Fiction",
+    }
+
+
+def test_top_with_multiple_basic_metric(project: Project):
+    result = (
+        project.select(project.m.revenue_per_track)
+        .by(project.d.genre)
+        .limit(
+            project.m.revenue.top(10),
+            project.m.revenue_per_track.top(10),
+        )
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Blues",
+        "TV Shows",
+        "Drama",
+        "Alternative & Punk",
+        "Metal",
+        "R&B/Soul",
+    }
+
+
+def test_top_with_multiple_basic_metric_reverse_order(project: Project):
+    result = (
+        project.select(project.m.revenue_per_track)
+        .by(project.d.genre)
+        .limit(
+            project.m.revenue_per_track.top(10),
+            project.m.revenue.top(10),
+        )
+        .execute()
+    )
+    assert set(result.genre) == {
+        "Blues",
+        "TV Shows",
+        "Drama",
+        "Alternative & Punk",
+        "Metal",
+        "R&B/Soul",
+    }
+
+
+def test_top_with_measure_within(project: Project):
+    result = (
+        project.select(project.m.revenue)
+        .by(project.d.genre, project.d.artist)
+        .limit(project.m.revenue.top(3, within=[project.d.genre]))
+        .execute()
+    )
+    assert result.shape == (56, 3)
+
+
+def test_top_with_measure_within_of(project: Project):
+    result = (
+        project.select(project.m.revenue)
+        .by(project.d.genre, project.d.artist)
+        .limit(
+            project.m.revenue.top(3, within=[project.d.genre]),
+            project.m.revenue.top(3, of=[project.d.genre]),
+        )
+        .execute()
+    )
+    assert result.shape == (9, 3)
+    assert set(result.genre) == {"Latin", "Metal", "Rock"}
+
+
+def test_top_with_metric_within_of(project: Project):
+    result = (
+        project.select(project.m.revenue, project.m.revenue_per_track)
+        .by(project.d.genre, project.d.artist)
+        .limit(
+            project.m.revenue_per_track.top(3, within=[project.d.genre]),
+            project.m.revenue_per_track.top(3, of=[project.d.genre]),
+        )
+        .execute()
+    )
+    assert result.shape == (6, 4)

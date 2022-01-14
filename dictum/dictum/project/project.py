@@ -88,7 +88,7 @@ class Project:
     def execute(self, query: Query) -> BackendResult:
         resolved = self.model.get_resolved_query(query)
         computation = self.engine.get_computation(resolved)
-        return self.connection.compute(computation)
+        return computation.execute(self.connection)
 
     def ql(self, query: str):
         q = compile_query(query)

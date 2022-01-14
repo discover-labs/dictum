@@ -9,10 +9,10 @@ from dictum import schema
 from dictum.model.calculations import Dimension, DimensionsUnion, Measure, Metric
 from dictum.model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.model.table import RelatedTable, Table, TableFilter
-from dictum.model.transforms.scalar import ScalarTransform
-from dictum.model.transforms.scalar import transforms as scalar_transforms
-from dictum.model.transforms.table import TableTransform
-from dictum.model.transforms.table import transforms as table_transforms
+from dictum.transforms.scalar import ScalarTransform
+from dictum.transforms.scalar import transforms as scalar_transforms
+from dictum.transforms.table import TableTransform
+from dictum.transforms.table import transforms as table_transforms
 
 # from toolz import compose_left
 

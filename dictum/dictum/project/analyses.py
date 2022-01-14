@@ -113,8 +113,7 @@ class Select:
         need to store the result in a variable and want to just see the data, you can
         skip calling this method. ``Select``'s representation in Jupyter is its result.
         """
-        result = self.project.execute(self.query)
-        return self._get_df(result.data)
+        return self._get_df(self.project.execute(self.query))
 
     def _repr_html_(self):
         result = self.project.execute(self.query)

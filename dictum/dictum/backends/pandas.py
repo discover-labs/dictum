@@ -80,13 +80,13 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
         return val.groupby(pd.Series(0, index=val.index)).transform(sum)
 
     def window_row_number(self, args, partition, order, rows):
-        val = args[0]
+        arg = args[0]
         if order:
-            cols, asc = zip(i.children for i in order)
-            df = pd.concat([val, *cols])
-            val = df.sort_values(by=df.columns[1:], ascending=asc)
+            cols, asc = zip(*(i.children for i in order))
+            df = pd.concat([arg, *cols], axis=1)
+            val = df.sort_values(by=list(df.columns)[1:], ascending=asc)
         if partition:
-            val = val.groupby([partition])
+            val = val.groupby(partition)
         return val.cumcount() + 1
 
     # scalar functions

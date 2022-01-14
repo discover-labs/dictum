@@ -1,16 +1,26 @@
-from threading import Event, Thread
-from typing import List
+from datetime import date, datetime
+from typing import Any, Dict, List, NamedTuple, Optional
 
-from pandas import DataFrame, concat
+import dateutil
+from lark import Tree
+from pandas import DataFrame, concat, merge
 
 from dictum import engine
+from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
+
+
+def set_index(df: DataFrame, columns: List[str]):
+    index = list(set(df.columns) & set(columns))
+    if index:
+        return df.set_index(index)
+    return df
 
 
 class Backend:
     def execute(self, query):
         """Execute a query"""
 
-    def compile(self, query: engine.RelationalQuery):
+    def compile_query(self, query: engine.RelationalQuery):
         """Compile a RelationalQuery into a backend-specific query"""
 
     def calculate(self, query, columns: List[engine.Column]):
@@ -21,65 +31,104 @@ class Backend:
         column names.
         """
 
+    def merge(self, queries, merge_on: List[str]):
+        """Merge multiple queries on a level of detail. Can be not-implemented"""
+        raise NotImplementedError  # this is allowed
 
-class Operator(Thread):
-    def __init__(self, backend: Backend, dependencies: List["Operator"]):
-        self.backend = backend
-        self.dependencies = dependencies
+    def filter(self, query, conditions: List[Dict[str, Any]]):
+        """Filter a query with where"""
+
+    def filter_with_tuples(self, query, tuples: List[NamedTuple]):
+        """Filter a query with literal tuples."""
+
+
+class Operator:
+    def __init__(self):
+        super().__init__()
         self.result = None
-        self.ready = Event()
-
-    def start(self):
-        for dependency in self.dependencies:
-            dependency.start()
-        return super().start()
-
-    def run(self):
-        self.result = self.execute(self.backend)
-        self.ready.set()
+        self.ready = False
 
     def execute(self, backend: Backend):
         """Actual operator logic. Execute any upstreams."""
         raise NotImplementedError
 
-    def get_result(self):
-        with self.ready:
+    def get_result(self, backend: Backend):
+        if self.ready:
             return self.result
+        self.result = self.execute(backend)
+        self.ready = True
+        return self.result
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        raise NotImplementedError
+
+
+class MaterializeMixin:
+    def materialize(self, inputs: list, backend: Backend) -> List[DataFrame]:
+        """Materialize multiple queries on the backend, return a list of DataFrames."""
+        results = []
+        for input in inputs:  # TODO: parallelize
+            if not isinstance(input, DataFrame):
+                input = DataFrame(backend.execute(input))
+            results.append(input)
+        return results
 
 
 class QueryOperator(Operator):
-    def __init__(self, backend: Backend, query: engine.RelationalQuery):
+    def __init__(self, input: engine.RelationalQuery):
+        self.input = input
+        self.limit: Optional[int] = None
+        self.order: Optional[List[engine.LiteralOrderItem]] = None
+        super().__init__()
+
+    def execute(self, backend: Backend):
+        self.input.prepare()
+        result = backend.compile_query(self.input)
+        if self.limit is not None:
+            result = backend.limit(result, self.limit)
+        if self.order is not None:
+            result = backend.order(result, self.order)
+        return result
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        return [c.name for c in self.input._groupby]
+
+
+class InnerJoinOperator(Operator, MaterializeMixin):
+    def __init__(
+        self,
+        query: Operator,
+        to_join: Operator,
+    ):
+        super().__init__()
         self.query = query
-        super().__init__(backend, [])
+        self.to_join = to_join
 
     def execute(self, backend: Backend):
-        return backend.compile(self.query)
+        query = self.query.get_result(backend)
+        to_join = self.to_join.get_result(backend)
 
+        if not isinstance(query, DataFrame) and not isinstance(to_join, DataFrame):
+            return backend.inner_join(query, to_join, self.level_of_detail)
 
-class InnerJoinOperator(Operator):
-    def __init__(self, backend: Backend, base: Operator, query: Operator):
-        self.base = base
-        self.query = query
-        super().__init__(backend, [base, query])
+        # join in pandas
+        query, to_join = self.materialize([query, to_join], backend)
+        query = set_index(query, self.level_of_detail)
+        to_join = set_index(to_join, self.level_of_detail)
+        return merge(
+            query,
+            to_join,
+            left_index=True,
+            right_index=True,
+            how="inner",
+            suffixes=["", "__joined"],
+        )[query.columns].reset_index()
 
-    def execute(self, backend: Backend):
-        return backend.inner_join(
-            self.base.get_result(backend), self.query.get_result(backend)
-        )
-
-
-class MergeOperator(Operator):
-    def __init__(self, queries: List[Operator]):
-        self.queries = queries
-
-    def execute(self, backend: Backend):
-        results = []
-        for query in self.queries:
-            result = query.get_result(backend)
-            if not isinstance(result, DataFrame):
-                result = backend.execute(result)
-            results.append(result)
-        return concat(results, axis=1)
+    @property
+    def level_of_detail(self) -> List[str]:
+        return self.query.level_of_detail
 
 
 class CalculateOperator(Operator):
@@ -93,26 +142,246 @@ class CalculateOperator(Operator):
             ...  # calculate with pandas and return
         return backend.calculate(result, self.columns)
 
+    @property
+    def level_of_detail(self) -> List[str]:
+        return self.input.level_of_detail
 
-class MaterializeOperator(Operator):
-    def __init__(self, inputs: List[Operator]):
+
+def _date_mapper(v):
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str):
+        return dateutil.parser.parse(v).date()
+    if isinstance(v, datetime):
+        return v.date()
+    return v
+
+
+def _datetime_mapper(v):
+    if isinstance(v, datetime):
+        return v
+    if isinstance(v, date):
+        return datetime.combine(v, datetime.min.time())
+    if isinstance(v, str):
+        return dateutil.parser.parse(v)
+    return v
+
+
+_type_mappers = {
+    "bool": bool,
+    "float": float,
+    "int": int,
+    "str": str,
+    "date": _date_mapper,
+    "datetime": _datetime_mapper,
+}
+
+
+class MergeOperator(Operator, MaterializeMixin):
+    def __init__(
+        self,
+        inputs: List[Operator],
+        columns: List[engine.Column],
+    ):
+        super().__init__()
         self.inputs = inputs
+        self.columns = columns
+        self.limit: Optional[int] = None
+        self.order: Optional[List[engine.LiteralOrderItem]] = None
+
+    def calculate_pandas(self, input: List[list]) -> List[list]:
+        column_transformer = PandasColumnTransformer({None: input})
+        compiler = PandasCompiler()
+        columns = []
+        for column in self.columns:
+            expr_with_columns = column_transformer.transform(column.expr)
+            result = compiler.transformer.transform(expr_with_columns).rename(
+                column.name
+            )
+            columns.append(result)
+
+        result = concat(columns, axis=1)
+
+        if self.order:
+            result = result.sort_values(
+                by=[i.name for i in self.order],
+                ascending=[i.ascending for i in self.order],
+            )
+        if self.limit:
+            result = result.head(self.limit)
+
+        return result
+
+    def merge_pandas(self, inputs: List[DataFrame]) -> DataFrame:
+        """Merge multiple DataFrames with Pandas."""
+        if len(inputs) == 1:
+            return inputs[0]
+
+        results = []
+        for input in inputs:
+            input = set_index(input, self.level_of_detail)
+            results.append(input)
+
+        df = concat(results, axis=1)
+
+        if self.level_of_detail:
+            return df.reset_index()
+
+        return df
+
+    def merge_queries(self, inputs: list, backend: Backend):
+        """Merge multiple queries on the backend."""
+        if len(inputs) == 1:
+            return inputs[0]
+        return backend.merge(inputs, self.level_of_detail)
 
     def execute(self, backend: Backend) -> List[DataFrame]:
+        """Merge multiple inputs. If backend implements merge method and there are
+        multiple queries that aren't materialized, use that. If there are any results
+        that are DataFrame, materialize the rest and merge in Pandas. Otherwise return
+        as is.
+        """
         results = []
         for input in self.inputs:
-            result = input.get_result(backend)
-            if not isinstance(result, DataFrame):
-                result = backend.execute(result)
-            results.append(result)
-        return results
+            results.append(input.get_result(backend))
+
+        dfs = list(filter(lambda x: isinstance(x, DataFrame), results))
+        queries = list(filter(lambda x: not isinstance(x, DataFrame), results))
+
+        result = None
+        if len(dfs) > 0:
+            materialized = self.materialize(queries, backend)
+            result = self.merge_pandas([*dfs, *materialized])
+        else:
+            try:
+                result = self.merge_queries(queries, backend)
+            except NotImplementedError:  # backend doesn't support merge
+                materialized = self.materialize(queries, backend)
+                result = self.merge_pandas(materialized)
+
+        if isinstance(result, DataFrame):
+            return self.calculate_pandas(result)
+
+        result = backend.calculate(result, self.columns)
+        if self.limit:
+            result = backend.limit(result, self.limit)
+        if self.order:
+            result = backend.order(result, self.order)
+
+        return result
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        result = set()
+        for item in self.inputs:
+            result |= set(item.level_of_detail)
+        return list(result)
 
 
-class FinalizeOperator(MaterializeOperator):
-    def __init__(self, inputs: List[Operator], columns: List[engine.Column]):
-        super().__init__(inputs)
-        self.columns = columns
+class MaterializeOperator(Operator, MaterializeMixin):
+    def __init__(self, inputs: List[Operator]):
+        super().__init__()
+        self.inputs = inputs
 
-    def execute(self, backend: Backend) -> List[DataFrame]:
-        results = super().execute(backend)
-        return concat(results, axis=1)  # TODO: typecast
+    def execute(self, backend: Backend):
+        inputs = [i.get_result(backend) for i in self.inputs]
+        return self.materialize(inputs, backend)
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        result = set()
+        for item in self.inputs:
+            result |= set(item.level_of_detail)
+        return list(result)
+
+
+class FilterOperator(Operator):
+    def __init__(self, input: Operator, conditions: List[Tree]):
+        self.input = input
+        self.conditions = conditions
+        super().__init__()
+
+    def execute(self, backend: Backend):
+        input = self.input.get_result(backend)
+        if not isinstance(input, DataFrame):
+            return backend.filter(input, self.conditions)
+
+        # pandas
+        column_transformer = PandasColumnTransformer({None: input})
+        compiler = PandasCompiler()
+        for expr in self.conditions:
+            condition = compiler.transformer.transform(
+                column_transformer.transform(expr)
+            )
+            input = input[condition]
+        return input
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        return self.input.level_of_detail
+
+
+class TuplesFilterOperator(Operator):
+    def __init__(
+        self,
+        query: Operator,
+        materialized: MaterializeOperator,
+        drop_last_column: bool = False,
+    ):
+        self.query = query
+        self.materialized = materialized
+        self.drop_last_column = drop_last_column
+        super().__init__()
+
+    def filter_pandas(self, df: DataFrame, filters: List[DataFrame]):
+        result = df
+        for f in filters:
+            result = result.join(f, how="inner", left_on=f.columns, right_on=f.columns)[
+                result.columns
+            ]
+        return result
+
+    def execute(self, backend: Backend):
+        filters: List[DataFrame] = self.materialized.get_result(backend)
+        if self.drop_last_column:
+            filters = [f.iloc[:, :-1] for f in filters]
+
+        result = self.query.get_result(backend)
+
+        if isinstance(result, DataFrame):
+            return self.filter_pandas(result, filters)
+
+        tuples = [list(df.itertuples(index=False)) for df in filters]
+        return backend.filter_with_tuples(result, tuples)
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        return self.query.level_of_detail
+
+
+class FinalizeOperator(Operator):
+    def __init__(self, input: MaterializeOperator, types: Dict[str, str]):
+        super().__init__()
+        if not isinstance(input, MaterializeOperator):
+            raise TypeError(
+                "FinalizeOperator expects an instance of MaterializeOperator as input"
+            )
+        self.input = input
+        self.types = types
+
+    def coerce_types(self, data: List[dict]):
+        for row in data:
+            for k, v in row.items():
+                if row[k] is None:
+                    continue
+                row[k] = _type_mappers[self.types[k]](v)
+        return data
+
+    def execute(self, backend: Backend):
+        """Pluck the materialized df, convert to dicts, coerce types."""
+        results = self.input.get_result(backend)[0]
+        return self.coerce_types(results.to_dict(orient="records"))
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        return self.input.level_of_detail

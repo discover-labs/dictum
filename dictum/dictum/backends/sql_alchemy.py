@@ -1,10 +1,11 @@
+import logging
 from datetime import date, datetime
 from functools import cached_property
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, NamedTuple, Optional, Union
 
 import dateutil.parser
 import sqlparse
-from lark import Transformer
+from lark import Transformer, Tree
 from sqlalchemy import (
     Date,
     DateTime,
@@ -30,20 +31,23 @@ from sqlalchemy.sql.functions import coalesce
 import dictum.model
 from dictum.backends.base import Compiler, Connection
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
-from dictum.engine import Computation, RelationalQuery
+from dictum.engine import Column, LiteralOrderItem, RelationalQuery
+
+logger = logging.getLogger(__name__)
 
 
-def get_case_insensitive_column(table: Table, column: str):
+def get_case_insensitive_column(obj, column: str):
     """SQL is case-insensitive, but SQLAlchemy isn't, because columns are stored
     in a dict-like structure, keys exactly as specified in the database. That's
     why this function is needed.
     """
-    if column in table.c:
-        return table.c[column]
-    for k, v in table.c.items():
+    columns = obj.selected_columns if isinstance(obj, Select) else obj.columns
+    if column in columns:
+        return columns[column]
+    for k, v in columns.items():
         if k.lower() == column.lower():
             return v
-    raise KeyError(f"Can't find column {column} in table {table.name}")
+    raise KeyError(f"Can't find column {column} in {obj.name}")
 
 
 class ColumnTransformer(Transformer):
@@ -119,8 +123,8 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def window_sum(self, args, partition, order, rows):
         return func.sum(*args).over(partition_by=partition, order_by=order)
 
-    def window_row_number(self, args, partition, order, rows):
-        return func.row_number(*args).over(partition_by=partition, order_by=order)
+    def window_row_number(self, _, partition, order, rows):
+        return func.row_number().over(partition_by=partition, order_by=order)
 
     def floor(self, args):
         return func.floor(*args)
@@ -171,7 +175,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         column_transformer = ColumnTransformer(tables)
 
         # join the tables
-        for join in query.unnested_joins:
+        for join in query.joins:
             if isinstance(join.right, RelationalQuery):
                 right_table = self.compile_query(join.right)
             else:
@@ -218,37 +222,97 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
                 order_clauses.append(expr)
             stmt = stmt.order_by(*order_clauses).limit(query.limit)
 
-        return stmt.subquery()
+        return stmt
 
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
-        table, *tables = queries
-        for t in tables:
-            cond = (
-                and_(*(table.c[c] == t.c[c] for c in merge_on))
-                if len(merge_on) > 0
-                else true()
-            )
-            join = table.outerjoin(t, cond, full=True)
-            table = (
-                select(
-                    *(coalesce(table.c[m], t.c[m]).label(m) for m in merge_on),
-                    *(c for k, c in table.c.items() if k not in merge_on),
-                    *(c for k, c in t.c.items() if k not in merge_on),
-                )
-                .select_from(join)
-                .subquery()
-            )
-        return table
+        """Merge multiple queries. Wrap each in subquery and then full outer join them."""
+        subqueries = [q.subquery() for q in queries]
+        main, *joins = subqueries
 
-    def calculate(self, computation: Computation, merged: Select) -> Select:
+        # join subqueries
+        for join in joins:
+            cond = (
+                and_(*(main.c[c] == join.c[c] for c in merge_on if c in join.c))
+                if len(merge_on) > 0
+                else true()  # when there's no merge_on just cross join
+            )
+            main = main.outerjoin(join, cond, full=True)
+
+        # select columns from the join
         columns = []
-        transformer = ColumnTransformer({None: merged})
-        for column in computation.columns:
+
+        # merge columns. get from all subqueries (if present) and coalesce together
+        for merge_column in merge_on:
+            coalesced_columns = []
+            for subquery in subqueries:
+                if merge_column in subquery.c:
+                    coalesced_columns.append(subquery.c[merge_column])
+            columns.append(coalesce(*coalesced_columns).label(merge_column))
+
+        # non-merge columns. just append
+        for subquery in subqueries:
+            columns.extend(c for name, c in subquery.c.items() if name not in merge_on)
+
+        return select(*columns).select_from(main)
+
+    def calculate(self, query: Select, columns: List[Column]) -> Select:
+        result_columns = []
+        subquery = query.subquery()
+        transformer = ColumnTransformer({None: subquery})
+        for column in columns:
             resolved_column = transformer.transform(column.expr)
             sql_expr = self.transformer.transform(resolved_column).label(column.name)
-            columns.append(sql_expr)
-        order_by = [merged.c[c] for c in computation.merge_on]
-        return select(*columns).select_from(merged).order_by(*order_by)
+            result_columns.append(sql_expr)
+        return select(*result_columns).select_from(subquery)
+
+    def inner_join(self, query: Select, to_join: Select, join_on: List[str]):
+        to_join = to_join.subquery()
+        conditions = and_(
+            *(
+                query.selected_columns[col] == to_join.c[col]
+                for col in join_on
+                if col in to_join.c  # support uneven level of detail
+            )
+        )
+        return query.join(to_join, conditions)
+
+    def limit(self, query: Select, limit: int):
+        return query.limit(limit)
+
+    def order(self, query: Select, items: List[LiteralOrderItem]) -> Select:
+        clauses = []
+        for item in items:
+            clause = query.selected_columns[item.name]
+            clause = clause.asc() if item.ascending else clause.desc()
+            clauses.append(clause)
+        return query.order_by(*clauses)
+
+    def filter(self, query: Select, conditions: List[Tree]) -> Select:
+        query = query.subquery().select()
+        column_transformer = ColumnTransformer({None: query})
+        for expr in conditions:
+            condition = self.transformer.transform(column_transformer.transform(expr))
+            query = query.where(condition)
+        return query
+
+    def filter_with_tuples(self, query: Select, filters: List[List[NamedTuple]]):
+        if len(filters) == 0:
+            return query
+
+        for tuples in filters:
+            conditions = []
+            for tup in tuples:
+                conditions.append(
+                    and_(
+                        *[
+                            query.selected_columns[k] == v
+                            for k, v in tup._asdict().items()
+                        ]
+                    )
+                )
+            query = query.where(or_(*conditions))
+
+        return query
 
 
 def _date_mapper(v):
@@ -322,6 +386,8 @@ class SQLAlchemyConnection(Connection):
         )
 
     def execute(self, query: Select) -> List[dict]:
+        raw_query = self.get_raw_query(query)
+        logger.info(f"Executing SQL query\n{raw_query}")
         cur = self.engine.execute(query)
         return [row._asdict() for row in cur.fetchall()]
 

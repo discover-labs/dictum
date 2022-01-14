@@ -6,8 +6,6 @@ from dictum.model.model import (
     ResolvedQueryMetricRequest,
 )
 from dictum.model.table import RelatedTable, Table
-from dictum.model.transforms.scalar import ScalarTransform
-from dictum.model.transforms.table import TableTransform
 
 __all__ = [
     "AggregateQuery",
@@ -24,7 +22,5 @@ __all__ = [
     "ResolvedQuery",
     "ResolvedQueryDimensionRequest",
     "ResolvedQueryMetricRequest",
-    "ScalarTransform",
     "Table",
-    "TableTransform",
 ]

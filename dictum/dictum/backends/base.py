@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Dict, List
+from typing import Any, Dict, List
 
-import pandas as pd
 from lark import Token, Transformer
 
-from dictum.engine import Computation, RelationalQuery
+from dictum.engine import Column, LiteralOrderItem, RelationalQuery
 
 
 class Timer:
@@ -384,16 +383,8 @@ class Compiler(ABC):
         """Merge a list of relational queries on the relevant level of detail."""
 
     @abstractmethod
-    def calculate(self, computation: Computation, merged):
+    def calculate(self, query, columns: List[Column]):
         """Calculate expressions, apply post-filters"""
-
-    def compile(self, computation: Computation):
-        """Compile a computation returned by the store into an object that
-        the connection will understand.
-        """
-        queries = [self.compile_query(q) for q in computation.queries]
-        merged = self.merge_queries(queries, merge_on=computation.merge_on)
-        return self.calculate(computation, merged)
 
 
 class Connection(ABC):
@@ -412,24 +403,8 @@ class Connection(ABC):
     def __init_subclass__(cls):
         cls.registry[cls.type] = cls
 
-    def compile(self, computation: Computation):
-        return self.compiler.compile(computation)
-
     def get_raw_query(self, query):
         return query
-
-    def compute(self, computation: Computation) -> BackendResult:
-        query = self.compile(computation)
-        with Timer() as t:
-            data = self.execute(query)
-            data = self.coerce_types(data, computation.types)
-        return BackendResult(
-            data=data, raw_query=self.get_raw_query(query), duration=t.duration
-        )
-
-    def compute_df(self, computation: Computation) -> pd.DataFrame:
-        result = self.compute(computation)
-        return pd.DataFrame(result.data)
 
     @abstractmethod
     def coerce_types(self, data: List[dict], types: Dict[str, str]):
@@ -437,4 +412,28 @@ class Connection(ABC):
 
     @abstractmethod
     def execute(self, query) -> List[dict]:
-        """Execute query, return BackendResult"""
+        """Execute query, return results"""
+
+    def compile_query(self, query):
+        return self.compiler.compile_query(query)
+
+    def calculate(self, query, columns):
+        return self.compiler.calculate(query, columns)
+
+    def merge(self, queries, merge_on):
+        return self.compiler.merge_queries(queries, merge_on)
+
+    def inner_join(self, query, to_join, join_on: List[str]):
+        return self.compiler.inner_join(query, to_join, join_on)
+
+    def limit(self, query, limit: int):
+        return self.compiler.limit(query, limit)
+
+    def order(self, query, items: List[LiteralOrderItem]):
+        return self.compiler.order(query, items)
+
+    def filter(self, query, conditions: Dict[str, Any]):
+        return self.compiler.filter(query, conditions)
+
+    def filter_with_tuples(self, query, tuples):
+        return self.compiler.filter_with_tuples(query, tuples)

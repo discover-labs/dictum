@@ -170,7 +170,7 @@ def compute(chinook: Model, connection):
                 RelationalQuery(
                     source=chinook.tables.get("media_types"),
                     _groupby=columns,
-                    joins=[],
+                    join_tree=[],
                 )
             ],
             columns=[

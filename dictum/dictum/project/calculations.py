@@ -5,8 +5,6 @@ from babel.dates import match_skeleton
 
 import dictum.model
 import dictum.project
-from dictum.model.transforms.scalar import ScalarTransform
-from dictum.model.transforms.table import TableTransform
 from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
@@ -22,6 +20,8 @@ from dictum.schema.query import (
     QueryScalarTransform,
     QueryTableTransform,
 )
+from dictum.transforms.scalar import ScalarTransform
+from dictum.transforms.table import TableTransform
 
 type_to_encoding_type = {
     "bool": "ordinal",
@@ -191,8 +191,7 @@ class ProjectMetrics:
 
     def _repr_html_(self):
         return pd.DataFrame(
-            {"id": m.id, "name": m.name}
-            for m in self.__project.model.metrics.values()
+            {"id": m.id, "name": m.name} for m in self.__project.model.metrics.values()
         ).to_html()
 
 

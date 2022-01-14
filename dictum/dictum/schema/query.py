@@ -118,16 +118,16 @@ ops = {
 class QueryMetric(QueryCalculation):
     transforms: List[QueryTableTransform] = []
 
-    def render(self):
-        """A special case, because no more than 2 are allowed."""
-        if len(self.transforms) < 2:
-            return super().render()
-        table, scalar = self.transforms
-        result = f"{self.id}.{table.render()}"
-        op = ops[scalar.id]
-        val = repr_expr_constant(scalar.args[0]) if scalar.args else ""
-        result += f" {op} {val}"
-        return result
+    # def render(self):
+    #     """A special case, because no more than 2 are allowed."""
+    #     if len(self.transforms) < 2:
+    #         return super().render()
+    #     table, scalar = self.transforms
+    #     result = f"{self.id}.{table.render()}"
+    #     op = ops[scalar.id]
+    #     val = repr_expr_constant(scalar.args[0]) if scalar.args else ""
+    #     result += f" {op} {val}"
+    #     return result
 
 
 class QueryMetricRequest(QueryCalculationRequest):

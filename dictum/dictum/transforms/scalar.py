@@ -4,7 +4,7 @@ from lark import Transformer, Tree
 
 from dictum import schema
 from dictum.model.expr import parse_expr
-from dictum.model.transforms.base import BaseTransform
+from dictum.transforms.base import BaseTransform
 
 
 class TransformTransformer(Transformer):

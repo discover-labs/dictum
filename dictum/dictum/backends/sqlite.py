@@ -1,18 +1,14 @@
 import warnings
 from functools import cached_property
-from typing import Dict, List
+from typing import List
 
 import pandas as pd
-import sqlparse
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql import Select, case, cast, func
 
-from dictum.backends.base import BackendResult, Timer
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
-from dictum.engine import Computation
 
 trunc_modifiers = {
     "year": ["start of year"],
@@ -131,18 +127,6 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
             res = res.reset_index()
         return res
 
-    def calculate(self, computation: Computation, merged: pd.DataFrame) -> pd.DataFrame:
-        compiler = PandasCompiler()
-        transformer = PandasColumnTransformer({None: merged})
-        result = []
-        for column in computation.columns:
-            result.append(
-                compiler.transformer.transform(
-                    transformer.transform(column.expr)
-                ).rename(column.name)
-            )
-        return pd.concat(result, axis=1)
-
 
 class SQLiteRawQueryCompiler(
     SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyCompiler
@@ -167,27 +151,5 @@ class SQLiteConnection(SQLAlchemyConnection):
             warnings.simplefilter("ignore", SAWarning)
             return super().execute(query)
 
-    def compute(self, computation: Computation) -> BackendResult:
-        """Call SQLAlchemyCompiler's compile() to get a fake raw query. Coerce types."""
-        with Timer() as timer:
-            raw_query = sqlparse.format(
-                str(SQLiteRawQueryCompiler(self).compile(computation).compile()),
-                reindent=True,
-            )
-            df = self.compiler.compile(computation)
-            df = self.coerce_types(df, computation.types)
-            data = df.to_dict(orient="records")
-        return BackendResult(data=data, raw_query=raw_query, duration=timer.duration)
-
-    def coerce_types(self, data: pd.DataFrame, types: Dict[str, str]) -> pd.DataFrame:
-        for col in data.columns:
-            T = types[col]
-            if T == "str":
-                data[col] = data[col].astype(str)
-            elif T in {"date", "datetime"}:
-                data[col] = pd.to_datetime(data[col])
-            elif T == "float":
-                data[col] = data[col].astype(float)
-            elif T == "int":
-                data[col] = data[col].astype("Int64")
-        return data
+    def merge(self, queries: List[Select], merge_on: List[str]):
+        raise NotImplementedError

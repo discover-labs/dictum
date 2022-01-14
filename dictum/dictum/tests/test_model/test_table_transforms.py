@@ -1,7 +1,7 @@
 from dictum.engine import Engine
 from dictum.model import Model
-from dictum.model.transforms.table import TopTransform
 from dictum.schema import Query
+from dictum.transforms.table import TopTransform
 
 
 def test_top_bottom_basic(chinook: Model, engine: Engine):

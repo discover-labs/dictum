@@ -18,7 +18,7 @@ def test_aggregate_simple_measure(engine: Engine, chinook: Model):
     assert res.source.id == "invoice_items"
     assert len(res.columns) == 1
     assert res.columns[0].name == "revenue"
-    assert res.joins == []
+    assert res.join_tree == []
     assert res.filters == []
     assert res.groupby == []
     assert res.order == []
@@ -38,8 +38,8 @@ def test_aggregate_measure_dimension(engine: Engine, chinook: Model):
     resolved = chinook.get_resolved_query(query)
     res = engine.get_computation(resolved).queries[0]
     assert isinstance(res, RelationalQuery)
-    assert len(res.unnested_joins) == 3
-    assert len(res.joins) == 2
+    assert len(res.joins) == 3
+    assert len(res.join_tree) == 2
     assert len(res.columns) == 3
     assert len(res.groupby) == 1
 

@@ -6,11 +6,25 @@ from lark import Tree
 from toolz import compose_left
 
 from dictum import model, schema
-from dictum.engine.computation import Column, Computation, RelationalQuery
+from dictum.engine.computation import Column, RelationalQuery
+from dictum.engine.operators import (
+    FinalizeOperator,
+    MaterializeOperator,
+    MergeOperator,
+    QueryOperator,
+)
 
 
 def column_expr(name: str):
     return Tree("expr", [Tree("column", [None, name])])
+
+
+def metric_expr(expr: Tree):
+    expr = deepcopy(expr)
+    for ref in expr.find_data("measure"):
+        ref.data = "column"
+        ref.children = [None, *ref.children]
+    return expr
 
 
 class Engine:
@@ -44,7 +58,7 @@ class Engine:
         filters: List["model.ResolvedQueryDimensionRequest"],
     ) -> RelationalQuery:
         anchor = measures[0].table
-        result = RelationalQuery(source=anchor, joins=[])
+        result = RelationalQuery(source=anchor, join_tree=[])
 
         # add dimensions
         for request in dimensions:
@@ -75,7 +89,7 @@ class Engine:
 
         return result
 
-    def get_computation(self, query: "model.ResolvedQuery") -> Computation:
+    def get_terminal(self, query: "model.ResolvedQuery") -> MergeOperator:
         if len(query.metrics) == 0:
             raise ValueError("You must request at least one metric")
 
@@ -85,61 +99,53 @@ class Engine:
             for measure in request.metric.measures:
                 tables[measure.table].append(measure)
 
-        result = Computation()
-
+        queries = []
         # add aggregate queries
         for measures in tables.values():
             child_query = self.get_aggregation(
                 measures=measures, dimensions=query.dimensions, filters=query.filters
             )
-            result.queries.append(child_query)
+            queries.append(QueryOperator(input=child_query))
 
-        # process dimensions for the top level
+        metrics = []
+        transforms = []
+        for request in query.metrics:
+            column = Column(
+                name=request.name,
+                expr=metric_expr(request.metric.expr),
+                type=request.metric.type,
+            )
+            metrics.append(column)
+            transforms.extend(request.transforms)
+
+        dimensions = []
         for request in query.dimensions:
-            result.merge_on.append(request.name)
-
             column = Column(
                 name=request.name,
                 expr=column_expr(request.name),
                 type=request.dimension.type,
             )
-            column.type = compose_left(*request.transforms)(column).type
-            result.columns.append(column)
+            dimensions.append(column)
 
-        # populate metrics dict and apply transforms to metric expressions
-        table_transforms: List[model.TableTransform] = []
-        for request in query.metrics:
-            if len(request.transforms) > 0:
-                # if there are transforms, we do not add this metric to the "main"
-                # computation, the transform will handle everything
-                table_transforms.extend(request.transforms)
-                continue
-
-            # otherwise add metric
-            expr = deepcopy(request.metric.expr)
-            for ref in expr.find_data("measure"):
-                ref.data = "column"
-                ref.children = [None, *ref.children]
-            column = Column(name=request.name, expr=expr, type=request.metric.type)
-            result.columns.append(column)
-
-        # process limit
         for limit in query.limit:
-            table_transforms.extend(limit.transforms)
-            # expr = deepcopy(limit.metric.expr)
-            # for ref in expr.find_data("measure"):
-            #     ref.data = "column"
-            #     ref.children = [None, *ref.children]
-            # column = Column(name=limit.name, expr=expr, type=limit.metric.type)
-            # column = compose_left(*limit.transforms)(column)
-            # result.filters.append(column.expr)
-            # for transform in limit.transforms:
-            #     table_transforms.append(transform.transform_computation)
+            transforms.extend(limit.transforms)
 
-        # apply table transforms
-        for transform in table_transforms:
-            base = self.get_computation(transform.query)
-            result = transform(base, result)
+        if len(queries) > 1:
+            terminal = MergeOperator(
+                inputs=queries,
+                columns=[*dimensions, *metrics],
+            )
+        else:
+            terminal = queries[0]
 
-        result.prepare()
-        return result
+        for transform in transforms:  # first metrics, then limits
+            transform_query = self.get_terminal(transform.query)
+            terminal = transform(terminal, transform_query)
+
+        return terminal
+
+    def get_computation(self, query: "model.ResolvedQuery") -> MergeOperator:
+        terminal = self.get_terminal(query)
+        types = {c.name: c.type for c in terminal.columns}
+
+        return FinalizeOperator(MaterializeOperator([terminal]), types)
