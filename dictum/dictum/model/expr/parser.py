@@ -2,7 +2,7 @@ from pathlib import Path
 
 from lark import Lark, Token, Transformer, Tree
 
-from dictum.utils import value_to_token
+from dictum import utils
 
 
 class Preprocessor(Transformer):
@@ -59,6 +59,11 @@ def parse_expr(expr: str, missing=None):
     if missing is not None:
         return Tree(
             "expr",
-            [Tree("call", ["coalesce", result.children[0], value_to_token(missing)])],
+            [
+                Tree(
+                    "call",
+                    ["coalesce", result.children[0], utils.value_to_token(missing)],
+                )
+            ],
         )
     return result

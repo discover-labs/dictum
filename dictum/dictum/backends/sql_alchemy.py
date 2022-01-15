@@ -232,7 +232,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         # join subqueries
         for join in joins:
             cond = (
-                and_(*(main.c[c] == join.c[c] for c in merge_on if c in join.c))
+                and_(*(main.c[c] == join.c[c] for c in merge_on))
                 if len(merge_on) > 0
                 else true()  # when there's no merge_on just cross join
             )

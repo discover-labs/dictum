@@ -306,8 +306,8 @@ class Model:
             of = [self.get_resolved_dimension(d) for d in transform.of]
             within = [self.get_resolved_dimension(d) for d in transform.within]
 
-            # of is everything that's not within (if not specified otherwise)
-            if len(of) == 0:
+            # for top and bottom, of is everything that's not within (if not specified otherwise)
+            if len(of) == 0 and transform.id in {"top", "bottom"}:
                 within_names = set(d.name for d in within)
                 of = [d for d in dimensions if d.name not in (within_names)]
 
@@ -321,6 +321,7 @@ class Model:
             )
             tr = self.table_transforms.get(transform.id)(
                 *transform.args,
+                metric_id=metric.id,
                 query=resolved,
                 of=of,
                 within=within,

@@ -7,7 +7,7 @@ import altair as alt
 import pandas as pd
 
 import dictum.project.analyses as analyses
-from dictum.backends.base import BackendResult, Connection
+from dictum.backends.base import Connection
 from dictum.backends.profiles import ProfilesConfig
 from dictum.engine import Engine
 from dictum.model import Model
@@ -85,7 +85,7 @@ class Project:
         config = ProfilesConfig.from_yaml(self.profiles)
         return config.get_connection(self.profile)
 
-    def execute(self, query: Query) -> BackendResult:
+    def execute(self, query: Query):
         resolved = self.model.get_resolved_query(query)
         computation = self.engine.get_computation(resolved)
         return computation.execute(self.connection)

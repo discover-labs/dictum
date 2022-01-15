@@ -3,7 +3,7 @@ from typing import Any, Dict, List, NamedTuple, Optional
 
 import dateutil
 from lark import Tree
-from pandas import DataFrame, concat, merge
+from pandas import DataFrame, concat, isna, merge
 
 from dictum import engine
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
@@ -11,9 +11,7 @@ from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 
 def set_index(df: DataFrame, columns: List[str]):
     index = list(set(df.columns) & set(columns))
-    if index:
-        return df.set_index(index)
-    return df
+    return df.set_index(index)
 
 
 class Backend:
@@ -63,6 +61,10 @@ class Operator:
     def level_of_detail(self) -> List[str]:
         raise NotImplementedError
 
+    @property
+    def types(self) -> Dict[str, str]:
+        raise NotImplementedError
+
 
 class MaterializeMixin:
     def materialize(self, inputs: list, backend: Backend) -> List[DataFrame]:
@@ -94,6 +96,10 @@ class QueryOperator(Operator):
     @property
     def level_of_detail(self) -> List[str]:
         return [c.name for c in self.input._groupby]
+
+    @property
+    def types(self) -> Dict[str, str]:
+        return {c.name: c.type for c in self.input.columns}
 
 
 class InnerJoinOperator(Operator, MaterializeMixin):
@@ -130,6 +136,10 @@ class InnerJoinOperator(Operator, MaterializeMixin):
     def level_of_detail(self) -> List[str]:
         return self.query.level_of_detail
 
+    @property
+    def types(self) -> Dict[str, str]:
+        return self.query.types
+
 
 class CalculateOperator(Operator):
     def __init__(self, input: Operator, columns: List[engine.Column]):
@@ -145,6 +155,10 @@ class CalculateOperator(Operator):
     @property
     def level_of_detail(self) -> List[str]:
         return self.input.level_of_detail
+
+    @property
+    def types(self) -> Dict[str, str]:
+        return self.input.types
 
 
 def _date_mapper(v):
@@ -217,23 +231,26 @@ class MergeOperator(Operator, MaterializeMixin):
         if len(inputs) == 1:
             return inputs[0]
 
-        results = []
-        for input in inputs:
-            input = set_index(input, self.level_of_detail)
-            results.append(input)
+        result, *rest = inputs
+        for df in rest:
+            on = list(set(self.level_of_detail) & set(df.columns) & set(result.columns))
+            if on:
+                result = concat(
+                    [set_index(result, on), set_index(df, on)], axis=1
+                ).reset_index()
+            else:
+                result = merge(result, df, how="cross")
 
-        df = concat(results, axis=1)
-
-        if self.level_of_detail:
-            return df.reset_index()
-
-        return df
+        return result
 
     def merge_queries(self, inputs: list, backend: Backend):
         """Merge multiple queries on the backend."""
         if len(inputs) == 1:
             return inputs[0]
-        return backend.merge(inputs, self.level_of_detail)
+        columns = set(self.level_of_detail)
+        for item in self.inputs:
+            columns &= set(item.level_of_detail)
+        return backend.merge(inputs, list(columns))
 
     def execute(self, backend: Backend) -> List[DataFrame]:
         """Merge multiple inputs. If backend implements merge method and there are
@@ -245,19 +262,22 @@ class MergeOperator(Operator, MaterializeMixin):
         for input in self.inputs:
             results.append(input.get_result(backend))
 
-        dfs = list(filter(lambda x: isinstance(x, DataFrame), results))
-        queries = list(filter(lambda x: not isinstance(x, DataFrame), results))
+        if len(results) > 0:
+            dfs = list(filter(lambda x: isinstance(x, DataFrame), results))
+            queries = list(filter(lambda x: not isinstance(x, DataFrame), results))
 
-        result = None
-        if len(dfs) > 0:
-            materialized = self.materialize(queries, backend)
-            result = self.merge_pandas([*dfs, *materialized])
-        else:
-            try:
-                result = self.merge_queries(queries, backend)
-            except NotImplementedError:  # backend doesn't support merge
+            result = None
+            if len(dfs) > 0:
                 materialized = self.materialize(queries, backend)
-                result = self.merge_pandas(materialized)
+                result = self.merge_pandas([*dfs, *materialized])
+            else:
+                try:
+                    result = self.merge_queries(queries, backend)
+                except NotImplementedError:  # backend doesn't support merge
+                    materialized = self.materialize(queries, backend)
+                    result = self.merge_pandas(materialized)
+        else:
+            result = results[0]
 
         if isinstance(result, DataFrame):
             return self.calculate_pandas(result)
@@ -277,6 +297,10 @@ class MergeOperator(Operator, MaterializeMixin):
             result |= set(item.level_of_detail)
         return list(result)
 
+    @property
+    def types(self) -> Dict[str, str]:
+        return {c.name: c.type for c in self.columns}
+
 
 class MaterializeOperator(Operator, MaterializeMixin):
     def __init__(self, inputs: List[Operator]):
@@ -293,6 +317,13 @@ class MaterializeOperator(Operator, MaterializeMixin):
         for item in self.inputs:
             result |= set(item.level_of_detail)
         return list(result)
+
+    @property
+    def types(self) -> Dict[str, str]:
+        result = {}
+        for item in self.inputs:
+            result.update(item.types)
+        return result
 
 
 class FilterOperator(Operator):
@@ -319,6 +350,10 @@ class FilterOperator(Operator):
     @property
     def level_of_detail(self) -> List[str]:
         return self.input.level_of_detail
+
+    @property
+    def types(self) -> Dict[str, str]:
+        return self.input.types
 
 
 class TuplesFilterOperator(Operator):
@@ -358,23 +393,29 @@ class TuplesFilterOperator(Operator):
     def level_of_detail(self) -> List[str]:
         return self.query.level_of_detail
 
+    @property
+    def types(self) -> Dict[str, str]:
+        return self.query.types
+
 
 class FinalizeOperator(Operator):
-    def __init__(self, input: MaterializeOperator, types: Dict[str, str]):
+    def __init__(self, input: MaterializeOperator):
         super().__init__()
         if not isinstance(input, MaterializeOperator):
             raise TypeError(
                 "FinalizeOperator expects an instance of MaterializeOperator as input"
             )
         self.input = input
-        self.types = types
 
     def coerce_types(self, data: List[dict]):
         for row in data:
             for k, v in row.items():
                 if row[k] is None:
                     continue
-                row[k] = _type_mappers[self.types[k]](v)
+                if isna(row[k]):
+                    row[k] = None
+                else:
+                    row[k] = _type_mappers[self.types[k]](v)
         return data
 
     def execute(self, backend: Backend):
@@ -385,3 +426,7 @@ class FinalizeOperator(Operator):
     @property
     def level_of_detail(self) -> List[str]:
         return self.input.level_of_detail
+
+    @property
+    def types(self) -> Dict[str, str]:
+        return self.input.types

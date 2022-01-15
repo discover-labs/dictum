@@ -230,7 +230,9 @@ class ProjectDimension(ProjectDimensionRequest):
         )
 
     def name(self, name: str):
-        return ProjectDimensionRequest(self.calculation, self.transforms).name(name)
+        return ProjectDimensionRequest(
+            self.calculation, locale=self.locale, transforms=self.transforms
+        ).name(name)
 
     def __str__(self):
         return self.calculation.id

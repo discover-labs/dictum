@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from lark import Token
+from lark import Token, Tree
 
 
 def repr_expr_constant(val):
@@ -26,3 +26,7 @@ def value_to_token(value):
     if isinstance(value, datetime):
         return Token("DATETIME", value.strftime(r"%Y-%m-%d %H:%M:%S"))
     raise ValueError("Token values must by integers, floats or strings")
+
+
+def column_expr(name: str) -> Tree:
+    return Tree("expr", [Tree("column", [None, name])])

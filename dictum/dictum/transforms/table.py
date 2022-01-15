@@ -4,11 +4,18 @@ from lark import Tree
 
 from dictum import engine, model
 from dictum.model import utils
-from dictum.model.expr import get_expr_total_function
 from dictum.transforms.base import BaseTransform
 from dictum.utils import value_to_token
 
 transforms = {}
+
+
+def subselect_column(column: "engine.Column") -> "engine.Column":
+    return engine.Column(
+        name=column.name,
+        expr=Tree("expr", [Tree("column", [None, column.name])]),
+        type=column.type,
+    )
 
 
 class TableTransform(BaseTransform):
@@ -28,10 +35,12 @@ class TableTransform(BaseTransform):
     def __init__(
         self,
         *args,
+        metric_id: str,
         query: "model.ResolvedQuery",
         of: Optional[List["model.ResolvedQueryDimensionRequest"]] = None,
         within: Optional[List["model.ResolvedQueryDimensionRequest"]] = None,
     ):
+        self.metric_id = metric_id
         self.query = query
         self.of = of or []
         self.within = within or []
@@ -41,7 +50,9 @@ class TableTransform(BaseTransform):
         if hasattr(cls, "id"):
             transforms[cls.id] = cls
 
-    def __call__(self, terminal: "engine.Operator", transform: "engine.Operator"):
+    def __call__(
+        self, terminal: "engine.Operator", transform: "engine.Operator"
+    ) -> engine.Operator:
         raise NotImplementedError
 
 
@@ -51,12 +62,13 @@ class TopBottomTransform(TableTransform):
     def __init__(
         self,
         n: int,
+        metric_id: str,
         query: "model.ResolvedQuery",
         of: Optional[List["model.ResolvedQueryDimensionRequest"]] = None,
         within: Optional[List["model.ResolvedQueryDimensionRequest"]] = None,
     ):
         self.n = n
-        super().__init__(n, query=query, of=of, within=within)
+        super().__init__(n, metric_id=metric_id, query=query, of=of, within=within)
 
     def transform_transform(self, op: "engine.Operator"):
         if len(self.within) == 0:
@@ -131,7 +143,13 @@ class TopBottomTransform(TableTransform):
             return engine.InnerJoinOperator(terminal, transform)
 
         elif isinstance(terminal, engine.MergeOperator):
-            if all(isinstance(i, engine.QueryOperator) for i in terminal.inputs):
+            if all(isinstance(i, engine.TuplesFilterOperator) for i in terminal.inputs):
+                materialize: engine.MaterializeOperator = terminal.inputs[
+                    0
+                ].materialized
+                materialize.inputs.append(transform)
+                return terminal
+            else:
                 materialize = engine.MaterializeOperator([transform])
                 filtered = [
                     engine.TuplesFilterOperator(
@@ -140,15 +158,8 @@ class TopBottomTransform(TableTransform):
                     for query in terminal.inputs
                 ]
                 return engine.MergeOperator(filtered, terminal.columns)
-            elif all(
-                isinstance(i, engine.TuplesFilterOperator) for i in terminal.inputs
-            ):
-                materialize: engine.MaterializeOperator = terminal.inputs[
-                    0
-                ].materialized
-                materialize.inputs.append(transform)
-                return terminal
 
+        breakpoint()
         raise TypeError
 
 
@@ -174,21 +185,49 @@ class TotalTransform(TableTransform):
     id = "total"
     name = "Total"
 
-    def transform_expr(self, expr: Tree) -> Tree:
-        fn = get_expr_total_function(expr)
-        if fn is not None:  # apply window function
-            partition_by = None
-            columns = [utils.merged_expr(r.name) for r in self._of + self._within]
-            if columns:
-                partition_by = Tree("partition_by", columns)
-            fn = f"window_{fn}"
-            return Tree("call_window", [fn, expr.children[0], partition_by, None, None])
+    def __call__(
+        self, terminal: "engine.MergeOperator", transform: "engine.MergeOperator"
+    ) -> "engine.Operator":
+        # if isinstance(terminal, engine.QueryOperator):
+        #     columns = list(map(subselect_column, terminal.input.columns))
+        #     if isinstance(transform, engine.QueryOperator):
+        #         columns.append(subselect_column(transform.input._aggregate[0]))
+        #     elif isinstance(transform, engine.MergeOperator):
+        #         columns.append(subselect_column(transform.columns[-1]))
+        #     else:
+        #         raise TypeError
+        #     return engine.MergeOperator([terminal, transform], columns)
+        # elif isinstance(terminal, engine.MergeOperator):
+        terminal.inputs.append(transform)
+        terminal.columns.append(subselect_column(transform.columns[-1]))
+        return terminal
 
-        # no known window function, the result will be calculated with as subquery
-        return super().transform_expr(expr)
 
-    def transform_computation(self, computation: "engine.Computation"):
-        return super().transform_computation(computation)
+class PercentTransform(TotalTransform):
+    id = "percent"
+    name = "Percent of Total"
+
+    def __call__(
+        self, terminal: "engine.MergeOperator", transform: "engine.MergeOperator"
+    ) -> "engine.Operator":
+        # total's terminal
+        merge: engine.MergeOperator = super().__call__(terminal, transform)
+        total = merge.inputs[-1]
+        name = total.columns[-1].name
+        expr = Tree(
+            "expr",
+            [
+                Tree(
+                    "div",
+                    [
+                        Tree("column", [None, self.metric_id]),
+                        Tree("column", [None, name]),
+                    ],
+                )
+            ],
+        )
+        merge.columns[-1] = engine.Column(name=name, expr=expr, type="float")
+        return merge
 
 
 class SumTransform(TableTransform):

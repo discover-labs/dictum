@@ -8,12 +8,8 @@ from lark import Transformer, Tree
 import dictum.model
 from dictum import schema
 from dictum.model import utils
-from dictum.model.expr import (
-    get_expr_kind,
-    get_expr_total_function,
-    parse_expr,
-    value_to_token,
-)
+from dictum.model.expr import get_expr_kind, get_expr_total_function, parse_expr
+from dictum.utils import value_to_token
 
 
 class ResolutionError(Exception):
@@ -155,7 +151,11 @@ class Dimension(TableCalculation):
                 [
                     Tree(
                         "call",
-                        ["coalesce", expr.children[0], value_to_token(self.missing)],
+                        [
+                            "coalesce",
+                            expr.children[0],
+                            value_to_token(self.missing),
+                        ],
                     )
                 ],
             )
@@ -291,6 +291,12 @@ class Measure(TableCalculation):
             measure = self.table.measures.get(ref.children[0])
             measure.check_references(path)
 
+    def __eq__(self, other: "Metric"):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
 
 class MetricTransformer(Transformer):
     def __init__(
@@ -352,7 +358,11 @@ class Metric(Calculation):
                 [
                     Tree(
                         "call",
-                        ["coalesce", expr.children[0], value_to_token(self.missing)],
+                        [
+                            "coalesce",
+                            expr.children[0],
+                            value_to_token(self.missing),
+                        ],
                     )
                 ],
             )

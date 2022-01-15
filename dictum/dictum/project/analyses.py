@@ -3,7 +3,6 @@ from typing import List, Union
 import pandas as pd
 
 import dictum.project
-from dictum.backends.base import BackendResult
 from dictum.project.calculations import ProjectDimensionRequest
 from dictum.ql import (
     compile_dimension,
@@ -102,7 +101,7 @@ class Select:
             self.query.limit.append(compile_metric_request(str(f)).metric)
         return self
 
-    def _execute(self) -> BackendResult:
+    def _execute(self):
         return self.project.execute(self.query)
 
     def _get_df(self, data: List[dict]) -> pd.DataFrame:

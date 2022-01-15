@@ -97,6 +97,15 @@ def test_dimension_alias(project: Project):
     assert tuple(result.columns) == ("year", "revenue")
 
 
+def test_metric_alias(project: Project):
+    result = (
+        project.select(project.m.revenue.name("test"))
+        .by(project.d.genre)
+        .execute()
+    )
+    assert tuple(result.columns) == ("genre", "test")
+
+
 def test_datetrunc_and_inrange(project: Project):
     result = (
         project.select(project.m.revenue)
@@ -286,3 +295,48 @@ def test_top_with_metric_within_of(project: Project):
         .execute()
     )
     assert result.shape == (6, 4)
+
+
+def test_total_basic(project: Project):
+    result = (
+        project.select(project.m.revenue, project.m.revenue.total())
+        .by(project.d.genre)
+        .execute()
+    )
+    assert result.shape == (24, 3)
+    assert result.revenue__total.unique().tolist() == [2328.6]
+
+
+# TODO: test_total_within_of
+
+
+def test_percent_basic(project: Project):
+    result = project.select(project.m.revenue.percent()).by(project.d.genre).execute()
+    assert result.shape == (24, 2)
+    assert result["revenue__percent"].sum() == 1
+
+
+def test_percent_with_top(project: Project):
+    """Percent should be calculated before top"""
+    result = (
+        project.select(project.m.revenue.percent())
+        .by(project.d.genre)
+        .limit(project.m.revenue.top(5))
+        .execute()
+    )
+    assert result.shape == (5, 2)
+    assert round(result["revenue__percent"].sum(), 4) == 0.7752
+
+
+def test_percent_with_top_within(project: Project):
+    result = (
+        project.select(
+            project.m.revenue.percent(within=[project.d.genre]).name(
+                "Percent of top-1 Artist Revenue within Genre"  # TODO: ???
+            )
+        )
+        .by(project.d.genre, project.d.artist)
+        .limit(project.m.revenue.top(1, within=[project.d.genre]))
+        .execute()
+    )
+    breakpoint()

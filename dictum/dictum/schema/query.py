@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, root_validator
 
-from dictum.utils import repr_expr_constant
+from dictum import utils
 
 
 class QueryTransform(BaseModel):
@@ -17,7 +17,7 @@ class QueryTransform(BaseModel):
         return f"{self.id}{args}"
 
     def render(self) -> str:
-        args = ", ".join(repr_expr_constant(a) for a in self.args)
+        args = ", ".join(utils.repr_expr_constant(a) for a in self.args)
         return f"{self.id}({args})"
 
 
