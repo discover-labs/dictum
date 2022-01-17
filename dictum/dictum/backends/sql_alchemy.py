@@ -1,11 +1,10 @@
 import logging
-from datetime import date, datetime
 from functools import cached_property
 from typing import Dict, List, NamedTuple, Optional, Union
 
-import dateutil.parser
 import sqlparse
 from lark import Transformer, Tree
+from pandas import DataFrame, read_sql
 from sqlalchemy import (
     Date,
     DateTime,
@@ -225,35 +224,60 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         return stmt
 
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
-        """Merge multiple queries. Wrap each in subquery and then full outer join them."""
+        """Merge multiple queries. Wrap each in subquery and then full outer join them.
+        The join condition is constructed by chaining the coalesced statements:
+
+        If A and B are dimension columns and x, y, z are measures:
+
+        SELECT coalesce(coalesce(t1.A, t2.A), t3.A) as A,
+            coalesce(coalesce(t1.b, t2.B), t3.B) as B,
+            t1.x, t2.y, t3.z
+        FROM (...) as t1
+        FULL OUTER JOIN (...) as t2
+            ON t1.A = t2.A
+            AND t1.B = t2.B
+        FULL OUTER JOIN (...) as t3
+            ON coalesce(t1.A, t2.A) = t3.A
+            AND coalesce(t1.B, t2.B) = t3.B
+        """
         subqueries = [q.subquery() for q in queries]
-        main, *joins = subqueries
+        joined, *joins = subqueries
 
-        # join subqueries
+        coalesced = {k: v for k, v in joined.c.items() if k in merge_on}
+
         for join in joins:
+            # join on columns that are common between merge_on, the table that's being
+            # joined and the merge_on columns that were present so far in the already
+            # joined tables
+            on = set(merge_on) & set(coalesced) & set(join.c.keys())
+
+            # build the join condition
             cond = (
-                and_(*(main.c[c] == join.c[c] for c in merge_on))
-                if len(merge_on) > 0
-                else true()  # when there's no merge_on just cross join
+                and_(*(coalesced[c] == join.c[c] for c in on))
+                if len(on) > 0
+                else true()  # when there's no merge_on or no common columns just cross join
             )
-            main = main.outerjoin(join, cond, full=True)
 
-        # select columns from the join
+            # add the new join
+            joined = joined.outerjoin(join, cond, full=True)
+
+            # update the coalesced column list
+            for column in set(merge_on) & set(join.c.keys()):
+                if column in coalesced:
+                    coalesced[column] = coalesce(coalesced[column], join.c[column])
+                else:
+                    coalesced[column] = join.c[column]
+
+        # at this point we just need to select the coalesced columns
         columns = []
+        for k, v in coalesced.items():
+            columns.append(v.label(k))
 
-        # merge columns. get from all subqueries (if present) and coalesce together
-        for merge_column in merge_on:
-            coalesced_columns = []
-            for subquery in subqueries:
-                if merge_column in subquery.c:
-                    coalesced_columns.append(subquery.c[merge_column])
-            columns.append(coalesce(*coalesced_columns).label(merge_column))
+        # and any other columns that are not in the coalesced mapping
+        for s in subqueries:
+            columns.extend(c for c in s.c if c.name not in coalesced)
 
-        # non-merge columns. just append
-        for subquery in subqueries:
-            columns.extend(c for name, c in subquery.c.items() if name not in merge_on)
-
-        return select(*columns).select_from(main)
+        return select(*columns).select_from(joined)
 
     def calculate(self, query: Select, columns: List[Column]) -> Select:
         result_columns = []
@@ -315,36 +339,6 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         return query
 
 
-def _date_mapper(v):
-    if isinstance(v, date):
-        return v
-    if isinstance(v, str):
-        return dateutil.parser.parse(v).date()
-    if isinstance(v, datetime):
-        return v.date()
-    return v
-
-
-def _datetime_mapper(v):
-    if isinstance(v, datetime):
-        return v
-    if isinstance(v, date):
-        return datetime.combine(v, datetime.min.time())
-    if isinstance(v, str):
-        return dateutil.parser.parse(v)
-    return v
-
-
-_type_mappers = {
-    "bool": bool,
-    "float": float,
-    "int": int,
-    "str": str,
-    "date": _date_mapper,
-    "datetime": _datetime_mapper,
-}
-
-
 class SQLAlchemyConnection(Connection):
 
     type = "sql_alchemy"
@@ -368,7 +362,7 @@ class SQLAlchemyConnection(Connection):
             username=username,
             password=password,
         )
-        self.pool_size = pool_size  # TODO: include pool size
+        self.pool_size = pool_size  # TODO: include pool size in config
         super().__init__()
 
     @cached_property
@@ -379,28 +373,17 @@ class SQLAlchemyConnection(Connection):
     def metadata(self) -> MetaData:
         return MetaData(self.engine)
 
-    def get_raw_query(self, query: Select):
+    def display_query(self, query: Select) -> str:
         return sqlparse.format(
             str(query.compile(bind=self.engine)),
             reindent=True,
         )
 
-    def execute(self, query: Select) -> List[dict]:
-        raw_query = self.get_raw_query(query)
-        logger.info(f"Executing SQL query\n{raw_query}")
-        cur = self.engine.execute(query)
-        return [row._asdict() for row in cur.fetchall()]
+    def execute(self, query: Select) -> DataFrame:
+        return read_sql(query, self.engine, coerce_float=True)
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
         return Table(name, self.metadata, schema=schema, autoload=True)
 
     def __str__(self):
         return repr(self.engine.url)
-
-    def coerce_types(self, data: List[dict], types: Dict[str, str]):
-        for row in data:
-            for k, v in row.items():
-                if row[k] is None:
-                    continue
-                row[k] = _type_mappers[types[k]](v)
-        return data

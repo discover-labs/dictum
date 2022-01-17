@@ -5,6 +5,7 @@ from lark import Tree
 
 import dictum.model
 from dictum import schema
+from dictum.engine.result import DisplayInfo
 from dictum.model import utils
 from dictum.model.expr import parse_expr
 
@@ -14,6 +15,7 @@ class Column:
     name: str
     expr: Tree
     type: schema.Type
+    display_info: Optional[DisplayInfo] = None
 
     @property
     def join_paths(self) -> List[str]:
@@ -54,7 +56,10 @@ class Relation:
             # aggregate table by self.source.primary_key
             measure = table.measures.get(measure_id)
             measure_column = Column(
-                name=measure_id, expr=measure.expr, type=measure.type
+                name=measure_id,
+                expr=measure.expr,
+                type=measure.type,
+                format=measure.format,
             )
             subquery = RelationalQuery(
                 source=table, join_tree=[], _aggregate=[measure_column]
@@ -70,6 +75,7 @@ class Relation:
                     "expr",
                     [Tree("column", [table.id, *join_path, self.source.primary_key])],
                 ),
+                format=None,
             )
             subquery.add_groupby(pk)
             join = Join(

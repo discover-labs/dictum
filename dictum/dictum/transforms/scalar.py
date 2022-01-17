@@ -158,6 +158,9 @@ class DatepartTransform(LiteralTransform):
     return_type = "int"
     expr = "datepart(part, @)"
 
+    def get_format(self, format: schema.FormatConfig) -> schema.FormatConfig:
+        return schema.FormatConfig(kind="decimal", pattern="#")
+
     def __init__(self, part: str):
         super().__init__(part)
 
@@ -226,7 +229,7 @@ class DatetruncTransform(ScalarTransform):
     def __init__(self, period: str):
         super().__init__(period)
 
-    def get_format(self, type_: str) -> schema.FormatConfig:
+    def get_format(self, format: schema.FormatConfig) -> schema.FormatConfig:
         part = self._args[0]
         if part in date_skeletons:
             return schema.FormatConfig(kind="date", skeleton=date_skeletons[part])

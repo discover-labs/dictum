@@ -1,3 +1,4 @@
+import time
 from datetime import date, datetime
 from typing import Any, Dict, List, NamedTuple, Optional
 
@@ -7,15 +8,48 @@ from pandas import DataFrame, concat, isna, merge
 
 from dictum import engine
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
+from dictum.engine.result import ExecutedQuery, Result
 
 
-def set_index(df: DataFrame, columns: List[str]):
+def _date_mapper(v):
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str):
+        return dateutil.parser.parse(v).date()
+    if isinstance(v, datetime):
+        return v.date()
+    return v
+
+
+def _datetime_mapper(v):
+    if isinstance(v, datetime):
+        return v
+    if isinstance(v, date):
+        return datetime.combine(v, datetime.min.time())
+    if isinstance(v, str):
+        return dateutil.parser.parse(v)
+    return v
+
+
+_type_mappers = {
+    "bool": bool,
+    "float": float,
+    "int": int,
+    "str": str,
+    "date": _date_mapper,
+    "datetime": _datetime_mapper,
+}
+
+
+def _set_index(df: DataFrame, columns: List[str]):
     index = list(set(df.columns) & set(columns))
-    return df.set_index(index)
+    if index:
+        return df.set_index(index)
+    return df
 
 
 class Backend:
-    def execute(self, query):
+    def execute(self, query) -> DataFrame:
         """Execute a query"""
 
     def compile_query(self, query: engine.RelationalQuery):
@@ -39,12 +73,16 @@ class Backend:
     def filter_with_tuples(self, query, tuples: List[NamedTuple]):
         """Filter a query with literal tuples."""
 
+    def display_query(self, query) -> str:
+        """Render query as a (hopefully) readable string for debugging purposes."""
+
 
 class Operator:
     def __init__(self):
         super().__init__()
         self.result = None
         self.ready = False
+        self.executed_queries = []
 
     def execute(self, backend: Backend):
         """Actual operator logic. Execute any upstreams."""
@@ -65,6 +103,41 @@ class Operator:
     def types(self) -> Dict[str, str]:
         raise NotImplementedError
 
+    @property
+    def _dependencies(self) -> List["Operator"]:
+        for name in dir(self):
+            attr = getattr(self, name)
+            if isinstance(attr, Operator):
+                yield attr
+            elif isinstance(attr, list) and all(isinstance(i, Operator) for i in attr):
+                yield from attr
+
+    def walk_graph(self):
+        for dep in self._dependencies:
+            yield from dep.walk_graph()
+        yield self
+
+    def graph(self, *, graph=None, format: str = "png"):
+        import graphviz
+
+        self_id = str(id(self))
+        self_cls = self.__class__.__name__.replace("Operator", "")
+
+        if graph is None:
+            graph = graphviz.Digraph(format=format, strict=True)
+            graph.node(self_id, label=self_cls)
+
+        for dependency in self._dependencies:
+            dep_id = str(id(dependency))
+            graph.node(
+                dep_id, label=dependency.__class__.__name__.replace("Operator", "")
+            )
+            graph.edge(dep_id, self_id)
+            dependency.graph(graph=graph)
+
+        graph.graph_attr["rankdir"] = "LR"
+        return graph
+
 
 class MaterializeMixin:
     def materialize(self, inputs: list, backend: Backend) -> List[DataFrame]:
@@ -72,7 +145,12 @@ class MaterializeMixin:
         results = []
         for input in inputs:  # TODO: parallelize
             if not isinstance(input, DataFrame):
-                input = DataFrame(backend.execute(input))
+                start = time.time()
+                query = backend.display_query(input)
+                input = backend.execute(input)
+                self.executed_queries.append(
+                    ExecutedQuery(query=query, time=time.time() - start)
+                )
             results.append(input)
         return results
 
@@ -121,8 +199,8 @@ class InnerJoinOperator(Operator, MaterializeMixin):
 
         # join in pandas
         query, to_join = self.materialize([query, to_join], backend)
-        query = set_index(query, self.level_of_detail)
-        to_join = set_index(to_join, self.level_of_detail)
+        query = _set_index(query, self.level_of_detail)
+        to_join = _set_index(to_join, self.level_of_detail)
         return merge(
             query,
             to_join,
@@ -159,36 +237,6 @@ class CalculateOperator(Operator):
     @property
     def types(self) -> Dict[str, str]:
         return self.input.types
-
-
-def _date_mapper(v):
-    if isinstance(v, date):
-        return v
-    if isinstance(v, str):
-        return dateutil.parser.parse(v).date()
-    if isinstance(v, datetime):
-        return v.date()
-    return v
-
-
-def _datetime_mapper(v):
-    if isinstance(v, datetime):
-        return v
-    if isinstance(v, date):
-        return datetime.combine(v, datetime.min.time())
-    if isinstance(v, str):
-        return dateutil.parser.parse(v)
-    return v
-
-
-_type_mappers = {
-    "bool": bool,
-    "float": float,
-    "int": int,
-    "str": str,
-    "date": _date_mapper,
-    "datetime": _datetime_mapper,
-}
 
 
 class MergeOperator(Operator, MaterializeMixin):
@@ -233,11 +281,16 @@ class MergeOperator(Operator, MaterializeMixin):
 
         result, *rest = inputs
         for df in rest:
-            on = list(set(self.level_of_detail) & set(df.columns) & set(result.columns))
+            on = list(set(self.level_of_detail) & set(result.columns) & set(df.columns))
             if on:
-                result = concat(
-                    [set_index(result, on), set_index(df, on)], axis=1
-                ).reset_index()
+                result = merge(
+                    result,
+                    df,
+                    left_on=on,
+                    right_on=on,
+                    how="outer",
+                    suffixes=["", "__joined"],
+                )
             else:
                 result = merge(result, df, how="cross")
 
@@ -247,10 +300,7 @@ class MergeOperator(Operator, MaterializeMixin):
         """Merge multiple queries on the backend."""
         if len(inputs) == 1:
             return inputs[0]
-        columns = set(self.level_of_detail)
-        for item in self.inputs:
-            columns &= set(item.level_of_detail)
-        return backend.merge(inputs, list(columns))
+        return backend.merge(inputs, self.level_of_detail)
 
     def execute(self, backend: Backend) -> List[DataFrame]:
         """Merge multiple inputs. If backend implements merge method and there are
@@ -420,8 +470,22 @@ class FinalizeOperator(Operator):
 
     def execute(self, backend: Backend):
         """Pluck the materialized df, convert to dicts, coerce types."""
-        results = self.input.get_result(backend)[0]
-        return self.coerce_types(results.to_dict(orient="records"))
+        data = self.input.get_result(backend)[0]
+        data = self.coerce_types(data.to_dict(orient="records"))
+        display_info = {}
+        for column in self.input.inputs[0].columns:
+            display_info[column.name] = column.display_info
+        return Result(
+            data=data,
+            executed_queries=self.get_executed_queries(),
+            display_info=display_info,
+        )
+
+    def get_executed_queries(self) -> List[ExecutedQuery]:
+        result = []
+        for item in self.walk_graph():
+            result.extend(item.executed_queries)
+        return result
 
     @property
     def level_of_detail(self) -> List[str]:

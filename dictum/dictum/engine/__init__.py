@@ -15,9 +15,11 @@ from dictum.engine.operators import (
     QueryOperator,
     TuplesFilterOperator,
 )
+from dictum.engine.result import DisplayInfo, Result
 
 __all__ = [
     "Column",
+    "DisplayInfo",
     "Engine",
     "FilterOperator",
     "InnerJoinOperator",
@@ -29,5 +31,6 @@ __all__ = [
     "OrderItem",
     "QueryOperator",
     "RelationalQuery",
+    "Result",
     "TuplesFilterOperator",
 ]

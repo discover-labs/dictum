@@ -7,9 +7,9 @@ import altair as alt
 import pandas as pd
 
 import dictum.project.analyses as analyses
+from dictum import engine
 from dictum.backends.base import Connection
 from dictum.backends.profiles import ProfilesConfig
-from dictum.engine import Engine
 from dictum.model import Model
 from dictum.project.calculations import ProjectDimensions, ProjectMetrics
 from dictum.project.chart import ProjectChart
@@ -70,7 +70,7 @@ class Project:
         self.m = ProjectMetrics(self)
         self.metrics = self.m
         self.d = ProjectDimensions(self)
-        self.engine = Engine()
+        self.engine = engine.Engine()
         self.dimensions = self.d
         if self.model.theme is not None:
             alt.themes.register("dictum_theme", lambda: self.model.theme)
@@ -85,10 +85,15 @@ class Project:
         config = ProfilesConfig.from_yaml(self.profiles)
         return config.get_connection(self.profile)
 
-    def execute(self, query: Query):
+    def execute(self, query: Query) -> engine.Result:
         resolved = self.model.get_resolved_query(query)
         computation = self.engine.get_computation(resolved)
         return computation.execute(self.connection)
+
+    def query_graph(self, query: Query):
+        resolved = self.model.get_resolved_query(query)
+        computation = self.engine.get_computation(resolved)
+        return computation.graph()
 
     def ql(self, query: str):
         q = compile_query(query)

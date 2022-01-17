@@ -4,6 +4,7 @@ from time import perf_counter
 from typing import Any, Dict, List
 
 from lark import Token, Transformer
+from pandas import DataFrame
 
 from dictum.engine import Column, LiteralOrderItem, RelationalQuery
 
@@ -403,15 +404,11 @@ class Connection(ABC):
     def __init_subclass__(cls):
         cls.registry[cls.type] = cls
 
-    def get_raw_query(self, query):
-        return query
+    def display_query(self, query):
+        return str(query)
 
     @abstractmethod
-    def coerce_types(self, data: List[dict], types: Dict[str, str]):
-        """Ensure that data types are what's requested in computation"""
-
-    @abstractmethod
-    def execute(self, query) -> List[dict]:
+    def execute(self, query) -> DataFrame:
         """Execute query, return results"""
 
     def compile_query(self, query):

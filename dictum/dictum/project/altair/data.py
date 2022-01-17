@@ -29,7 +29,7 @@ class DictumData:
     def get_values(self, query):
         query = self.extend_query(query)
         res = self.project.execute(query)
-        df = pd.DataFrame(res.data)
+        df = pd.DataFrame(res)
 
         # dates are not auto-converted to Pandas datetime and so are not sanitized
         for col in df.columns:

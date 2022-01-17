@@ -1,11 +1,7 @@
 import dataclasses
-
-# from collections import defaultdict
 from typing import Dict, List
 
 from dictum import schema
-
-# from dictum.model import utils
 from dictum.model.calculations import Dimension, DimensionsUnion, Measure, Metric
 from dictum.model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.model.table import RelatedTable, Table, TableFilter
@@ -35,6 +31,7 @@ class ResolvedQueryDimensionRequest:
     dimension: Dimension
     transforms: List[ScalarTransform]
     name: str
+    keep_name: bool = False
 
 
 @dataclasses.dataclass
@@ -42,6 +39,7 @@ class ResolvedQueryMetricRequest:
     metric: Metric
     transforms: List[TableTransform]
     name: str
+    keep_name: bool = False
 
 
 @dataclasses.dataclass
@@ -292,6 +290,7 @@ class Model:
             dimension=resolved.dimension,
             transforms=resolved.transforms,
             name=request.name,
+            keep_name=request.alias is not None,
         )
 
     def get_resolved_metric(
@@ -339,7 +338,10 @@ class Model:
     ) -> ResolvedQueryMetricRequest:
         resolved = self.get_resolved_metric(request.metric, dimensions)
         return ResolvedQueryMetricRequest(
-            metric=resolved.metric, transforms=resolved.transforms, name=request.name
+            metric=resolved.metric,
+            transforms=resolved.transforms,
+            name=request.name,
+            keep_name=request.alias is not None,
         )
 
     def get_resolved_query(self, query: schema.Query) -> ResolvedQuery:
@@ -358,4 +360,22 @@ class Model:
             result.filters.append(self.get_resolved_dimension(filter))
         for limit in query.limit:
             result.limit.append(self.get_resolved_metric(limit, result.dimensions))
+        return result
+
+    def get_names(self, ids: List[str]) -> Dict[str, str]:
+        result = {}
+        for item in ids:
+            if item in self.metrics:
+                result[item] = self.metrics[item].name
+            if item in self.dimensions:
+                result[item] = self.dimensions[item].name
+        return result
+
+    def get_formats(self, ids: List[str]) -> Dict[str, schema.FormatConfig]:
+        result = {}
+        for item in ids:
+            if item in self.metrics:
+                result[item] = self.metrics[item].format
+            if item in self.dimensions:
+                result[item] = self.dimensions[item].format
         return result

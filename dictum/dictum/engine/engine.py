@@ -9,11 +9,11 @@ from dictum import model, schema, utils
 from dictum.engine.computation import Column, RelationalQuery
 from dictum.engine.operators import (
     FinalizeOperator,
-    InnerJoinOperator,
     MaterializeOperator,
     MergeOperator,
     QueryOperator,
 )
+from dictum.engine.result import DisplayInfo
 
 
 def metric_expr(expr: Tree):
@@ -45,7 +45,12 @@ class Engine:
         if isinstance(request.dimension, model.DimensionsUnion):
             dimension = anchor.allowed_dimensions.get(dimension.id)
         expr = dimension.prefixed_expr(path)
-        column = Column(name=request.name, expr=expr, type=dimension.type)
+        column = Column(
+            name=request.name,
+            expr=expr,
+            type=dimension.type,
+            display_info=DisplayInfo(name=dimension.name, format=dimension.format),
+        )
         return compose_left(*request.transforms)(column)
 
     def get_aggregation(
@@ -109,20 +114,25 @@ class Engine:
         # add limits first
         transforms = []
         for limit in query.limit:
-            transforms.extend(limit.transforms)
+            for transform in limit.transforms:
+                transforms.append((transform, None))  # second item is Column
 
         metrics = []
         for request in query.metrics:
-            if request.transforms:
-                # additional columns will be added by the transform
-                transforms.extend(request.transforms)
-            else:
-                column = Column(
-                    name=request.name,
-                    expr=metric_expr(request.metric.expr),
-                    type=request.metric.type,
-                )
-                metrics.append(column)
+            column = Column(
+                name=request.name,
+                expr=metric_expr(request.metric.expr),
+                type=request.metric.type,
+                display_info=DisplayInfo(
+                    name=request.name if request.keep_name else request.metric.name,
+                    format=request.metric.format,
+                    keep_name=request.keep_name,
+                ),
+            )
+            metrics.append(column)
+            for transform in request.transforms:
+                column.display_info = transform.get_display_info(column.display_info)
+                transforms.append((transform, column))
 
         dimensions = []
         for request in query.dimensions:
@@ -130,7 +140,14 @@ class Engine:
                 name=request.name,
                 expr=utils.column_expr(request.name),
                 type=request.dimension.type,
+                display_info=DisplayInfo(
+                    name=request.name if request.keep_name else request.dimension.name,
+                    format=request.dimension.format,
+                    keep_name=request.keep_name,
+                ),
             )
+            for transform in request.transforms:
+                column.display_info = transform.get_display_info(column.display_info)
             dimensions.append(column)
 
         terminal = MergeOperator(
@@ -138,11 +155,10 @@ class Engine:
             columns=[*dimensions, *metrics],
         )
 
-        for transform in transforms:
+        for transform, column in transforms:
             transform_query = self.get_terminal(transform.query)
-            terminal = transform(terminal, transform_query)
+            terminal = transform(terminal, transform_query, column)
 
-        breakpoint()
         return terminal
 
     def get_computation(self, query: "model.ResolvedQuery") -> MergeOperator:

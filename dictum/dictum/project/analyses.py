@@ -1,9 +1,11 @@
 from typing import List, Union
 
-import pandas as pd
+from pandas import DataFrame
 
 import dictum.project
+from dictum import engine
 from dictum.project.calculations import ProjectDimensionRequest
+from dictum.project.formatting import Formatter
 from dictum.ql import (
     compile_dimension,
     compile_dimension_request,
@@ -101,28 +103,41 @@ class Select:
             self.query.limit.append(compile_metric_request(str(f)).metric)
         return self
 
-    def _execute(self):
+    def _execute(self) -> engine.Result:
         return self.project.execute(self.query)
 
-    def _get_df(self, data: List[dict]) -> pd.DataFrame:
-        return pd.DataFrame(data)
+    def _get_df(self, result: "engine.Result") -> DataFrame:
+        return DataFrame(result.data)
 
-    def execute(self) -> pd.DataFrame:
+    def df(self) -> DataFrame:
         """Execute the query and return a Pandas DataFrame. In Jupyter, if you don't
         need to store the result in a variable and want to just see the data, you can
         skip calling this method. ``Select``'s representation in Jupyter is its result.
         """
-        return self._get_df(self.project.execute(self.query))
+        return self._get_df(self._execute())
+
+    def _get_formatted_df(self) -> DataFrame:
+        result = self._execute()
+        if len(result.data) == 0:
+            return DataFrame(result.data)
+        formatter = Formatter(
+            locale=self.project.model.locale,
+            formats={k: v.format for k, v in result.display_info.items()},
+        )
+        df = DataFrame(formatter.format(result.data))
+        df.columns = [result.display_info[c].name for c in df.columns]
+        return df
+
+    def graph(self):
+        return self.project.query_graph(self.query)
 
     def _repr_html_(self):
-        result = self.project.execute(self.query)
-        print(f"Executed query in {result.duration} ms")
-        df = self._get_df(result.data)
+        df = self._get_formatted_df()
         return df.to_html(max_rows=20)
 
     def dimensions(self):
         dimensions = self.project.model.suggest_dimensions(self.query)
-        return pd.DataFrame(
+        return DataFrame(
             data=[
                 {"id": d.id, "name": d.name, "description": d.description}
                 for d in dimensions
@@ -131,22 +146,12 @@ class Select:
 
     def metrics(self):
         metrics = self.project.model.suggest_metrics(self.query)
-        return pd.DataFrame(
+        return DataFrame(
             data=[
                 {"id": m.id, "name": m.name, "description": m.description}
                 for m in metrics
             ]
         )
-
-    @property
-    def raw_query(self) -> str:
-        resolved = self.project.model.get_resolved_query(self.query)
-        computation = self.project.engine.get_computation(resolved)
-        compiled = self.project.connection.compile(computation)
-        return self.project.connection.get_raw_query(compiled)
-
-    def print_raw_query(self):
-        print(self.raw_query)
 
 
 class Pivot(Select):
@@ -234,7 +239,7 @@ class Pivot(Select):
                 self._columns.append(self.query.dimensions[-1].name)
         return self
 
-    def _get_df(self, data: List[dict]) -> pd.DataFrame:
+    def _get_df(self, data: List[dict]) -> DataFrame:
         df = super()._get_df(data)
         df.columns.rename("$", inplace=True)
         if len(self._rows) == 0 and len(self._columns) == 0:

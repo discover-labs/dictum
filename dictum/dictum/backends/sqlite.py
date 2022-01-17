@@ -3,6 +3,7 @@ from functools import cached_property
 from typing import List
 
 import pandas as pd
+from pandas import DataFrame
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql import Select, case, cast, func
@@ -146,7 +147,7 @@ class SQLiteConnection(SQLAlchemyConnection):
     def engine(self):
         return create_engine(self.url)
 
-    def execute(self, query: Select) -> List[dict]:
+    def execute(self, query: Select) -> DataFrame:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SAWarning)
             return super().execute(query)

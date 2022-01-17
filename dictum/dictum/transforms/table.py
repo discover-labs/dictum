@@ -2,8 +2,7 @@ from typing import List, Optional
 
 from lark import Tree
 
-from dictum import engine, model
-from dictum.model import utils
+from dictum import engine, model, schema
 from dictum.transforms.base import BaseTransform
 from dictum.utils import value_to_token
 
@@ -51,8 +50,11 @@ class TableTransform(BaseTransform):
             transforms[cls.id] = cls
 
     def __call__(
-        self, terminal: "engine.Operator", transform: "engine.Operator"
-    ) -> engine.Operator:
+        self,
+        terminal: "engine.Operator",
+        transform: "engine.Operator",
+        column: Optional["engine.Column"],
+    ) -> "engine.Operator":
         raise NotImplementedError
 
 
@@ -124,7 +126,7 @@ class TopBottomTransform(TableTransform):
                 )
         raise TypeError
 
-    def wrap_in_row_number(self, expr: Tree, groupby: List[engine.Column]) -> Tree:
+    def wrap_in_row_number(self, expr: Tree, groupby: List["engine.Column"]) -> Tree:
         within_names = set(r.name for r in self.within)
         partition_by = Tree(
             "partition_by", [c.expr for c in groupby if c.name in within_names]
@@ -134,22 +136,38 @@ class TopBottomTransform(TableTransform):
 
     def __call__(
         self,
-        terminal: "engine.Operator",
+        terminal: "engine.MergeOperator",
         transform: "engine.Operator",
+        column: Optional["engine.Column"],
     ):
         transform = self.transform_transform(transform)
 
-        if isinstance(terminal, (engine.QueryOperator, engine.InnerJoinOperator)):
-            return engine.InnerJoinOperator(terminal, transform)
+        if len(terminal.inputs) == 1:
+            # there's only on input to the merge, so the merge will be a no-op
+            # this means that the user's query requested a measure
+            input = terminal.inputs[0]
 
-        elif isinstance(terminal, engine.MergeOperator):
+            if isinstance(input, (engine.QueryOperator, engine.InnerJoinOperator)):
+                # inject the transform as another inner join
+                terminal.inputs = [engine.InnerJoinOperator(input, transform)]
+                return terminal
+            else:
+                # this shouldn't happen
+                raise TypeError(
+                    f"Unexpected merge single input for top: {input.__class__}"
+                )
+        else:
+            # there are multiple input queries
             if all(isinstance(i, engine.TuplesFilterOperator) for i in terminal.inputs):
+                # this means that there's already a top with a tuples filter
+                # just add self to materialize
                 materialize: engine.MaterializeOperator = terminal.inputs[
                     0
                 ].materialized
                 materialize.inputs.append(transform)
                 return terminal
-            else:
+            elif all(isinstance(i, engine.QueryOperator) for i in terminal.inputs):
+                # this is the first top, so add materialize and filter with tuples
                 materialize = engine.MaterializeOperator([transform])
                 filtered = [
                     engine.TuplesFilterOperator(
@@ -159,8 +177,8 @@ class TopBottomTransform(TableTransform):
                 ]
                 return engine.MergeOperator(filtered, terminal.columns)
 
-        breakpoint()
-        raise TypeError
+        # this shouldn't happen
+        raise TypeError(f"Unexpected terminal type: {terminal.__class__}")
 
 
 class TopTransform(TopBottomTransform):
@@ -185,77 +203,68 @@ class TotalTransform(TableTransform):
     id = "total"
     name = "Total"
 
+    def get_display_name(self, name: str) -> str:
+        return f"{name} (∑)"
+
     def __call__(
-        self, terminal: "engine.MergeOperator", transform: "engine.MergeOperator"
+        self,
+        terminal: "engine.MergeOperator",
+        transform: "engine.MergeOperator",
+        column: Optional["engine.Column"],
     ) -> "engine.Operator":
-        # if isinstance(terminal, engine.QueryOperator):
-        #     columns = list(map(subselect_column, terminal.input.columns))
-        #     if isinstance(transform, engine.QueryOperator):
-        #         columns.append(subselect_column(transform.input._aggregate[0]))
-        #     elif isinstance(transform, engine.MergeOperator):
-        #         columns.append(subselect_column(transform.columns[-1]))
-        #     else:
-        #         raise TypeError
-        #     return engine.MergeOperator([terminal, transform], columns)
-        # elif isinstance(terminal, engine.MergeOperator):
         terminal.inputs.append(transform)
-        terminal.columns.append(subselect_column(transform.columns[-1]))
+        transformed_column = subselect_column(transform.columns[-1])
+        column.expr = transformed_column.expr
         return terminal
 
 
 class PercentTransform(TotalTransform):
     id = "percent"
     name = "Percent of Total"
+    return_type = "float"
+
+    def get_format(self, format: schema.FormatConfig) -> schema.FormatConfig:
+        return schema.FormatConfig(kind="percent")
+
+    def get_display_name(self, name: str) -> str:
+        return f"{name} (%)"
 
     def __call__(
-        self, terminal: "engine.MergeOperator", transform: "engine.MergeOperator"
+        self,
+        terminal: "engine.MergeOperator",
+        transform: "engine.MergeOperator",
+        column: Optional["engine.Column"],
     ) -> "engine.Operator":
         # total's terminal
-        merge: engine.MergeOperator = super().__call__(terminal, transform)
+        merge: engine.MergeOperator = super().__call__(terminal, transform, column)
+
         total = merge.inputs[-1]
         name = total.columns[-1].name
+
+        # divide metric by the total
         expr = Tree(
             "expr",
             [
                 Tree(
                     "div",
                     [
-                        Tree("column", [None, self.metric_id]),
+                        Tree(
+                            "call", ["tonumber", Tree("column", [None, self.metric_id])]
+                        ),
                         Tree("column", [None, name]),
                     ],
                 )
             ],
         )
-        merge.columns[-1] = engine.Column(name=name, expr=expr, type="float")
+        column.expr = expr
+        column.type = "float"
         return merge
 
 
 class SumTransform(TableTransform):
+    """
+    TODO
+    """
+
     id = "sum"
     name = "Sum"
-
-    def transform_expr(self, expr: Tree) -> Tree:
-        """The argument is a merged column expression.
-
-        Window func expression is:
-            Tree("call_window", [
-                func_name,
-                *args,
-                partition_by,
-                order_by,
-                [window_start, window_end]
-            ])
-
-        All parts are always present, to at least 4 children are required.
-        """
-        partition_by = []
-        names = [utils.merged_expr(r.name) for r in self._of + self._within]
-        if names:
-            partition_by = names
-        return Tree(
-            "call_window", ["sum", expr, Tree("partition_by", partition_by), None, None]
-        )
-
-
-class PercentTransform(TableTransform):
-    """Like total, but divides the value by the total."""
