@@ -1,0 +1,21 @@
+source: invoice_items
+
+related:
+  invoice:
+    table: invoices
+    foreign_key: InvoiceId
+  track:
+    table: tracks
+    foreign_key: TrackId
+
+filters:
+  - :genre = 'Rock'
+
+measures:
+  rock_revenue:
+    name: Revenue
+    expr: sum(UnitPrice * Quantity)
+    format:
+      kind: currency
+      currency: USD
+    missing: 0

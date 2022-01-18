@@ -5,7 +5,7 @@ from babel.dates import match_skeleton
 
 import dictum.model
 import dictum.project
-from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
+from dictum.project.altair.encoding import AltairEncodingChannelHook
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
     ldml_number_to_d3_format,
@@ -22,15 +22,6 @@ from dictum.schema.query import (
 )
 from dictum.transforms.scalar import ScalarTransform
 from dictum.transforms.table import TableTransform
-
-type_to_encoding_type = {
-    "bool": "ordinal",
-    "date": "temporal",
-    "datetime": "temporal",
-    "int": "quantitative",
-    "float": "quantitative",
-    "str": "nominal",
-}
 
 
 def format_config_to_d3_format(config, locale):
@@ -66,29 +57,14 @@ class ProjectCalculation(AltairEncodingChannelHook):
         self.locale = locale
 
     def encoding_fields(self, cls=None) -> dict:
-        title = {"title": self.calculation.name}
-
-        # get type and format
-        format = self.calculation.format
-        type_ = self.calculation.type
-        for request_transform in getattr(self.request, self.kind).transforms:
-            transform = self.transforms[request_transform.id](*request_transform.args)
-            format = transform.get_format(type_)
-            type_ = transform.get_return_type(type_)
-
-        if (fmt := format_config_to_d3_format(format, self.locale)) is not None:
-            title["format"] = fmt
-
         fields = {
             "field": f"{self._type}:{self}",
-            "type": type_to_encoding_type[self.calculation.type],
-            "axis": title,
-            "legend": title,
-            "header": title,
+            # "type": type_to_encoding_type[
+            #     self.calculation.type
+            # ],  # this will be replaced anyway
         }
 
-        fields["type"] = type_to_encoding_type[type_]
-        return filter_fields(cls, fields)
+        return fields
 
     @property
     def _type(self) -> str:

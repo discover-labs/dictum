@@ -86,8 +86,14 @@ class Engine:
                 result.add_join_path(path)
             result.filters.append(column.expr)
 
-        # add literal filters
-        result.filters.extend(deepcopy(f.expr) for f in anchor.filters)
+        # add anchor table's filters
+        for f in anchor.filters:
+            expr = deepcopy(f.expr)
+            # add joins necessary for the filter
+            for ref in expr.find_data("column"):
+                _, *path, _ = ref.children
+                result.add_join_path(path)
+            result.filters.append(expr)
 
         return result
 
@@ -144,10 +150,12 @@ class Engine:
                     name=request.name if request.keep_name else request.dimension.name,
                     format=request.dimension.format,
                     keep_name=request.keep_name,
+                    type=request.dimension.type,
                 ),
             )
             for transform in request.transforms:
                 column.display_info = transform.get_display_info(column.display_info)
+                column.type = transform.get_return_type(column.type)
             dimensions.append(column)
 
         terminal = MergeOperator(

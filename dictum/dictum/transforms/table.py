@@ -4,17 +4,9 @@ from lark import Tree
 
 from dictum import engine, model, schema
 from dictum.transforms.base import BaseTransform
-from dictum.utils import value_to_token
+from dictum.utils import subselect_column, value_to_token
 
 transforms = {}
-
-
-def subselect_column(column: "engine.Column") -> "engine.Column":
-    return engine.Column(
-        name=column.name,
-        expr=Tree("expr", [Tree("column", [None, column.name])]),
-        type=column.type,
-    )
 
 
 class TableTransform(BaseTransform):

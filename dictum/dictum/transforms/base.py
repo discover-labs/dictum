@@ -23,7 +23,8 @@ class BaseTransform:
         return format
 
     def get_display_info(
-        self, display_info: "engine.DisplayInfo"
+        self,
+        display_info: "engine.DisplayInfo",
     ) -> "engine.DisplayInfo":
         return engine.DisplayInfo(
             name=(

@@ -80,6 +80,16 @@ field_only = {
 }
 
 
+type_to_encoding_type = {
+    "bool": "ordinal",
+    "date": "temporal",
+    "datetime": "temporal",
+    "int": "quantitative",
+    "float": "quantitative",
+    "str": "nominal",
+}
+
+
 class AltairEncodingChannelHook(ABC):
     @abstractmethod
     def encoding_fields(self, cls: Optional[type] = None) -> dict:
@@ -96,4 +106,4 @@ def filter_fields(cls, fields: dict):
         keys.append("header")
     if cls in field_only:
         keys.remove("type")
-    return {k: fields[k] for k in keys}
+    return {k: fields[k] for k in keys if k in fields}

@@ -297,6 +297,7 @@ class Model:
         self,
         query_metric: schema.QueryMetric,
         dimensions: List[ResolvedQueryDimensionRequest],
+        filters: List[ResolvedQueryMetricRequest],
     ) -> ResolvedQueryMetricRequest:
         metric = self.metrics.get(query_metric.id)
 
@@ -317,6 +318,7 @@ class Model:
                     )
                 ],
                 dimensions=[*of, *within],
+                filters=filters,
             )
             tr = self.table_transforms.get(transform.id)(
                 *transform.args,
@@ -335,8 +337,9 @@ class Model:
         self,
         request: schema.QueryMetricRequest,
         dimensions: List[ResolvedQueryDimensionRequest],
+        filters: List[ResolvedQueryDimensionRequest],
     ) -> ResolvedQueryMetricRequest:
-        resolved = self.get_resolved_metric(request.metric, dimensions)
+        resolved = self.get_resolved_metric(request.metric, dimensions, filters)
         return ResolvedQueryMetricRequest(
             metric=resolved.metric,
             transforms=resolved.transforms,
@@ -346,20 +349,24 @@ class Model:
 
     def get_resolved_query(self, query: schema.Query) -> ResolvedQuery:
         result = ResolvedQuery()
+        for filter in query.filters:
+            result.filters.append(self.get_resolved_dimension(filter))
         for request in query.dimensions:
             result.dimensions.append(self.get_resolved_dimension_request(request))
         for request in query.metrics:
-            resolved = self.get_resolved_metric_request(request, result.dimensions)
+            resolved = self.get_resolved_metric_request(
+                request, result.dimensions, result.filters
+            )
             for transform in resolved.transforms:
                 if transform.id in {"top", "bottom"}:
                     raise ValueError(
                         "Top and Bottom transforms are only allowed inside limit clause"
                     )
             result.metrics.append(resolved)
-        for filter in query.filters:
-            result.filters.append(self.get_resolved_dimension(filter))
         for limit in query.limit:
-            result.limit.append(self.get_resolved_metric(limit, result.dimensions))
+            result.limit.append(
+                self.get_resolved_metric(limit, result.dimensions, result.filters)
+            )
         return result
 
     def get_names(self, ids: List[str]) -> Dict[str, str]:

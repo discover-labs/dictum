@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import date, datetime
 
 from lark import Token, Tree
@@ -30,3 +31,9 @@ def value_to_token(value):
 
 def column_expr(name: str) -> Tree:
     return Tree("expr", [Tree("column", [None, name])])
+
+
+def subselect_column(column):
+    return dataclasses.replace(
+        column, expr=Tree("expr", [Tree("column", [None, column.name])])
+    )

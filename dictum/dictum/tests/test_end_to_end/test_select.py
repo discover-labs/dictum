@@ -92,6 +92,11 @@ def test_date_unit(project: Project):
     assert result.shape == (5, 2)
 
 
+def test_step_transform(project: Project):
+    result = project.select(project.m.revenue).by(project.d.order_amount.step(10)).df()
+    assert result.shape == (3, 2)
+
+
 def test_dimension_alias(project: Project):
     result = (
         project.select(project.m.revenue)
@@ -323,6 +328,17 @@ def test_total_metric(project: Project):
     )
 
 
+def test_total_filters(project: Project):
+    """Test that filters are applied to the table transforms too (was a bug)"""
+    select = (
+        project.select(project.m.revenue.total())
+        .by(project.d.genre)
+        .where(project.d.genre.isin("Rock", "Alternative & Punk"))
+    )
+    result = select.df()
+    assert result["revenue__total"].unique()[0] == 1068.21
+
+
 def test_percent_basic(project: Project):
     result = project.select(project.m.revenue.percent()).by(project.d.genre).df()
     assert result.shape == (24, 2)
@@ -394,3 +410,8 @@ def test_format_dimension_transform_alias(project: Project):
         ._get_formatted_df()
     )
     assert list(result.columns) == ["Year", "Percent of Revenue"]
+
+
+def test_filtered_table(project: Project):
+    result = project.select(project.m.rock_revenue).df()
+    assert result.iloc[0, 0] == 826.65

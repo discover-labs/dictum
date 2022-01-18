@@ -474,7 +474,9 @@ class FinalizeOperator(Operator):
         data = self.coerce_types(data.to_dict(orient="records"))
         display_info = {}
         for column in self.input.inputs[0].columns:
-            display_info[column.name] = column.display_info
+            info = column.display_info
+            info.type = column.type
+            display_info[column.name] = info
         return Result(
             data=data,
             executed_queries=self.get_executed_queries(),

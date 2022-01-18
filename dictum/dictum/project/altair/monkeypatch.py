@@ -1,17 +1,21 @@
+import datetime
 import inspect
 import warnings
 from typing import List
 
+import pandas as pd
 from altair import (
     Column,
     EncodingSortField,
+    Facet,
     FacetChart,
     FacetedUnitSpec,
-    FacetFieldDef,
+    FieldChannelMixin,
     FieldName,
     LayerChart,
     NormalizedFacetSpec,
     NormalizedSpec,
+    RepeatRef,
     RepeatSpec,
     Row,
     SchemaBase,
@@ -24,14 +28,25 @@ from altair import (
     renderers,
 )
 from altair.utils.core import update_nested
+from altair.utils.data import to_values
 from altair.vegalite.v4.api import _EncodingMixin
 from jsonschema.exceptions import ValidationError
+from toolz.curried import curry
 
 from dictum.project.altair.data import DictumData
-from dictum.project.altair.encoding import AltairEncodingChannelHook
+from dictum.project.altair.encoding import (
+    AltairEncodingChannelHook,
+    filter_fields,
+    type_to_encoding_type,
+)
+from dictum.project.altair.format import (
+    ldml_date_to_d3_time_format,
+    ldml_number_to_d3_format,
+)
 from dictum.project.altair.locale import (
     cldr_locale_to_d3_number,
     cldr_locale_to_d3_time,
+    get_default_format_for_kind,
 )
 from dictum.ql.transformer import compile_dimension_request, compile_metric_request
 from dictum.schema.query import Query, QueryMetricRequest
@@ -63,11 +78,23 @@ channel_key_to_cls = {
 }
 
 
+@curry
+def _wrap_in_channel_cls(name, obj):
+    if not isinstance(obj, FieldChannelMixin) and isinstance(
+        obj, AltairEncodingChannelHook
+    ):
+        return channel_key_to_cls[name](obj)
+    return obj
+
+
 def encode(self, *args, **kwargs):
     for name, obj in kwargs.items():
         if isinstance(obj, AltairEncodingChannelHook):
-            # channel __init__ will handle resolution
-            kwargs[name] = channel_key_to_cls[name](obj)
+            # shorthands passed directly are wrapped with encoding schannel constructor
+            # channel's __init__ will handle resolution
+            kwargs[name] = _wrap_in_channel_cls(name, obj)
+        elif isinstance(obj, (list, tuple)):
+            kwargs[name] = list(map(_wrap_in_channel_cls(name), obj))
     return original_encode(self, *args, **kwargs)
 
 
@@ -114,11 +141,10 @@ original_facet = _EncodingMixin.facet
 
 
 def _resolve_facet_def(obj, cls):
-    if obj is Undefined:
-        return obj
     if isinstance(obj, AltairEncodingChannelHook):
-        fields = obj.encoding_fields(cls)  # doesn't really matter, we want the header
+        fields = obj.encoding_fields()
         return cls.from_dict(fields)
+    return obj
 
 
 def facet(
@@ -130,7 +156,7 @@ def facet(
     columns=Undefined,
     **kwargs,
 ):
-    facet = _resolve_facet_def(facet, FacetFieldDef)
+    facet = _resolve_facet_def(facet, Facet)
     row = _resolve_facet_def(row, Row)
     column = _resolve_facet_def(column, Column)
     return original_facet(
@@ -180,21 +206,64 @@ def encoding_sort_field_init(
 original_repr_mimebundle = TopLevelMixin._repr_mimebundle_
 
 
+def _prep_data(data: List[dict]) -> List[dict]:
+    df = pd.DataFrame(data)
+
+    # dates are not auto-converted to Pandas datetime and so are not sanitized
+    for col in df.columns:
+        if df[col].apply(lambda x: isinstance(x, datetime.date)).any():
+            df[col] = pd.to_datetime(df[col])
+
+    return to_values(df)
+
+
 def render_self(self):
     self = self.copy(deep=True)  # don't mutate the original
     currencies = set()
     currency = None
     model = None
+
     for unit, data in self._iterunits():
         if isinstance(data, DictumData):
-            model = data.project.model
             query = unit._query()
+            result = data.execute(query)
+
+            model = data.project.model
             currencies |= model.get_currencies_for_query(query)
-            result = data.get_values(query)
+
             if "repeat" in unit._kwds:
-                unit.spec.data = result
+                # repeat (unlike facet) expects the data to be in the unit
+                unit.spec.data = _prep_data(result.data)
             else:
-                unit.data = result
+                unit.data = _prep_data(result.data)
+
+            for channel in unit._iterchannels():
+                if isinstance(channel, list) or isinstance(
+                    channel.shorthand, RepeatRef
+                ):
+                    continue  # skip repeated channels
+
+                info = result.display_info[channel.field]
+
+                fmt = None
+                if info.format.pattern is not None:
+                    if info.type in {"date", "datetime"}:
+                        fmt = ldml_date_to_d3_time_format(info.format.pattern)
+                    elif info.type in {"int", "float"}:
+                        fmt = ldml_number_to_d3_format(info.format.pattern)
+                else:
+                    fmt = get_default_format_for_kind(info.format.kind, model.locale)
+
+                title = {"title": info.name}
+                if fmt is not None:
+                    title["format"] = fmt
+
+                fields = {k: title for k in ["axis", "legend", "header"]}
+                fields["type"] = type_to_encoding_type[info.type]
+                fields = _update_nested(fields, channel.to_dict())
+                fields = filter_fields(channel.__class__, fields)
+                channel._kwds.update(fields)
+
     if len(currencies) == 1:
         currency = currencies.pop()
     if model is not None:
@@ -258,6 +327,19 @@ def iterunits(self, data=None):
 def iterchannels(self):
     if hasattr(self, "spec"):
         yield from self.spec._iterchannels()
+        if "facet" in self._kwds:
+            if isinstance(self.facet, Facet):
+                yield self.facet
+            else:
+                for attr in self.facet._iterattrs():
+                    if isinstance(attr, (Row, Column)):
+                        yield attr
+        elif "repeat" in self._kwds:
+            if isinstance(self._kwds["repeat"], list):
+                yield self._kwds["repeat"]
+            else:
+                for attr in self._kwds["repeat"]._iterattrs():
+                    yield attr
         return
     if self.encoding is not Undefined:
         yield from self.encoding._iterattrs()
@@ -334,26 +416,16 @@ def query(self):
         if isinstance(channel, channels.FieldChannelMixin):
             reqs = requests_from_channel(channel)
             _add_requests(*reqs)
-
-    if "facet" in self._kwds:
-        if isinstance(self.facet, FacetFieldDef):
-            reqs = requests_from_channel(self.facet)
+        elif isinstance(channel, list) and all(isinstance(i, str) for i in channel):
+            # for repeats
+            reqs = requests_from_list(channel)
             _add_requests(*reqs)
-        else:
-            for attr in self.facet._iterattrs():
-                if isinstance(attr, (Row, Column)):  # row/column
-                    reqs = requests_from_channel(attr)
-                    _add_requests(*reqs)
-
-    if "repeat" in self._kwds:
-        repeat = self["repeat"]
-        if isinstance(repeat, list):
-            reqs = requests_from_list(repeat)
-            _add_requests(*reqs)
-        else:
-            for attr in repeat._iterattrs():
-                reqs = requests_from_list(attr)
+        elif isinstance(channel, list):
+            # for other listed channels
+            for item in channel:
+                reqs = requests_from_channel(item)
                 _add_requests(*reqs)
+
     return Query(metrics=metrics, dimensions=dimensions)
 
 

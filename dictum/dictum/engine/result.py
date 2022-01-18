@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from dictum import schema
 
@@ -14,6 +14,7 @@ class ExecutedQuery:
 class DisplayInfo:
     name: str
     format: schema.FormatConfig
+    type: Optional[schema.Type] = None
     keep_name: bool = False
 
 
