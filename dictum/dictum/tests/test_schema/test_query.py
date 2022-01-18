@@ -115,5 +115,5 @@ def test_render_query_metric():
         QueryMetric.parse_obj(
             {"id": "test", "transforms": [{"id": "x"}, {"id": "gt", "args": [1]}]}
         ).render()
-        == "test.x() > 1"
+        == "test.x().gt(1)"
     )

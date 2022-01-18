@@ -59,7 +59,6 @@ class Relation:
                 name=measure_id,
                 expr=measure.expr,
                 type=measure.type,
-                format=measure.format,
             )
             subquery = RelationalQuery(
                 source=table, join_tree=[], _aggregate=[measure_column]
@@ -75,7 +74,6 @@ class Relation:
                     "expr",
                     [Tree("column", [table.id, *join_path, self.source.primary_key])],
                 ),
-                format=None,
             )
             subquery.add_groupby(pk)
             join = Join(

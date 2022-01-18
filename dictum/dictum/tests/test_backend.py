@@ -4,8 +4,8 @@ import pytest
 from pandas import DataFrame
 from pandas.api.types import is_datetime64_any_dtype
 
-from dictum.backends.base import BackendResult, Connection
-from dictum.engine import Column, Engine, OrderItem, RelationalQuery
+from dictum.backends.base import Connection
+from dictum.engine import Column, Engine, RelationalQuery
 from dictum.model import Model
 from dictum.model.expr.parser import parse_expr
 from dictum.schema import Query
@@ -16,7 +16,7 @@ def compute_df(chinook: Model, engine: Engine, connection: Connection):
     def compute(query: Query):
         resolved = chinook.get_resolved_query(query)
         computation = engine.get_computation(resolved)
-        return DataFrame(computation.execute(connection))
+        return DataFrame(computation.execute(connection).data)
 
     return compute
 
@@ -26,7 +26,7 @@ def compute_results(chinook: Model, engine: Engine, connection: Connection):
     def compute(query: Query):
         resolved = chinook.get_resolved_query(query)
         computation = engine.get_computation(resolved)
-        return computation.execute(connection)
+        return computation.execute(connection).data
 
     return compute
 
@@ -171,8 +171,7 @@ def compute(chinook: Model, connection: Connection):
             join_tree=[],
         )
         compiled = connection.compile_query(query)
-        results = connection.execute(compiled)
-        return str(results[0]["value"])
+        return str(connection.execute(compiled).iloc[0, 0])
 
     return computer
 

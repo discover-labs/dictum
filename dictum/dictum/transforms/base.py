@@ -1,3 +1,5 @@
+from typing import Optional
+
 from lark import Tree
 
 from dictum import engine, schema
@@ -23,9 +25,10 @@ class BaseTransform:
         return format
 
     def get_display_info(
-        self,
-        display_info: "engine.DisplayInfo",
+        self, display_info: Optional["engine.DisplayInfo"]
     ) -> "engine.DisplayInfo":
+        if display_info is None:
+            return None
         return engine.DisplayInfo(
             name=(
                 self.get_display_name(display_info.name)
