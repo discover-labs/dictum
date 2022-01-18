@@ -8,7 +8,7 @@ from lark import Transformer
 from dictum.backends.base import Compiler
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.data_model import AggregateQuery
+from dictum.engine import RelationalQuery
 
 
 class PandasColumnTransformer(Transformer):
@@ -23,9 +23,6 @@ class PandasColumnTransformer(Transformer):
     def column(self, children: list):
         identity, column = children
         return self._tables[identity][column]
-
-    def measure(self, children: list):
-        return self._tables[0][children[0]]
 
 
 class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
@@ -73,6 +70,24 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
 
     def countd(self, args: list):
         return args[0].unique().shape[0]
+
+    # window functions
+
+    def window_sum(self, args, partition, order, rows):
+        val = args[0]
+        if partition:
+            return val.groupby(partition).transform(sum)
+        return val.groupby(pd.Series(0, index=val.index)).transform(sum)
+
+    def window_row_number(self, args, partition, order, rows):
+        arg = args[0]
+        if order:
+            cols, asc = zip(*(i.children for i in order))
+            df = pd.concat([arg, *cols], axis=1)
+            val = df.sort_values(by=list(df.columns)[1:], ascending=asc)
+        if partition:
+            val = val.groupby(partition)
+        return val.cumcount() + 1
 
     # scalar functions
 
@@ -135,7 +150,7 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
 
     # compilation
 
-    def compile_query(self, query: AggregateQuery):
+    def compile_query(self, query: RelationalQuery):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 
@@ -143,6 +158,6 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 
-    def calculate_metrics(self, merged):
+    def calculate(self, merged):
         """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError

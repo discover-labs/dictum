@@ -7,9 +7,9 @@ from pathlib import Path
 import psycopg2
 import pytest
 
-from dictum.data_model import DataModel
 from dictum.examples import chinook
-from dictum.tests.test_data_model import configs
+from dictum.model import Model
+from dictum.tests.test_model import configs
 
 full_config_path = Path(configs.__file__).parent / "full_correct.yml"
 chinook_path = Path(chinook.__file__).parent
@@ -73,13 +73,6 @@ def sqlite():
     yield generate().connection
 
 
-@pytest.fixture(scope="session")
-def project():
-    from dictum import Project
-
-    yield Project.example("chinook")
-
-
 @pytest.fixture(scope="session", params=[sqlite, postgres])
 def connection(request):
     with request.param() as conn:
@@ -87,10 +80,26 @@ def connection(request):
 
 
 @pytest.fixture(scope="session")
+def project(connection):
+    from dictum import Project
+
+    project = Project.example("chinook")
+    project.connection = connection
+    yield project
+
+
+@pytest.fixture(scope="session")
 def store_full():
-    return DataModel.from_yaml(full_config_path)
+    return Model.from_yaml(full_config_path)
 
 
 @pytest.fixture(scope="session")
 def chinook():
-    return DataModel.from_yaml(chinook_path / "chinook.yml")
+    return Model.from_yaml(chinook_path / "chinook.yml")
+
+
+@pytest.fixture(scope="session")
+def engine():
+    from dictum.engine import Engine
+
+    return Engine()

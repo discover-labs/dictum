@@ -1,45 +1,69 @@
 import datetime
 
 import pytest
+from pandas import DataFrame
 from pandas.api.types import is_datetime64_any_dtype
 
-from dictum.backends.base import BackendResult
-from dictum.data_model import AggregateQuery, ColumnCalculation, Computation, DataModel
-from dictum.data_model.expr.parser import parse_expr
+from dictum.backends.base import Connection
+from dictum.engine import Column, Engine, RelationalQuery
+from dictum.model import Model
+from dictum.model.expr.parser import parse_expr
 from dictum.schema import Query
 
 
-def test_groupby(chinook: DataModel, connection):
-    q = Query.parse_obj(
-        {"metrics": [{"metric": "track_count"}], "dimensions": [{"dimension": "genre"}]}
+@pytest.fixture(scope="module")
+def compute_df(chinook: Model, engine: Engine, connection: Connection):
+    def compute(query: Query):
+        resolved = chinook.get_resolved_query(query)
+        computation = engine.get_computation(resolved)
+        return DataFrame(computation.execute(connection).data)
+
+    return compute
+
+
+@pytest.fixture(scope="module")
+def compute_results(chinook: Model, engine: Engine, connection: Connection):
+    def compute(query: Query):
+        resolved = chinook.get_resolved_query(query)
+        computation = engine.get_computation(resolved)
+        return computation.execute(connection).data
+
+    return compute
+
+
+def test_groupby(compute_df: callable):
+    query = Query.parse_obj(
+        {
+            "metrics": [{"metric": {"id": "track_count"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
+        }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df[df["genre"] == "Rock"].iloc[0]["track_count"] == 1297
 
 
-def test_filter(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_filter(compute_df: callable):
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
             "filters": [
                 {
-                    "dimension": "genre",
+                    "id": "genre",
                     "transforms": [{"id": "isin", "args": ["Rock"]}],
                 },
                 {
-                    "dimension": "customer_country",
+                    "id": "customer_country",
                     "transforms": [{"id": "isin", "args": ["USA"]}],
                 },
             ],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df.iloc[0][0] == 157
 
 
-def _test_convert_datetime(chinook: DataModel, connection):
+@pytest.mark.skip
+def test_convert_datetime(chinook: Model, connection):
     """Temporarily off, because not sure if this is needed. SQLite's datetime()
     returns a string, not a datetime (unlike a raw column), but everything is sent
     as a string to the frontend anyway. Only problem is the Python API, which we don't
@@ -54,100 +78,100 @@ def _test_convert_datetime(chinook: DataModel, connection):
     assert is_datetime64_any_dtype(df["invoice_date"].dtype)
 
 
-def test_metric_not_measure(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_metric_not_measure(compute_df: callable):
+    query = Query.parse_obj(
         {
             "metrics": [
-                {"metric": "revenue"},
-                {"metric": "track_count"},
-                {"metric": "revenue_per_track"},
+                {"metric": {"id": "revenue"}},
+                {"metric": {"id": "track_count"}},
+                {"metric": {"id": "revenue_per_track"}},
             ]
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert next(df.round(2).itertuples()) == (0, 2328.6, 3503, 0.66)
 
 
-def test_metric_with_groupby(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_metric_with_groupby(compute_df: callable):
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "arppu"}, {"metric": "track_count"}],
-            "dimensions": [{"dimension": "genre"}],
+            "metrics": [{"metric": {"id": "arppu"}}, {"metric": {"id": "track_count"}}],
+            "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df.shape == (25, 3)
 
 
-def test_multiple_facts(chinook: DataModel, connection):
-    q = Query.parse_obj(
-        {"metrics": [{"metric": "items_sold"}, {"metric": "track_count"}]}
+def test_multiple_facts(compute_df: callable):
+    query = Query.parse_obj(
+        {
+            "metrics": [
+                {"metric": {"id": "items_sold"}},
+                {"metric": {"id": "track_count"}},
+            ]
+        }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert tuple(df.iloc[0]) == (2240, 3503)
 
 
-def test_multiple_facts_dimensions(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_multiple_facts_dimensions(compute_df: callable):
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}, {"metric": "track_count"}],
-            "dimensions": [{"dimension": "genre"}],
+            "metrics": [
+                {"metric": {"id": "items_sold"}},
+                {"metric": {"id": "track_count"}},
+            ],
+            "dimensions": [{"dimension": {"id": "genre"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert tuple(df[df["genre"] == "Rock"].iloc[0][["items_sold", "track_count"]]) == (
         835,
         1297,
     )
 
 
-def test_if(chinook: DataModel, connection):
+def test_if(compute_df: callable):
     """Test if() function and case when ... then ... else ... end constructs"""
-    q = Query.parse_obj(
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
-            "dimensions": [{"dimension": "invoice_year"}, {"dimension": "leap_year"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
+            "dimensions": [
+                {"dimension": {"id": "invoice_year"}},
+                {"dimension": {"id": "leap_year"}},
+            ],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df[df["leap_year"] == "Yes"].iloc[0]["invoice_year"] == 2012
 
 
-def test_subquery_join(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_subquery_join(compute_df: callable):
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "items_sold"}],
-            "dimensions": [{"dimension": "customer_orders_amount_10_bins"}],
+            "metrics": [{"metric": {"id": "items_sold"}}],
+            "dimensions": [{"dimension": {"id": "customer_orders_amount_10_bins"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    df = connection.compute_df(comp)
+    df = compute_df(query)
     assert df.shape == (2, 2)
     assert df[df["customer_orders_amount_10_bins"] == 30].iloc[0].items_sold == 1708
 
 
 @pytest.fixture(scope="module")
-def compute(chinook: DataModel, connection):
+def compute(chinook: Model, connection: Connection):
     def computer(expr: str, type="datetime"):
         expr = parse_expr(expr)
-        dims = [ColumnCalculation(name="value", expr=expr, type=type)]
-        comp = Computation(
-            queries=[
-                AggregateQuery(
-                    table=chinook.tables.get("media_types"),
-                    groupby=dims,
-                )
-            ],
-            dimensions=dims,
-            metrics=[],
+        columns = [Column(name="value", expr=expr, type=type)]
+        query = RelationalQuery(
+            source=chinook.tables.get("media_types"),
+            _groupby=columns,
+            join_tree=[],
         )
-        df = connection.compute_df(comp)
-        return str(df.iloc[0, 0])
+        compiled = connection.compile_query(query)
+        return str(connection.execute(compiled).iloc[0, 0])
 
     return computer
 
@@ -220,54 +244,27 @@ def test_datediff(compute):
     assert datediff("second", "2021-12-31 04:59:59", "2021-12-31 04:59:59") == 0
 
 
-def test_date(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_date(compute_results: callable):
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "invoice_date"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "invoice_date"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    result = connection.compute(comp)
-    assert isinstance(result, BackendResult)
-    assert isinstance(result.data, list)
-    assert isinstance(result.data[0], dict)
-    assert isinstance(result.data[0]["invoice_date"], datetime.date)
+    results = compute_results(query)
+    assert isinstance(results, list)
+    assert isinstance(results[0], dict)
+    assert isinstance(results[0]["invoice_date"], datetime.date)
 
 
-def test_datetime(chinook: DataModel, connection):
-    q = Query.parse_obj(
+def test_datetime(compute_results: callable):
+    query = Query.parse_obj(
         {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [{"dimension": "invoice_datetime"}],
+            "metrics": [{"metric": {"id": "revenue"}}],
+            "dimensions": [{"dimension": {"id": "invoice_datetime"}}],
         }
     )
-    comp = chinook.get_computation(q)
-    result = connection.compute(comp)
-    assert isinstance(result, BackendResult)
-    assert isinstance(result.data, list)
-    assert isinstance(result.data[0], dict)
-    assert isinstance(result.data[0]["invoice_datetime"], datetime.datetime)
-
-
-def test_alias(chinook: DataModel, connection):
-    q = Query.parse_obj(
-        {
-            "metrics": [{"metric": "revenue"}],
-            "dimensions": [
-                {
-                    "dimension": "invoice_date",
-                    "transform": {"id": "datepart", "args": ["year"]},
-                    "alias": "year",
-                },
-                {
-                    "dimension": "invoice_date",
-                    "transform": {"id": "datepart", "args": ["month"]},
-                    "alias": "month",
-                },
-            ],
-        }
-    )
-    comp = chinook.get_computation(q)
-    result = connection.compute(comp)
-    assert set(result.data[0]) == {"revenue", "year", "month"}
+    results = compute_results(query)
+    assert isinstance(results, list)
+    assert isinstance(results[0], dict)
+    assert isinstance(results[0]["invoice_datetime"], datetime.datetime)

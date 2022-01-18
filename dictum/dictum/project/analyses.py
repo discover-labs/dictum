@@ -1,12 +1,17 @@
-from typing import List, Optional, Union
+from typing import List, Union
 
-import pandas as pd
+from pandas import DataFrame
 
 import dictum.project
-from dictum.backends.base import BackendResult
+from dictum import engine
 from dictum.project.calculations import ProjectDimensionRequest
-from dictum.ql import compile_filter, compile_grouping
-from dictum.schema import Query, QueryMetricRequest
+from dictum.project.formatting import Formatter
+from dictum.ql import (
+    compile_dimension,
+    compile_dimension_request,
+    compile_metric_request,
+)
+from dictum.schema import Query
 
 
 class Select:
@@ -20,19 +25,15 @@ class Select:
 
     def __init__(self, project: "dictum.project.Project", *metrics):
         self.project = project
-        self.query = Query(metrics=[QueryMetricRequest(metric=str(m)) for m in metrics])
+        self.query = Query(metrics=[compile_metric_request(str(m)) for m in metrics])
 
-    def by(
-        self,
-        dimension: Union[str, ProjectDimensionRequest],
-        alias: Optional[str] = None,
-    ) -> "Select":
-        """Add a dimension to the query. Can be called multiple times for adding more
-        than one grouping.
+    def by(self, *dimensions) -> "Select":
+        """Add one or more dimensions to the query. Can be called multiple times for
+        adding more than one grouping.
 
         Arguments:
-            dimension:
-                One of:
+            dimensions:
+                List of one of:
 
                 - Dimension ID in string form to add: ``"date"``
                 - String grouping expression with a transform: ``"date.datepart('year')"``
@@ -62,13 +63,12 @@ class Select:
 
 
         """
-        if isinstance(dimension, ProjectDimensionRequest):
-            request = dimension.request
-        else:
-            request = compile_grouping(str(dimension))
-        if alias is not None:
-            request.alias = alias
-        self.query.dimensions.append(request)
+        for dimension in dimensions:
+            if isinstance(dimension, ProjectDimensionRequest):
+                request = dimension.request
+            else:
+                request = compile_dimension_request(str(dimension))
+            self.query.dimensions.append(request)
         return self
 
     def where(self, *filters: str) -> "Select":
@@ -95,32 +95,49 @@ class Select:
             ```
         """
         for f in filters:
-            self.query.filters.append(compile_filter(str(f)))
+            self.query.filters.append(compile_dimension(str(f)))
         return self
 
-    def _execute(self) -> BackendResult:
+    def limit(self, *filters):
+        for f in filters:
+            self.query.limit.append(compile_metric_request(str(f)).metric)
+        return self
+
+    def _execute(self) -> engine.Result:
         return self.project.execute(self.query)
 
-    def _get_df(self, data: List[dict]) -> pd.DataFrame:
-        return pd.DataFrame(data)
+    def _get_df(self, result: "engine.Result") -> DataFrame:
+        return DataFrame(result.data)
 
-    def execute(self) -> pd.DataFrame:
+    def df(self) -> DataFrame:
         """Execute the query and return a Pandas DataFrame. In Jupyter, if you don't
         need to store the result in a variable and want to just see the data, you can
         skip calling this method. ``Select``'s representation in Jupyter is its result.
         """
-        result = self.project.execute(self.query)
-        return self._get_df(result.data)
+        return self._get_df(self._execute())
+
+    def _get_formatted_df(self) -> DataFrame:
+        result = self._execute()
+        if len(result.data) == 0:
+            return DataFrame(result.data)
+        formatter = Formatter(
+            locale=self.project.model.locale,
+            formats={k: v.format for k, v in result.display_info.items()},
+        )
+        df = DataFrame(formatter.format(result.data))
+        df.columns = [result.display_info[c].name for c in df.columns]
+        return df
+
+    def graph(self):
+        return self.project.query_graph(self.query)
 
     def _repr_html_(self):
-        result = self.project.execute(self.query)
-        print(f"Executed query in {result.duration} ms")
-        df = self._get_df(result.data)
-        return df.to_html()
+        df = self._get_formatted_df()
+        return df.to_html(max_rows=20)
 
     def dimensions(self):
-        dimensions = self.project.data_model.suggest_dimensions(self.query)
-        return pd.DataFrame(
+        dimensions = self.project.model.suggest_dimensions(self.query)
+        return DataFrame(
             data=[
                 {"id": d.id, "name": d.name, "description": d.description}
                 for d in dimensions
@@ -128,8 +145,8 @@ class Select:
         )
 
     def metrics(self):
-        metrics = self.project.data_model.suggest_metrics(self.query)
-        return pd.DataFrame(
+        metrics = self.project.model.suggest_metrics(self.query)
+        return DataFrame(
             data=[
                 {"id": m.id, "name": m.name, "description": m.description}
                 for m in metrics
@@ -172,11 +189,7 @@ class Pivot(Select):
         self._rows = []
         self._columns = []
 
-    def rows(
-        self,
-        dimension: Union[str, ProjectDimensionRequest],
-        alias: Optional[str] = None,
-    ) -> "Pivot":
+    def rows(self, *dimensions: Union[str, ProjectDimensionRequest]) -> "Pivot":
         """Add a dimension to the row grouping.
 
         Arguments:
@@ -193,18 +206,15 @@ class Pivot(Select):
         Returns:
             self
         """
-        if isinstance(dimension, str) and dimension == "$":
-            self._rows.append(dimension)
-            return self
-        self.by(dimension, alias)
-        self._rows.append(self.query.dimensions[-1].name)
+        for dimension in dimensions:
+            if isinstance(dimension, str) and dimension == "$":
+                self._rows.append(dimension)
+            else:
+                self.by(dimension)
+                self._rows.append(self.query.dimensions[-1].name)
         return self
 
-    def columns(
-        self,
-        dimension: str,
-        alias: Optional[str] = None,
-    ) -> "Pivot":
+    def columns(self, *dimensions: Union[str, ProjectDimensionRequest]) -> "Pivot":
         """Add a dimension to the column grouping.
 
         Arguments:
@@ -221,14 +231,15 @@ class Pivot(Select):
         Returns:
             self
         """
-        if isinstance(dimension, str) and dimension == "$":
-            self._columns.append(dimension)
-            return self
-        self.by(dimension, alias)
-        self._columns.append(self.query.dimensions[-1].name)
+        for dimension in dimensions:
+            if isinstance(dimension, str) and dimension == "$":
+                self._columns.append(dimension)
+            else:
+                self.by(dimension)
+                self._columns.append(self.query.dimensions[-1].name)
         return self
 
-    def _get_df(self, data: List[dict]) -> pd.DataFrame:
+    def _get_df(self, data: List[dict]) -> DataFrame:
         df = super()._get_df(data)
         df.columns.rename("$", inplace=True)
         if len(self._rows) == 0 and len(self._columns) == 0:

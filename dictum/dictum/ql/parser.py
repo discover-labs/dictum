@@ -10,9 +10,9 @@ def filter_tree(name: str, dimension: Tree, value):
     return Tree("filter", [dimension, Tree("call", [name, value])])
 
 
-def call_children(name: str):
+def call_scalar_children(name: str):
     def method(self, children: list):
-        return Tree("call", [name, *children])
+        return Tree("scalar_transform", [name, *children])
 
     return method
 
@@ -39,15 +39,15 @@ class Preprocessor(Transformer):
     def op(self, children: list):
         return children[0]
 
-    gt = call_children("gt")
-    ge = call_children("ge")
-    lt = call_children("lt")
-    le = call_children("le")
-    eq = call_children("eq")
-    ne = call_children("ne")
-    isnull = call_children("isnull")
-    isnotnull = call_children("isnotnull")
-    isin = call_children("isin")
+    gt = call_scalar_children("gt")
+    ge = call_scalar_children("ge")
+    lt = call_scalar_children("lt")
+    le = call_scalar_children("le")
+    eq = call_scalar_children("eq")
+    ne = call_scalar_children("ne")
+    isnull = call_scalar_children("isnull")
+    isnotnull = call_scalar_children("isnotnull")
+    isin = call_scalar_children("isin")
 
 
 pre = Preprocessor()
@@ -57,16 +57,23 @@ def parse_ql(query: str):
     return pre.transform(ql.parse(query))
 
 
-filter = Lark(grammar, start="filter")
+dimension_filter = Lark(grammar, start="dimension")
 
 
-def parse_filter(expr: str):
+def parse_dimension(expr: str):
     """A separate function to parse string transform definitions during interactive use"""
-    return pre.transform(filter.parse(expr))
+    return pre.transform(dimension_filter.parse(expr))
 
 
-grouping = Lark(grammar, start="grouping")
+dimension_request = Lark(grammar, start="dimension_request")
 
 
-def parse_grouping(expr: str):
-    return pre.transform(grouping.parse(expr))
+def parse_dimension_request(expr: str):
+    return pre.transform(dimension_request.parse(expr))
+
+
+metric_request = Lark(grammar, start="metric_request")
+
+
+def parse_metric_request(expr: str):
+    return pre.transform(metric_request.parse(expr))

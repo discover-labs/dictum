@@ -6,7 +6,7 @@ from altair.utils.data import to_values
 
 import dictum.project
 import dictum.project.calculations
-from dictum.schema.query import QueryMetricRequest
+from dictum import engine, schema
 
 
 class DictumData:
@@ -16,7 +16,7 @@ class DictumData:
         metrics: List["dictum.project.calculations.ProjectMetric"],
     ):
         self.project = project
-        self.requests = [QueryMetricRequest(metric=m.calculation.id) for m in metrics]
+        self.requests = [m.request for m in metrics]
         self.filters = []
 
     def extend_query(self, query):
@@ -36,7 +36,12 @@ class DictumData:
         for col in df.columns:
             if df[col].apply(lambda x: isinstance(x, datetime.date)).any():
                 df[col] = pd.to_datetime(df[col])
+
         return to_values(df)
+
+    def execute(self, query: schema.Query) -> engine.Result:
+        query = self.extend_query(query)
+        return self.project.execute(query)
 
     def to_dict(self):
         return {"name": "__dictum__"}

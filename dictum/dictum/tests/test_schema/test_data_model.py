@@ -1,6 +1,6 @@
-from dictum.schema.data_model.calculations import Calculation
-from dictum.schema.data_model.table import Table
-from dictum.schema.data_model.transform import Transform
+from dictum.schema.model.calculations import Calculation
+from dictum.schema.model.table import Table
+from dictum.schema.model.transform import Transform
 
 
 def test_set_related_ids():

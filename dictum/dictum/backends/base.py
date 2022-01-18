@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Dict, List
+from typing import Any, Dict, List
 
-import pandas as pd
 from lark import Token, Transformer
+from pandas import DataFrame
 
-from dictum.data_model import AggregateQuery, Computation
+from dictum.engine import Column, LiteralOrderItem, RelationalQuery
 
 
 class Timer:
@@ -121,6 +121,16 @@ class ExpressionTransformer(Transformer):
         fn, *args = children
         return self.compiler.call(fn, args)
 
+    def order_by(self, children: list):
+        return children
+
+    def call_window(self, children: list):
+        fn, *args, partition, order, rows = children
+        return self.compiler.call_window(fn, args, partition, order, rows)
+
+    def partition_by(self, children: list):
+        return children
+
 
 class Compiler(ABC):
     """Takes in a computation, returns an object that a connection will understand."""
@@ -168,9 +178,15 @@ class Compiler(ABC):
         call = getattr(self, fn)
         return call(args)
 
+    def call_window(
+        self, fn: str, args: list, partition: list, order: list, rows: list
+    ):
+        fn = getattr(self, f"window_{fn}")
+        return fn(args, partition, order, rows)
+
     @abstractmethod
     def exp(self, a, b):
-        """Exponentiation — "power" operator, a to the power of b"""
+        """Exponentiation — "power" operator, a to the power of b"""
 
     @abstractmethod
     def neg(self, value):
@@ -273,6 +289,28 @@ class Compiler(ABC):
     def countd(self, args: list):
         """Aggregate distinct count"""
 
+    # window functions
+
+    @abstractmethod
+    def window_sum(self, args, partition_by, order_by, rows):
+        """A windowed version of aggregate sum function"""
+
+    @abstractmethod
+    def window_row_number(self, args, partition_by, order_by, rows):
+        """Same as SQL row_number"""
+
+    def window_avg(self, args, partition, order, rows):
+        """TODO"""
+
+    def window_min(self, args, partition, order, rows):
+        """TODO"""
+
+    def window_max(self, args, partition, order, rows):
+        """TODO"""
+
+    def window_count(self, args, partition, order, rows):
+        """TODO"""
+
     # scalar functions
 
     @abstractmethod
@@ -338,26 +376,16 @@ class Compiler(ABC):
     # compilation
 
     @abstractmethod
-    def compile_query(self, query: AggregateQuery):
-        """Compile a single relation query into connection query."""
+    def compile_query(self, query: RelationalQuery):
+        """Compile a single relational query into connection query."""
 
     @abstractmethod
     def merge_queries(self, queries: List, merge_on: List[str]):
         """Merge a list of relational queries on the relevant level of detail."""
 
     @abstractmethod
-    def calculate_metrics(self, merged):
-        """Calculate"""
-
-    def compile(self, computation: Computation):
-        """Compile a computation returned by the store into an object that
-        the connection will understand.
-        """
-        queries = [self.compile_query(q) for q in computation.queries]
-        merged = self.merge_queries(
-            queries, merge_on=[c.name for c in computation.dimensions]
-        )
-        return self.calculate_metrics(computation, merged)
+    def calculate(self, query, columns: List[Column]):
+        """Calculate expressions, apply post-filters"""
 
 
 class Connection(ABC):
@@ -376,29 +404,33 @@ class Connection(ABC):
     def __init_subclass__(cls):
         cls.registry[cls.type] = cls
 
-    def compile(self, computation: Computation):
-        return self.compiler.compile(computation)
-
-    def get_raw_query(self, query):
-        return query
-
-    def compute(self, computation: Computation) -> BackendResult:
-        query = self.compile(computation)
-        with Timer() as t:
-            data = self.execute(query)
-            data = self.coerce_types(data, computation.types)
-        return BackendResult(
-            data=data, raw_query=self.get_raw_query(query), duration=t.duration
-        )
-
-    def compute_df(self, computation: Computation) -> pd.DataFrame:
-        result = self.compute(computation)
-        return pd.DataFrame(result.data)
+    def display_query(self, query):
+        return str(query)
 
     @abstractmethod
-    def coerce_types(self, data: List[dict], types: Dict[str, str]):
-        """Ensure that data types are what's requested in computation"""
+    def execute(self, query) -> DataFrame:
+        """Execute query, return results"""
 
-    @abstractmethod
-    def execute(self, query) -> List[dict]:
-        """Execute query, return BackendResult"""
+    def compile_query(self, query):
+        return self.compiler.compile_query(query)
+
+    def calculate(self, query, columns):
+        return self.compiler.calculate(query, columns)
+
+    def merge(self, queries, merge_on):
+        return self.compiler.merge_queries(queries, merge_on)
+
+    def inner_join(self, query, to_join, join_on: List[str]):
+        return self.compiler.inner_join(query, to_join, join_on)
+
+    def limit(self, query, limit: int):
+        return self.compiler.limit(query, limit)
+
+    def order(self, query, items: List[LiteralOrderItem]):
+        return self.compiler.order(query, items)
+
+    def filter(self, query, conditions: Dict[str, Any]):
+        return self.compiler.filter(query, conditions)
+
+    def filter_with_tuples(self, query, tuples):
+        return self.compiler.filter_with_tuples(query, tuples)

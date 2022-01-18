@@ -1,18 +1,15 @@
 import warnings
 from functools import cached_property
-from typing import Dict, List
+from typing import List
 
 import pandas as pd
-import sqlparse
+from pandas import DataFrame
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql import Select, case, cast, func
 
-from dictum.backends.base import BackendResult, Timer
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
-from dictum.data_model import Computation
 
 trunc_modifiers = {
     "year": ["start of year"],
@@ -120,7 +117,7 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
     # compile
 
     def merge_queries(self, queries: List[Select], merge_on: List[str]):
-        """SQLite doesn't support outer joins, so we have to materialize here and
+        """SQLite doesn't support full outer joins, so we have to materialize here and
         proceed with Pandas.
         """
         dfs = [pd.DataFrame(self.connection.execute(q.select())) for q in queries]
@@ -130,19 +127,6 @@ class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyComp
         if len(merge_on) > 0:
             res = res.reset_index()
         return res
-
-    def calculate_metrics(
-        self, computation: Computation, merged: pd.DataFrame
-    ) -> pd.DataFrame:
-        compiler = PandasCompiler()
-        transformer = PandasColumnTransformer([merged])
-        for column in computation.metrics:
-            merged[column.name] = compiler.transformer.transform(
-                transformer.transform(column.expr)
-            )
-        metric_names = [c.name for c in computation.metrics]
-        dimension_names = [c.name for c in computation.dimensions]
-        return merged[dimension_names + metric_names]
 
 
 class SQLiteRawQueryCompiler(
@@ -163,32 +147,10 @@ class SQLiteConnection(SQLAlchemyConnection):
     def engine(self):
         return create_engine(self.url)
 
-    def execute(self, query: Select) -> List[dict]:
+    def execute(self, query: Select) -> DataFrame:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SAWarning)
             return super().execute(query)
 
-    def compute(self, computation: Computation) -> BackendResult:
-        """Call SQLAlchemyCompiler's compile() to get a fake raw query. Coerce types."""
-        with Timer() as timer:
-            raw_query = sqlparse.format(
-                str(SQLiteRawQueryCompiler(self).compile(computation).compile()),
-                reindent=True,
-            )
-            df = self.compiler.compile(computation)
-            df = self.coerce_types(df, computation.types)
-            data = df.to_dict(orient="records")
-        return BackendResult(data=data, raw_query=raw_query, duration=timer.duration)
-
-    def coerce_types(self, data: pd.DataFrame, types: Dict[str, str]) -> pd.DataFrame:
-        for col in data.columns:
-            T = types[col]
-            if T == "str":
-                data[col] = data[col].astype(str)
-            elif T in {"date", "datetime"}:
-                data[col] = pd.to_datetime(data[col])
-            elif T == "float":
-                data[col] = data[col].astype(float)
-            elif T == "int":
-                data[col] = data[col].astype("Int64")
-        return data
+    def merge(self, queries: List[Select], merge_on: List[str]):
+        raise NotImplementedError

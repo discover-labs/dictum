@@ -1,42 +1,119 @@
-import pytest
-from pydantic import ValidationError
+from dictum.schema.query import (
+    QueryDimension,
+    QueryDimensionRequest,
+    QueryMetric,
+    QueryMetricRequest,
+    QueryScalarTransform,
+    QueryTableTransform,
+    QueryTransform,
+)
 
-from dictum.schema import Query, QueryDimensionRequest
+
+def test_calculation():
+    assert (
+        QueryDimensionRequest(dimension=QueryDimension(id="test")).calculation.id
+        == "test"
+    )
+    assert QueryMetricRequest(metric=QueryMetric(id="test")).calculation.id == "test"
 
 
-def test_query_duplicate_dimensions():
-    Query.parse_obj(
-        {
-            "metrics": [{"metric": "x"}, {"metric": "y"}],
-            "dimensions": [
-                {"dimension": "z", "alias": "a"},
-                {"dimension": "z", "alias": "b"},
+def test_calculation_name():
+    assert QueryDimension(id="x").name == "x"
+    assert (
+        QueryDimension(id="x", transforms=[QueryScalarTransform(id="a")]).name == "x__a"
+    )
+    assert (
+        QueryDimension(
+            id="x", transforms=[QueryScalarTransform(id="y", args=["a", 1])]
+        ).name
+        == "x__y_a_1"
+    )
+
+    assert QueryMetric(id="x").name == "x"
+    assert (
+        QueryMetric(
+            id="x",
+            transforms=[
+                QueryTableTransform(
+                    id="y",
+                    args=[1],
+                    of=[QueryDimension(id="a")],
+                    within=[
+                        QueryDimension(
+                            id="b",
+                            transforms=[QueryScalarTransform(id="s", args=["ab"])],
+                        )
+                    ],
+                )
             ],
-        }
+        ).name
+        == "x__y_1_of_a_within_b__s_ab"
     )
-    with pytest.raises(ValidationError):
-        Query.parse_obj(
-            {
-                "metrics": [{"metric": "x"}, {"metric": "y"}],
-                "dimensions": [
-                    {"dimension": "z", "alias": "a"},
-                    {"dimension": "f", "alias": "a"},
-                ],
-            }
-        )
 
 
-def test_dimension_request_column_name():
-    assert QueryDimensionRequest.parse_obj({"dimension": "x"}).name == "x"
+def test_request_name():
+    assert QueryMetricRequest(metric=QueryMetric(id="a"), alias="b").name == "b"
     assert (
-        QueryDimensionRequest.parse_obj(
-            {"dimension": "x", "transforms": [{"id": "y"}]}
-        ).name
-        == "x__y"
+        QueryDimensionRequest(dimension=QueryDimension(id="a"), alias="b").name == "b"
+    )
+
+
+def test_render_transform():
+    assert QueryTransform(id="test").render() == "test()"
+    assert QueryTransform(id="test", args=[1, "a"]).render() == "test(1, 'a')"
+
+
+def test_render_table_transform():
+    assert (
+        QueryTableTransform(id="test", args=[1], of=[QueryDimension(id="x")]).render()
+        == "test(1) of (x)"
     )
     assert (
-        QueryDimensionRequest.parse_obj(
-            {"dimension": "x", "transforms": [{"id": "y", "args": [1, "n", 2]}]}
-        ).name
-        == "x__y_1_n_2"
+        QueryTableTransform(
+            id="test",
+            args=[1],
+            of=[QueryDimension(id="x", transforms=[QueryScalarTransform(id="year")])],
+        ).render()
+        == "test(1) of (x.year())"
+    )
+    assert (
+        QueryTableTransform(
+            id="test",
+            args=[1],
+            of=[
+                QueryDimension(id="x", transforms=[QueryScalarTransform(id="year")]),
+                QueryDimension(id="y"),
+            ],
+        ).render()
+        == "test(1) of (x.year(), y)"
+    )
+    assert (
+        QueryTableTransform(
+            id="test",
+            args=[1],
+            of=[
+                QueryDimension(id="x", transforms=[QueryScalarTransform(id="year")]),
+                QueryDimension(id="y"),
+            ],
+            within=[
+                QueryDimension(id="z"),
+            ],
+        ).render()
+        == "test(1) of (x.year(), y) within (z)"
+    )
+
+
+def test_render_request():
+    assert (
+        QueryMetricRequest(metric=QueryMetric(id="test"), alias="x").render()
+        == 'test as "x"'
+    )
+
+
+def test_render_query_metric():
+    assert (
+        QueryMetric.parse_obj(
+            {"id": "test", "transforms": [{"id": "x"}, {"id": "gt", "args": [1]}]}
+        ).render()
+        == "test.x().gt(1)"
     )

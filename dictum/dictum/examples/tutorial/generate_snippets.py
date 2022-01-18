@@ -13,11 +13,7 @@ snippets = Path(dictum.__file__).parent.parent.parent / "docs" / "snippets"
 
 
 def generate(select: Select, path: str):
-    html = (
-        select.execute()
-        .to_html(max_rows=10)
-        .replace('border="1" class="dataframe"', "")
-    )
+    html = select.df().to_html(max_rows=10).replace('border="1" class="dataframe"', "")
     (snippets / path).write_text(html)
 
 
