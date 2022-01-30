@@ -5,10 +5,9 @@ from dictum import Project
 
 
 def generate():
-    base = Path(__file__).parent
-    path = base / "chinook.yml"
+    path = Path(__file__).parent
     os.environ["CHINOOK_DATABASE"] = ""
     project = Project(path)
     with project.backend.engine.connect() as conn:
-        conn.connection.executescript((base / "chinook.sqlite.sql").read_text())
+        conn.connection.executescript((path / "chinook.sqlite.sql").read_text())
     return project

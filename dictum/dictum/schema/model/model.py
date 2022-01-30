@@ -9,6 +9,8 @@ from dictum.schema.model.calculations import DimensionsUnion, Metric
 from dictum.schema.model.table import Table
 from dictum.schema.model.transform import Transform
 
+root_keys = {"tables", "metrics", "unions"}
+
 
 class Model(BaseModel):
     name: str
@@ -21,7 +23,7 @@ class Model(BaseModel):
     tables: Dict[str, Table] = {}
     transforms: Dict[
         str, Transform
-    ] = {}  # ignored for now, TODO: load LiteralTransform
+    ] = {}  # ignored for now, TODO: load as LiteralTransform
 
     theme: Optional[dict]
 

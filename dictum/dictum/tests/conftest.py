@@ -1,3 +1,4 @@
+import os
 import shlex
 import subprocess
 import time
@@ -7,6 +8,7 @@ from pathlib import Path
 import psycopg2
 import pytest
 
+from dictum import schema
 from dictum.examples import chinook
 from dictum.model import Model
 from dictum.tests.test_model import configs
@@ -95,7 +97,9 @@ def store_full():
 
 @pytest.fixture(scope="session")
 def chinook():
-    return Model.from_yaml(chinook_path / "chinook.yml")
+    os.environ["CHINOOK_DATABASE"] = ""
+    proj = schema.Project.from_yaml(chinook_path)
+    return Model(proj)
 
 
 @pytest.fixture(scope="session")

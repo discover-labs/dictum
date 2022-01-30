@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple, Optional
 
+import pkg_resources
 from lark import Token, Transformer
 from pandas import DataFrame
 
@@ -428,7 +429,26 @@ class Backend(ABC):
         self.compiler = self.compiler_cls(self)
 
     def __init_subclass__(cls):
-        cls.registry[cls.type] = cls
+        if hasattr(cls, "type"):
+            cls.registry[cls.type] = cls
+
+    @classmethod
+    def create(cls, type: str, parameters: Optional[dict] = None):
+        if type in cls.registry:
+            backend_cls = cls.registry[type]
+            return backend_cls(**parameters)
+
+        return cls.get_plugin_backend(type)(**parameters)
+
+    @staticmethod
+    def get_plugin_backend(type: str):
+        for entry_point in pkg_resources.iter_entry_points(
+            "dictum.backends", name=type
+        ):
+            return entry_point.load()
+        raise ImportError(
+            f"Backend {type} was not found. Try installing dictum-backend-{type} package."
+        )
 
     def display_query(self, query):
         return str(query)

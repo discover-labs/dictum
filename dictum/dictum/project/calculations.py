@@ -1,6 +1,5 @@
 from typing import Dict
 
-import pandas as pd
 from babel.dates import match_skeleton
 
 import dictum.model

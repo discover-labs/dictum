@@ -1,47 +1,48 @@
-source: tracks
-primary_key: TrackId
+tables:
+  tracks:
+    source: tracks
+    primary_key: TrackId
 
-related:
-  media_type:
-    table: media_types
-    foreign_key: MediaTypeId
-  album:
-    table: albums
-    foreign_key: AlbumId
-  genre:
-    table: genres
-    foreign_key: GenreId
+    related:
+      media_type:
+        table: media_types
+        foreign_key: MediaTypeId
+      album:
+        table: albums
+        foreign_key: AlbumId
+      genre:
+        table: genres
+        foreign_key: GenreId
+
+    measures:
+      track_count:
+        name: Number of Tracks
+        description: |
+          Total Number of Tracks in the Library.
+        type: int
+        expr: count()
+
+      track_length:
+        name: Sum of Track Length (Seconds)
+        expr: sum(Milliseconds) / 1000
+
+      avg_track_length:
+        name: Average Track Length (Seconds)
+        expr: avg(Milliseconds) / 1000
+
+      avg_track_price:
+        name: Average Track Price
+        description: |
+          Average price of a track in our library. For average sold item size, see
+          Average Sold Unit Price.
+        expr: avg(UnitPrice)
+        format:
+          kind: currency
+          currency: USD
 
 
-measures:
-  track_count:
-    name: Number of Tracks
-    description: |
-      Total Number of Tracks in the Library.
-    type: int
-    expr: count()
-
-  track_length:
-    name: Sum of Track Length (Seconds)
-    expr: sum(Milliseconds) / 1000
-
-  avg_track_length:
-    name: Average Track Length (Seconds)
-    expr: avg(Milliseconds) / 1000
-
-  avg_track_price:
-    name: Average Track Price
-    description: |
-      Average price of a track in our library. For average sold item size, see
-      Average Sold Unit Price.
-    expr: avg(UnitPrice)
-    format:
-      kind: currency
-      currency: USD
-
-
-dimensions:
-  track_length_10s_bins:
-    name: Track Length (10-second bins)
-    expr: Milliseconds / 1000 // 10 * 10
-    type: int
+    dimensions:
+      track_length_10s_bins:
+        name: Track Length (10-second bins)
+        expr: Milliseconds / 1000 // 10 * 10
+        type: int

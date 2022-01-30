@@ -6,9 +6,8 @@ from typing import Optional, Union
 import altair as alt
 import pandas as pd
 
-from dictum import engine
+from dictum import engine, schema
 from dictum.backends.base import Backend
-from dictum.backends.profiles import ProfilesConfig
 from dictum.model import Model
 from dictum.project import analyses
 from dictum.project.calculations import ProjectDimensions, ProjectMetrics
@@ -37,7 +36,6 @@ class Project:
     def __init__(
         self,
         path: Optional[Union[str, Path]] = None,
-        profiles: Optional[Union[str, Path]] = None,
         profile: Optional[str] = None,
     ):
         """
@@ -45,9 +43,6 @@ class Project:
             path: Path to either the model YAML file or the
                 project directory. If a directory, model config is expected to be in
                 ``project.yml`` file. Defaults to current working directory.
-            profiles: Path to the profiles config. Defaults to a `profiles.yml`
-                file stored in the same directory as the data model file specified by
-                ``path``.
             profile: Profile name from ``profiles.yml`` to be used. Defaults to the
                 default specified in the config.
         """
@@ -58,14 +53,7 @@ class Project:
             path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Path {path} does not exist")
-        if path.is_dir():
-            path = path / "project.yml"
-        if profiles is None:
-            profiles = path.parent / "profiles.yml"
-        if not profiles.is_file():
-            raise FileNotFoundError(f"File {profiles} does not exist")
         self.path = path
-        self.profiles = profiles
         self.profile = profile
         self.m = ProjectMetrics(self)
         self.metrics = self.m
@@ -77,13 +65,29 @@ class Project:
             alt.themes.enable("dictum_theme")
 
     @cached_property
+    def _project(self) -> schema.Project:
+        return schema.Project.from_yaml(self.path)
+
+    @cached_property
     def model(self) -> Model:
-        return Model.from_yaml(self.path)
+        return Model(self._project)
 
     @cached_property
     def backend(self) -> Backend:
-        config = ProfilesConfig.from_yaml(self.profiles)
-        return config.get_backend(self.profile)
+        if self.profile is None and self._project.default_profile is None:
+            raise ValueError(
+                "Profile name is not specified for the project and no "
+                "default_profile setting found"
+            )
+
+        profile_name = (
+            self.profile if self.profile is not None else self._project.default_profile
+        )
+        profile = self._project.profiles.get(profile_name)
+        if profile is None:
+            raise KeyError(f"Profile {profile_name} not defined in the project")
+
+        return Backend.create(profile.type, profile.parameters)
 
     def execute(self, query: Query) -> engine.Result:
         resolved = self.model.get_resolved_query(query)
