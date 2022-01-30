@@ -1,12 +1,13 @@
 import time
 from datetime import date, datetime
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Dict, List, Optional
 
 import dateutil
 from lark import Tree
 from pandas import DataFrame, concat, isna, merge
 
 from dictum import engine
+from dictum.backends.base import Backend
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.engine.result import ExecutedQuery, Result
 
@@ -46,35 +47,6 @@ def _set_index(df: DataFrame, columns: List[str]):
     if index:
         return df.set_index(index)
     return df
-
-
-class Backend:
-    def execute(self, query) -> DataFrame:
-        """Execute a query"""
-
-    def compile_query(self, query: engine.RelationalQuery):
-        """Compile a RelationalQuery into a backend-specific query"""
-
-    def calculate(self, query, columns: List[engine.Column]):
-        """Calculate a list of columns based on an input query"""
-
-    def inner_join(self, base, query):
-        """Inject a query into base as an inner join on all query columns. Match by
-        column names.
-        """
-
-    def merge(self, queries, merge_on: List[str]):
-        """Merge multiple queries on a level of detail. Can be not-implemented"""
-        raise NotImplementedError  # this is allowed
-
-    def filter(self, query, conditions: List[Dict[str, Any]]):
-        """Filter a query with where"""
-
-    def filter_with_tuples(self, query, tuples: List[NamedTuple]):
-        """Filter a query with literal tuples."""
-
-    def display_query(self, query) -> str:
-        """Render query as a (hopefully) readable string for debugging purposes."""
 
 
 class Operator:
@@ -300,7 +272,7 @@ class MergeOperator(Operator, MaterializeMixin):
         """Merge multiple queries on the backend."""
         if len(inputs) == 1:
             return inputs[0]
-        return backend.merge(inputs, self.level_of_detail)
+        return backend.merge_queries(inputs, self.level_of_detail)
 
     def execute(self, backend: Backend) -> List[DataFrame]:
         """Merge multiple inputs. If backend implements merge method and there are
@@ -449,13 +421,14 @@ class TuplesFilterOperator(Operator):
 
 
 class FinalizeOperator(Operator):
-    def __init__(self, input: MaterializeOperator):
+    def __init__(self, input: MaterializeOperator, aliases: Dict[str, str]):
         super().__init__()
         if not isinstance(input, MaterializeOperator):
             raise TypeError(
                 "FinalizeOperator expects an instance of MaterializeOperator as input"
             )
         self.input = input
+        self.aliases = aliases
 
     def coerce_types(self, data: List[dict]):
         for row in data:
@@ -471,12 +444,15 @@ class FinalizeOperator(Operator):
     def execute(self, backend: Backend):
         """Pluck the materialized df, convert to dicts, coerce types."""
         data = self.input.get_result(backend)[0]
-        data = self.coerce_types(data.to_dict(orient="records"))
+        data = self.coerce_types(
+            data.rename(columns=self.aliases).to_dict(orient="records")
+        )
         display_info = {}
         for column in self.input.inputs[0].columns:
             info = column.display_info
             info.type = column.type
-            display_info[column.name] = info
+            name = self.aliases.get(column.name, column.name)
+            display_info[name] = info
         return Result(
             data=data,
             executed_queries=self.get_executed_queries(),
@@ -495,4 +471,8 @@ class FinalizeOperator(Operator):
 
     @property
     def types(self) -> Dict[str, str]:
-        return self.input.types
+        result = {}
+        for k, v in self.input.types.items():
+            k = self.aliases.get(k, k)
+            result[k] = v
+        return result

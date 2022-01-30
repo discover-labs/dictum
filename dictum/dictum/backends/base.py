@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, List
+from typing import Any, Dict, List, NamedTuple
 
 from lark import Token, Transformer
 from pandas import DataFrame
@@ -381,14 +381,40 @@ class Compiler(ABC):
 
     @abstractmethod
     def merge_queries(self, queries: List, merge_on: List[str]):
-        """Merge a list of relational queries on the relevant level of detail."""
+        """Merge a list of relational queries on the relevant level of detail. Can be
+        unsupported by a backend, raise NotImplementedError in this case.
+        """
 
     @abstractmethod
     def calculate(self, query, columns: List[Column]):
-        """Calculate expressions, apply post-filters"""
+        """Calculate expressions from the fields of a query"""
+
+    @abstractmethod
+    def filter(self, query, conditions: Dict[str, Any]):
+        """Filter a query on a list of conditions"""
+
+    @abstractmethod
+    def filter_with_tuples(self, query, tuples):
+        """Use a list of NamedTuples as a filter for a query. Each tuple is a
+        combination of valid field values, the rest are filtered out.
+        """
+
+    @abstractmethod
+    def inner_join(self, query, to_join, join_on: List[str]):
+        """Use another query as an inner join for a query, join condition is equality
+        on a list of columns (same names in both queries).
+        """
+
+    @abstractmethod
+    def limit(self, query, limit: int):
+        """Limit a query (mostly user with order)."""
+
+    @abstractmethod
+    def order(self, query, items: List[LiteralOrderItem]):
+        """Add ordering to a query."""
 
 
-class Connection(ABC):
+class Backend(ABC):
     """User-facing. Gets connection details, knows about it's compiler. Compiles
     the incoming computation, executes on the client.
     """
@@ -407,18 +433,20 @@ class Connection(ABC):
     def display_query(self, query):
         return str(query)
 
-    @abstractmethod
-    def execute(self, query) -> DataFrame:
-        """Execute query, return results"""
-
     def compile_query(self, query):
         return self.compiler.compile_query(query)
 
-    def calculate(self, query, columns):
+    def merge_queries(self, queries: List, merge_on: List[str]):
+        return self.compiler.merge_queries(queries, merge_on)
+
+    def calculate(self, query, columns: List[Column]):
         return self.compiler.calculate(query, columns)
 
-    def merge(self, queries, merge_on):
-        return self.compiler.merge_queries(queries, merge_on)
+    def filter(self, query, conditions: Dict[str, Any]):
+        return self.compiler.filter(query, conditions)
+
+    def filter_with_tuples(self, query, tuples: List[NamedTuple]):
+        return self.compiler.filter_with_tuples(query, tuples)
 
     def inner_join(self, query, to_join, join_on: List[str]):
         return self.compiler.inner_join(query, to_join, join_on)
@@ -429,8 +457,6 @@ class Connection(ABC):
     def order(self, query, items: List[LiteralOrderItem]):
         return self.compiler.order(query, items)
 
-    def filter(self, query, conditions: Dict[str, Any]):
-        return self.compiler.filter(query, conditions)
-
-    def filter_with_tuples(self, query, tuples):
-        return self.compiler.filter_with_tuples(query, tuples)
+    @abstractmethod
+    def execute(self, query) -> DataFrame:
+        """Execute query, return results"""

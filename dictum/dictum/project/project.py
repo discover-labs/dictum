@@ -6,15 +6,15 @@ from typing import Optional, Union
 import altair as alt
 import pandas as pd
 
-import dictum.project.analyses as analyses
 from dictum import engine
-from dictum.backends.base import Connection
+from dictum.backends.base import Backend
 from dictum.backends.profiles import ProfilesConfig
 from dictum.model import Model
+from dictum.project import analyses
 from dictum.project.calculations import ProjectDimensions, ProjectMetrics
 from dictum.project.chart import ProjectChart
+from dictum.project.magics import QlMagics
 from dictum.project.templates import environment
-from dictum.ql import compile_query
 from dictum.schema import Query
 
 
@@ -81,14 +81,14 @@ class Project:
         return Model.from_yaml(self.path)
 
     @cached_property
-    def connection(self) -> Connection:
+    def backend(self) -> Backend:
         config = ProfilesConfig.from_yaml(self.profiles)
-        return config.get_connection(self.profile)
+        return config.get_backend(self.profile)
 
     def execute(self, query: Query) -> engine.Result:
         resolved = self.model.get_resolved_query(query)
         computation = self.engine.get_computation(resolved)
-        return computation.execute(self.connection)
+        return computation.execute(self.backend)
 
     def query_graph(self, query: Query):
         resolved = self.model.get_resolved_query(query)
@@ -96,9 +96,7 @@ class Project:
         return computation.graph()
 
     def ql(self, query: str):
-        q = compile_query(query)
-        res = self.execute(q)
-        return pd.DataFrame(res.data)
+        return analyses.QlQuery(self, query)
 
     def select(self, *metrics: str) -> "analyses.Select":
         """
@@ -156,7 +154,7 @@ class Project:
         print(
             f"Project '{self.model.name}', {len(self.model.metrics)} metrics, "
             f"{len(self.model.dimensions)} dimensions. "
-            f"Connected to {self.connection}."
+            f"Connected to {self.backend}."
         )
         data = []
         for metric in self.model.metrics.values():
@@ -166,6 +164,16 @@ class Project:
             pd.DataFrame(data=data, columns=["metric", "dimension", "check"])
             .pivot(index="dimension", columns="metric", values="check")
             .fillna("")
+        )
+
+    def magic(self):
+        from IPython import get_ipython  # so that linters don't whine
+
+        ip = get_ipython()
+        ip.register_magics(QlMagics(project=self))
+        print(
+            r"The magic is registered, now you can use %ql and %%ql to query "
+            f"{self.model.name} project"
         )
 
     def _repr_html_(self):

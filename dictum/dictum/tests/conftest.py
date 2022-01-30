@@ -31,7 +31,7 @@ def stop(fail=False):
 
 @contextmanager
 def postgres():
-    from dictum.backends import PostgresConnection
+    from dictum.backends import PostgresBackend
 
     script = chinook_path / "chinook.postgres.sql"
     cmd = shlex.split(
@@ -56,7 +56,7 @@ def postgres():
     )
     subprocess.check_call(restore_cmd)
     try:
-        yield PostgresConnection(
+        yield PostgresBackend(
             database=params["dbname"],
             host=params["host"],
             username=params["user"],
@@ -70,21 +70,21 @@ def postgres():
 def sqlite():
     from dictum.examples.chinook.generate import generate
 
-    yield generate().connection
+    yield generate().backend
 
 
 @pytest.fixture(scope="session", params=[sqlite, postgres])
-def connection(request):
-    with request.param() as conn:
-        yield conn
+def backend(request):
+    with request.param() as backend:
+        yield backend
 
 
 @pytest.fixture(scope="session")
-def project(connection):
+def project(backend):
     from dictum import Project
 
     project = Project.example("chinook")
-    project.connection = connection
+    project.backend = backend
     yield project
 
 

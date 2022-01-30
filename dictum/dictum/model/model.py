@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from dictum import schema
 from dictum.model.calculations import Dimension, DimensionsUnion, Measure, Metric
@@ -31,6 +31,7 @@ class ResolvedQueryDimensionRequest:
     dimension: Dimension
     transforms: List[ScalarTransform]
     name: str
+    alias: Optional[str] = None
     keep_name: bool = False
 
 
@@ -39,6 +40,7 @@ class ResolvedQueryMetricRequest:
     metric: Metric
     transforms: List[TableTransform]
     name: str
+    alias: Optional[str] = None
     keep_name: bool = False
 
 
@@ -290,6 +292,7 @@ class Model:
             dimension=resolved.dimension,
             transforms=resolved.transforms,
             name=request.name,
+            alias=request.alias,
             keep_name=request.alias is not None,
         )
 
@@ -344,6 +347,7 @@ class Model:
             metric=resolved.metric,
             transforms=resolved.transforms,
             name=request.name,
+            alias=request.alias,
             keep_name=request.alias is not None,
         )
 

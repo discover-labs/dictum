@@ -57,14 +57,7 @@ class ProjectCalculation(AltairEncodingChannelHook):
         self.locale = locale
 
     def encoding_fields(self, cls=None) -> dict:
-        fields = {
-            "field": f"{self._type}:{self}",
-            # "type": type_to_encoding_type[
-            #     self.calculation.type
-            # ],  # this will be replaced anyway
-        }
-
-        return fields
+        return {"field": f"{self._type}:{self}"}
 
     @property
     def _type(self) -> str:
@@ -166,9 +159,8 @@ class ProjectMetrics:
             )
 
     def _repr_html_(self):
-        return pd.DataFrame(
-            {"id": m.id, "name": m.name} for m in self.__project.model.metrics.values()
-        ).to_html()
+        template = environment.get_template("calculations.html.j2")
+        return template.render(calculations=self.__project.model.metrics.values())
 
 
 class ProjectDimensionRequest(ProjectCalculation):
@@ -216,6 +208,7 @@ class ProjectDimension(ProjectDimensionRequest):
 
 class ProjectDimensions:
     def __init__(self, project: "dictum.project.Project"):
+        self.__project = project
         transforms = project.model.scalar_transforms
         for dimension in project.model.dimensions.values():
             setattr(
@@ -225,3 +218,7 @@ class ProjectDimensions:
                     dimension, locale=project.model.locale, transforms=transforms
                 ),
             )
+
+    def _repr_html_(self):
+        template = environment.get_template("calculations.html.j2")
+        return template.render(calculations=self.__project.model.dimensions.values())

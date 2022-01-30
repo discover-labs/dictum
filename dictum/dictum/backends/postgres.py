@@ -4,7 +4,7 @@ from sqlalchemy import Integer
 from sqlalchemy.sql import cast, func
 
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
+from dictum.backends.sql_alchemy import SQLAlchemyBackend, SQLAlchemyCompiler
 
 
 class PostgresCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
@@ -27,7 +27,7 @@ class PostgresCompiler(DatediffCompilerMixin, SQLAlchemyCompiler):
         return self.todate(func.now())
 
 
-class PostgresConnection(SQLAlchemyConnection):
+class PostgresBackend(SQLAlchemyBackend):
     type = "postgres"
     compiler_cls = PostgresCompiler
 

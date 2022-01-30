@@ -7,7 +7,7 @@ import yaml
 from jinja2 import Template
 from pydantic import BaseModel
 
-from dictum.backends.base import Connection
+from dictum.backends.base import Backend
 
 
 class Env:
@@ -47,9 +47,9 @@ class ProfilesConfig(BaseModel):
             raise KeyError(f"Profile {profile} doesn't exist")
         return result
 
-    def get_connection(self, profile: Optional[str] = None) -> Connection:
+    def get_backend(self, profile: Optional[str] = None) -> Backend:
         profile = self.get_profile(profile)
-        connection_cls = Connection.registry.get(profile.type)
+        connection_cls = Backend.registry.get(profile.type)
         if connection_cls is None:
             connection_cls = self.get_plugin_connection(profile.type)
         return connection_cls(**profile.parameters)

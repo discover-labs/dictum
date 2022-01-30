@@ -383,13 +383,13 @@ def test_percent_integer(project: Project):
 
 
 def test_format_metric(project: Project):
-    result = project.select(project.m.revenue)._get_formatted_df()
+    result = project.select(project.m.revenue).df(format=True)
     assert result.columns[0] == "Revenue"  # column name comes from the metric name
     assert result.iloc[0, 0] == "$2,328.60"  # the value is formatted
 
 
 def test_format_dimension_name(project: Project):
-    result = project.select(project.m.revenue).by(project.d.genre)._get_formatted_df()
+    result = project.select(project.m.revenue).by(project.d.genre).df(format=True)
     assert list(result.columns) == ["Genre", "Revenue"]
 
 
@@ -397,7 +397,7 @@ def test_format_transform(project: Project):
     result = (
         project.select(project.m.revenue)
         .by(project.d.invoice_date.year)
-        ._get_formatted_df()
+        .df(format=True)
     )
     assert list(result.columns) == ["Sale Date", "Revenue"]
     assert result.iloc[0, 0] == "2009"
@@ -407,7 +407,7 @@ def test_format_dimension_transform_alias(project: Project):
     result = (
         project.select(project.m.revenue.percent().name("Percent of Revenue"))
         .by(project.d.invoice_date.year.name("Year"))
-        ._get_formatted_df()
+        .df(format=True)
     )
     assert list(result.columns) == ["Year", "Percent of Revenue"]
 

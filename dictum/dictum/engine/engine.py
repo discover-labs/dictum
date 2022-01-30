@@ -41,7 +41,13 @@ class Engine:
         self, anchor: "model.Table", request: "model.ResolvedQueryDimensionRequest"
     ) -> Column:
         dimension = request.dimension
-        path = anchor.dimension_join_paths[dimension.id]
+        try:
+            path = anchor.dimension_join_paths[dimension.id]
+        except KeyError:
+            raise KeyError(
+                f"You requested {dimension}, but it can't be used with "
+                f"another measure that you requested on {anchor}"
+            )
         if isinstance(request.dimension, model.DimensionsUnion):
             dimension = anchor.allowed_dimensions.get(dimension.id)
         expr = dimension.prefixed_expr(path)
@@ -125,14 +131,18 @@ class Engine:
 
         metrics = []
         for request in query.metrics:
+            display_name = (
+                request.alias if request.alias is not None else request.metric.name
+            )
             column = Column(
                 name=request.name,
                 expr=metric_expr(request.metric.expr),
                 type=request.metric.type,
                 display_info=DisplayInfo(
-                    name=request.name if request.keep_name else request.metric.name,
+                    name=display_name,
+                    type=request.metric.type,
                     format=request.metric.format,
-                    keep_name=request.keep_name,
+                    keep_name=request.alias is not None,
                 ),
             )
             metrics.append(column)
@@ -142,15 +152,18 @@ class Engine:
 
         dimensions = []
         for request in query.dimensions:
+            display_name = (
+                request.alias if request.alias is not None else request.dimension.name
+            )
             column = Column(
                 name=request.name,
                 expr=utils.column_expr(request.name),
                 type=request.dimension.type,
                 display_info=DisplayInfo(
-                    name=request.name if request.keep_name else request.dimension.name,
-                    format=request.dimension.format,
-                    keep_name=request.keep_name,
+                    name=display_name,
                     type=request.dimension.type,
+                    format=request.dimension.format,
+                    keep_name=request.alias is not None,
                 ),
             )
             for transform in request.transforms:
@@ -171,4 +184,11 @@ class Engine:
 
     def get_computation(self, query: "model.ResolvedQuery") -> MergeOperator:
         terminal = self.get_terminal(query)
-        return FinalizeOperator(MaterializeOperator([terminal]))
+        return FinalizeOperator(
+            input=MaterializeOperator([terminal]),
+            aliases={
+                r.name: r.alias
+                for r in query.metrics + query.dimensions
+                if r.alias is not None
+            },
+        )

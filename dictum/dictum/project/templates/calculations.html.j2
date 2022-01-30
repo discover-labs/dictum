@@ -1,0 +1,7 @@
+{% import "macros.html.j2" as m %}
+
+<div style="max-height: 20rem; overflow-y: scroll;">
+{% for calculation in calculations %}
+<p style="margin-bottom: 2rem;">{{ m.display_calculation(calculation) }}</p>
+{% endfor %}
+</div>

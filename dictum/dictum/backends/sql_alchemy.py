@@ -28,7 +28,7 @@ from sqlalchemy.sql import Select
 from sqlalchemy.sql.functions import coalesce
 
 import dictum.model
-from dictum.backends.base import Compiler, Connection
+from dictum.backends.base import Backend, Compiler
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from dictum.engine import Column, LiteralOrderItem, RelationalQuery
 
@@ -62,7 +62,7 @@ class ColumnTransformer(Transformer):
 
 
 class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
-    def __init__(self, connection: "SQLAlchemyConnection"):
+    def __init__(self, connection: "SQLAlchemyBackend"):
         self.connection = connection
         super().__init__()
 
@@ -339,7 +339,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         return query
 
 
-class SQLAlchemyConnection(Connection):
+class SQLAlchemyBackend(Backend):
 
     type = "sql_alchemy"
     compiler_cls = SQLAlchemyCompiler
@@ -373,6 +373,9 @@ class SQLAlchemyConnection(Connection):
     def metadata(self) -> MetaData:
         return MetaData(self.engine)
 
+    def __str__(self):
+        return repr(self.engine.url)
+
     def display_query(self, query: Select) -> str:
         return sqlparse.format(
             str(query.compile(bind=self.engine)),
@@ -384,6 +387,3 @@ class SQLAlchemyConnection(Connection):
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
         return Table(name, self.metadata, schema=schema, autoload=True)
-
-    def __str__(self):
-        return repr(self.engine.url)

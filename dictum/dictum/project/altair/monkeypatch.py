@@ -241,7 +241,10 @@ def render_self(self):
                 if isinstance(channel, list) or isinstance(
                     channel.shorthand, RepeatRef
                 ):
-                    continue  # skip repeated channels
+                    continue  # skip repeat channels
+
+                if channel.field not in result.display_info:
+                    continue  # skip literal channels
 
                 info = result.display_info[channel.field]
 

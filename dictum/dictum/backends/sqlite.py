@@ -2,14 +2,13 @@ import warnings
 from functools import cached_property
 from typing import List
 
-import pandas as pd
 from pandas import DataFrame
 from sqlalchemy import Integer, String, create_engine
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql import Select, case, cast, func
 
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.backends.sql_alchemy import SQLAlchemyCompiler, SQLAlchemyConnection
+from dictum.backends.sql_alchemy import SQLAlchemyBackend, SQLAlchemyCompiler
 
 trunc_modifiers = {
     "year": ["start of year"],
@@ -113,29 +112,10 @@ class SQLiteFunctionsMixin:
 
 
 class SQLiteCompiler(SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyCompiler):
-
-    # compile
-
-    def merge_queries(self, queries: List[Select], merge_on: List[str]):
-        """SQLite doesn't support full outer joins, so we have to materialize here and
-        proceed with Pandas.
-        """
-        dfs = [pd.DataFrame(self.connection.execute(q.select())) for q in queries]
-        if len(merge_on) > 0:
-            dfs = [df.set_index(merge_on) for df in dfs]
-        res = pd.concat(dfs, axis=1)
-        if len(merge_on) > 0:
-            res = res.reset_index()
-        return res
+    pass
 
 
-class SQLiteRawQueryCompiler(
-    SQLiteFunctionsMixin, DatediffCompilerMixin, SQLAlchemyCompiler
-):
-    """To compile an equivalent SQL query"""
-
-
-class SQLiteConnection(SQLAlchemyConnection):
+class SQLiteBackend(SQLAlchemyBackend):
 
     type = "sqlite"
     compiler_cls = SQLiteCompiler
@@ -152,5 +132,5 @@ class SQLiteConnection(SQLAlchemyConnection):
             warnings.simplefilter("ignore", SAWarning)
             return super().execute(query)
 
-    def merge(self, queries: List[Select], merge_on: List[str]):
+    def merge_queries(self, queries: List[Select], merge_on: List[str]):
         raise NotImplementedError

@@ -3,12 +3,6 @@ description: |
   An example project based on Chinook sqlite database. Use for testing, introductory
   tutorial and as a basic example of what can be done here.
 
-parameters:
-  period:
-    name: Reporting Period (Time Granularity)
-    values: [year, quarter, month, week, day, hour, minute, second]
-    default: day
-
 unions:
   country:
     name: Country

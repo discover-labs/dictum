@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from lark import Transformer
 from dictum.backends.base import Compiler
 from dictum.backends.mixins.arithmetic import ArithmeticCompilerMixin
 from dictum.backends.mixins.datediff import DatediffCompilerMixin
-from dictum.engine import RelationalQuery
+from dictum.engine import Column, LiteralOrderItem, RelationalQuery
 
 
 class PandasColumnTransformer(Transformer):
@@ -151,13 +151,25 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     # compilation
 
     def compile_query(self, query: RelationalQuery):
-        """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 
     def merge_queries(self, queries: List, merge_on: List[str]):
-        """This is to support SQLite, so not implemented yet."""
         raise NotImplementedError
 
-    def calculate(self, merged):
-        """This is to support SQLite, so not implemented yet."""
+    def calculate(self, query, columns: List[Column]):
+        raise NotImplementedError
+
+    def filter(self, query, conditions: Dict[str, Any]):
+        raise NotImplementedError
+
+    def filter_with_tuples(self, query, tuples):
+        raise NotImplementedError
+
+    def inner_join(self, query, to_join, join_on: List[str]):
+        raise NotImplementedError
+
+    def limit(self, query, limit: int):
+        raise NotImplementedError
+
+    def order(self, query, items: List[LiteralOrderItem]):
         raise NotImplementedError

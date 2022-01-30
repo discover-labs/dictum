@@ -11,6 +11,7 @@ related:
 measures:
   revenue:
     name: Revenue
+    description: The sum of money (in USD) that our music store has earned
     expr: sum(UnitPrice * Quantity)
     format:
       kind: currency

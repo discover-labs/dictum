@@ -192,3 +192,20 @@ def test_detail_list(project: Project):
         )
     )
     return chart
+
+
+def test_calculate_transform(project: Project):
+    """Test that normal encodings derived from transform_calculate'd fields work as
+    expected.
+    """
+    chart = (
+        project.chart(project.m.revenue)
+        .mark_bar()
+        .encode(x=project.d.invoice_date.year, y="max_pct:Q")
+        .transform_joinaggregate(
+            groupby=[],
+            max="sum(revenue)",
+        )
+        .transform_calculate(max_pct="datum.revenue / datum.max")
+    )
+    return chart

@@ -9,6 +9,6 @@ def generate():
     path = base / "chinook.yml"
     os.environ["CHINOOK_DATABASE"] = ""
     project = Project(path)
-    with project.connection.engine.connect() as conn:
+    with project.backend.engine.connect() as conn:
         conn.connection.executescript((base / "chinook.sqlite.sql").read_text())
     return project

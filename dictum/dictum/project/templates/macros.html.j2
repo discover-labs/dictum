@@ -1,0 +1,17 @@
+{% macro display_calculation(calculation) %}
+{% set prefix = "$" if calculation.is_measure is defined else ":" %}
+
+<h3>{{ calculation.name }}</h3>
+<code>{{ prefix }}{{ calculation.id }}</code>
+
+{% if calculation.description %}
+<p>{{ calculation.description }}</p>
+{% endif %}
+
+{% if calculation.table %}
+<p>
+<code>{{ calculation.str_expr }}</code>
+on table {{ calculation.table.id }}: <code>{{ calculation.table.source }}</code>
+</p>
+{% endif %}
+{% endmacro %}

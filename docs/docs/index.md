@@ -3,20 +3,40 @@
 !!! quote ""
     In general usage, a __dictum__ (plural dicta) is an authoritative or dogmatic statement.
 
-Dictum is an open-source semantic layer for your data. It serves as an authoritative,
-single source of truth about the _meaning_ and _structure_ of your data, allowing you
-to skip writing SQL and thinking about tables, colunms, joins and calculations,
-concentrating entirely on the business problem at hand.
+Dictum is an open-source Python library for interactive analytics and Business Intelligence.
+It takes the concept of __Headless BI__ to it's logical conclusion by providing a universal
+and flexible __metrics engine__ that can be built upon in a variety of ways.
 
-After describing how your data is stored with a YAML configuration file, you can start
-asking questions like:
 
-- How many signups per week do we have?
-- How many users are there in each LTV bucket?
-- How close is each sales manager to meeting their monthly sales target?
+## Unified data model
 
-Dictum will translate them to a query (both SQL and non-SQL backends can be supported),
-execute it and return the results.
+Dictum data model is a single source of truth about the _meaning_ and _structure_ of
+your data. It describes your metrics, dimensions and table relationships.
+
+The model is a collection of YAML files that is supposed to be version-controlled and
+shared across your analytics team. This allows your team to govern metric definitions
+systematically, making your analysis consistent and repeatable.
+
+!!! info
+    Dictum data model is similar to Looker's
+    [LookML](https://docs.looker.com/data-modeling/learning-lookml/what-is-lookml)
+    and Data Schema in [Cube.js](https://cube.dev).
+
+To learn more about the data model, read the [Data Model Guide](model/index.md).
+
+
+## Interactive analytics in Jupyter
+
+After describing a couple of your existing metrics, you can query your data model in
+every analyst's favourite tool for data analysis: [Jupyter](https://jupyter.org).
+
+Build beautiful visualizations using [Altair](https://altair-viz.github.io/) or retrieve
+data for analysis in Pandas. The engine uses flexible and expressive query idioms and
+supports table calculations, filtering, top-K queries and more.
+
+To learn about querying Dictum, see [Python API guide](query/python.ipynb),
+[Query Language guide](query/ql.ipynb)
+or [Visualization guide](query/visualization.ipynb).
 
 
 ## Where to start
@@ -30,9 +50,7 @@ If you want to learn how to describe your data, read the
 
 ## Querying
 
-Dictum can be queried with a special [SQL-like query language](reference/query_language.md),
-[Python query builder](reference/python_api.md), [GraphQL API](reference/graphql.md)
-or by directly building a [Query object](reference/query.md).
+Dictum can be queried with [Python query builder](reference/python_api.md).
 
 === "Query language"
 

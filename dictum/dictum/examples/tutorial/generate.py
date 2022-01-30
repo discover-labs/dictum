@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from numpy.random import Generator
 
-from dictum import CachedProject
+from dictum import Project
 
 rng = np.random.default_rng(42)
 
@@ -100,12 +100,12 @@ def generate_sessions(rng: Generator):
 def generate():
     base = Path(__file__).parent
     path = base / "project.yml"
-    project = CachedProject(path)
+    project = Project(path)
 
     # generate random data
     rng = np.random.default_rng(42)
 
-    with project.connection.engine.connect() as conn:
+    with project.backend.engine.connect() as conn:
         generate_orders(rng).to_sql("orders", conn)
         generate_categories().to_sql("categories", conn)
         generate_users(rng).to_sql("users", conn)

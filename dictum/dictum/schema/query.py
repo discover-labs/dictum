@@ -76,8 +76,6 @@ class QueryCalculationRequest(BaseModel):
 
     @property
     def name(self) -> str:
-        if self.alias is not None:
-            return self.alias
         return self.calculation.name
 
     @property

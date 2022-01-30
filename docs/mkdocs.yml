@@ -6,14 +6,10 @@ theme:
 repo_url: https://github.com/rad-data-labs/dictum
 repo_name: Source code
 plugins:
-  - mkdocstrings:
-      default_handler: python
-      handlers:
-        python:
-          rendering:
-            show_root_heading: true
-            show_source: false
-            show_signature_annotations: true
+  - mkdocs-jupyter:
+      execute: True
+      # include: ["*.ipynb"]
+      # kernel_name: python
 markdown_extensions:
   - admonition
   - attr_list
@@ -26,6 +22,9 @@ markdown_extensions:
   - pymdownx.tabbed
 nav:
   - Introduction: index.md
+  - Python Query Guide: python.ipynb
+  - Visualization Guide: visualization.ipynb
+  - Query Language Guide: ql.ipynb
   - Data Model Guide:
     - Getting Started: model/getting_started.md
     # - Query Intro: model/query_intro.md
@@ -60,5 +59,5 @@ nav:
   - Reference:
     - Expression Language: reference/expression_language.md
     - Query Language: reference/query_language.md
-    - Python API: reference/python_api.md
+    # - Python API: reference/python_api.md
     - Backends: reference/backends.md

@@ -4,7 +4,7 @@ import pytest
 from pandas import DataFrame
 from pandas.api.types import is_datetime64_any_dtype
 
-from dictum.backends.base import Connection
+from dictum.backends.base import Backend
 from dictum.engine import Column, Engine, RelationalQuery
 from dictum.model import Model
 from dictum.model.expr.parser import parse_expr
@@ -12,21 +12,21 @@ from dictum.schema import Query
 
 
 @pytest.fixture(scope="module")
-def compute_df(chinook: Model, engine: Engine, connection: Connection):
+def compute_df(chinook: Model, engine: Engine, backend: Backend):
     def compute(query: Query):
         resolved = chinook.get_resolved_query(query)
         computation = engine.get_computation(resolved)
-        return DataFrame(computation.execute(connection).data)
+        return DataFrame(computation.execute(backend).data)
 
     return compute
 
 
 @pytest.fixture(scope="module")
-def compute_results(chinook: Model, engine: Engine, connection: Connection):
+def compute_results(chinook: Model, engine: Engine, backend: Backend):
     def compute(query: Query):
         resolved = chinook.get_resolved_query(query)
         computation = engine.get_computation(resolved)
-        return computation.execute(connection).data
+        return computation.execute(backend).data
 
     return compute
 
@@ -47,10 +47,7 @@ def test_filter(compute_df: callable):
         {
             "metrics": [{"metric": {"id": "items_sold"}}],
             "filters": [
-                {
-                    "id": "genre",
-                    "transforms": [{"id": "isin", "args": ["Rock"]}],
-                },
+                {"id": "genre", "transforms": [{"id": "isin", "args": ["Rock"]}]},
                 {
                     "id": "customer_country",
                     "transforms": [{"id": "isin", "args": ["USA"]}],
@@ -161,7 +158,7 @@ def test_subquery_join(compute_df: callable):
 
 
 @pytest.fixture(scope="module")
-def compute(chinook: Model, connection: Connection):
+def compute(chinook: Model, backend: Backend):
     def computer(expr: str, type="datetime"):
         expr = parse_expr(expr)
         columns = [Column(name="value", expr=expr, type=type)]
@@ -170,8 +167,8 @@ def compute(chinook: Model, connection: Connection):
             _groupby=columns,
             join_tree=[],
         )
-        compiled = connection.compile_query(query)
-        return str(connection.execute(compiled).iloc[0, 0])
+        compiled = backend.compile_query(query)
+        return str(backend.execute(compiled).iloc[0, 0])
 
     return computer
 

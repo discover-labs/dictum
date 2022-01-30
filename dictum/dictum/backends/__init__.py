@@ -1,4 +1,4 @@
-from dictum.backends.postgres import PostgresConnection
-from dictum.backends.sqlite import SQLiteConnection
+from dictum.backends.postgres import PostgresBackend
+from dictum.backends.sqlite import SQLiteBackend
 
-__all__ = ["PostgresConnection", "SQLiteConnection"]
+__all__ = ["PostgresBackend", "SQLiteBackend"]
