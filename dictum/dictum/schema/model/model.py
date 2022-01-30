@@ -5,7 +5,7 @@ import yaml
 from pydantic import BaseModel, validator
 
 from dictum.schema import utils
-from dictum.schema.model.calculations import DimensionsUnion, Metric
+from dictum.schema.model.calculations import DetachedDimension, DimensionsUnion, Metric
 from dictum.schema.model.table import Table
 from dictum.schema.model.transform import Transform
 
@@ -17,6 +17,7 @@ class Model(BaseModel):
     description: Optional[str]
     locale: str = "en_US"
 
+    dimensions: Dict[str, DetachedDimension] = {}
     metrics: Dict[str, Metric] = {}
     unions: Dict[str, DimensionsUnion] = {}
 
@@ -54,6 +55,9 @@ class Model(BaseModel):
         return cls.parse_obj(config)
 
     set_metrics_ids = validator("metrics", allow_reuse=True, pre=True)(utils.set_ids)
+    set_dimensions_ids = validator("dimensions", allow_reuse=True, pre=True)(
+        utils.set_ids
+    )
     set_tables_ids = validator("tables", allow_reuse=True, pre=True)(utils.set_ids)
     set_unions_ids = validator("unions", allow_reuse=True, pre=True)(utils.set_ids)
     set_transforms_ids = validator("transforms", allow_reuse=True, pre=True)(

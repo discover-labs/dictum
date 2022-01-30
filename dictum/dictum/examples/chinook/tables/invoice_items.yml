@@ -11,14 +11,7 @@ tables:
         foreign_key: TrackId
 
     measures:
-      revenue:
-        name: Revenue
-        description: The sum of money (in USD) that our music store has earned
-        expr: sum(UnitPrice * Quantity)
-        format:
-          kind: currency
-          currency: USD
-        missing: 0
+      # revenue is defined as a metric in project.yml
 
       unique_paying_customers:
         name: Unique Paying Customers

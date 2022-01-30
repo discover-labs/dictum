@@ -13,15 +13,7 @@ from dictum.transforms.table import transforms as table_transforms
 # from toolz import compose_left
 
 
-displayed_fields = {
-    "id",
-    "name",
-    "description",
-    "type",
-    "format",
-    "currency",
-    "missing",
-}
+displayed_fields = {"id", "name", "description", "type", "format", "missing"}
 
 table_calc_fields = displayed_fields | {"str_expr"}
 
@@ -101,7 +93,7 @@ class Model:
                 **union.dict(include=displayed_fields)
             )
 
-        # add all tables and their relationships
+        # add all tables, their relationships and calculations
         for config_table in model.tables.values():
             table = self.ensure_table(config_table)
             for related in config_table.related.values():
@@ -129,33 +121,22 @@ class Model:
                     **related.dict(include={"foreign_key", "alias"}),
                 )
 
-        # add all dimensions
-        for config_table in model.tables.values():
-            table = self.tables.get(config_table.id)
+            # add table dimensions
             for dimension in config_table.dimensions.values():
-                _dimension = Dimension(
-                    table=table,
-                    **dimension.dict(include=table_calc_fields),
-                )
-                table.dimensions[dimension.id] = _dimension
-                if dimension.union is not None:
-                    if dimension.union in table.dimensions:
-                        raise KeyError(
-                            f"Duplicate union dimension {dimension.union} "
-                            f"on table {table.id}"
-                        )
-                    table.dimensions[dimension.union] = dataclasses.replace(
-                        _dimension, id=dimension.union, is_union=True
-                    )
-                self.dimensions.add(_dimension)
+                self.add_dimension(dimension, table)
 
-        # add all measures
-        for config_table in model.tables.values():
-            table = self.tables.get(config_table.id)
+            # add table measures
             for measure in config_table.measures.values():
-                _measure = self.build_measure(measure, table)
-                table.measures[measure.id] = _measure
-                self.measures.add(_measure)
+                self.add_measure(measure, table)
+
+        # add detached dimensions
+        for dimension in model.dimensions.values():
+            table = self.tables.get(dimension.table)
+            self.add_dimension(dimension, table)
+
+        # add metrics
+        for metric in model.metrics.values():
+            self.add_metric(metric)
 
         # add measure backlinks
         for table in self.tables.values():
@@ -163,36 +144,45 @@ class Model:
                 for target in table.allowed_join_paths:
                     target.measure_backlinks[measure.id] = table
 
-        # add metrics
-        for metric in model.metrics.values():
-            self.metrics[metric.id] = Metric(
-                store=self,
-                **metric.dict(include=table_calc_fields),
-            )
-
-    @classmethod
-    def from_yaml(cls, path: str):
-        return cls(schema.Model.from_yaml(path))
-
-    def build_measure(self, measure: schema.Measure, table: Table) -> Measure:
-        _measure = Measure(
+    def add_measure(self, measure: schema.Measure, table: Table) -> Measure:
+        result = Measure(
             table=table,
-            **measure.dict(
-                include={
-                    "id",
-                    "name",
-                    "description",
-                    "str_expr",
-                    "type",
-                    "format",
-                    "currency",
-                    "missing",
-                }
-            ),
+            **measure.dict(include=table_calc_fields),
         )
         if measure.metric:
             self.metrics.add(Metric.from_measure(measure, self))
-        return _measure
+        table.measures.add(result)
+        self.measures.add(result)
+
+    def add_dimension(self, dimension: schema.Dimension, table: Table) -> Dimension:
+        result = Dimension(
+            table=table,
+            **dimension.dict(include=table_calc_fields),
+        )
+        table.dimensions[result.id] = result
+        if dimension.union is not None:
+            if dimension.union in table.dimensions:
+                raise KeyError(
+                    f"Duplicate union dimension {dimension.union} "
+                    f"on table {table.id}"
+                )
+            table.dimensions[dimension.union] = dataclasses.replace(
+                result, id=dimension.union, is_union=True
+            )
+        self.dimensions.add(result)
+
+    def add_metric(self, metric: schema.Metric):
+        if metric.table is not None:
+            # table is specified, treat as that table's measure
+            table = self.tables.get(metric.table)
+            measure = schema.Measure(**metric.dict(by_alias=True), metric=True)
+            return self.add_measure(measure, table)
+
+        # no, it's a real metric
+        self.metrics[metric.id] = Metric(
+            store=self,
+            **metric.dict(include=table_calc_fields),
+        )
 
     def ensure_table(self, table: schema.Table) -> Table:
         if table.id not in self.tables:

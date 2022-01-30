@@ -25,10 +25,19 @@ class Measure(Calculation):
 
 class Metric(Calculation):
     type: Type = "float"
+    table: Optional[str]
 
 
 class Dimension(Calculation):
     union: Optional[str]
+
+
+class DetachedDimension(Dimension):
+    """Just a dimension not defined on a table, the user has to explicitly
+    specify which table it is.
+    """
+
+    table: str
 
 
 class DimensionsUnion(Displayed):

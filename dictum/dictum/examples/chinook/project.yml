@@ -9,6 +9,15 @@ unions:
     type: str
 
 metrics:
+  revenue:
+    name: Revenue
+    table: invoice_items
+    expr: sum(UnitPrice * Quantity)
+    missing: 0
+    type: float
+    format:
+      kind: currency
+      currency: USD
   revenue_per_track:
     name: Revenue per Track in the Library
     expr: $revenue / $track_count
@@ -16,25 +25,35 @@ metrics:
       kind: currency
       currency: USD
 
+dimensions:
+  genre:
+    name: Genre
+    table: genres
+    expr: Name
+    type: str
+  artist:
+    name: Artist
+    table: artists
+    expr: Name
+    type: str
+  album:
+    name: Album
+    table: albums
+    expr: Title
+    type: str
+  media_type:
+    name: Media Type
+    table: media_types
+    expr: Name
+    type: str
+
 tables:
   genres:
     source: genres
     primary_key: GenreId
-    dimensions:
-      genre:
-        name: Genre
-        expr: Name
-        type: str
-
   artists:
     source: artists
     primary_key: ArtistId
-    dimensions:
-      artist:
-        name: Artist
-        expr: Name
-        type: str
-
   albums:
     source: albums
     primary_key: AlbumId
@@ -42,17 +61,6 @@ tables:
       artist:
         table: artists
         foreign_key: ArtistId
-    dimensions:
-      album:
-        name: Album Title
-        expr: Title
-        type: str
-
   media_types:
     source: media_types
     primary_key: MediaTypeId
-    dimensions:
-      media_type:
-        name: Type of Media
-        expr: Name
-        type: str
