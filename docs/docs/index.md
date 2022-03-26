@@ -8,9 +8,20 @@ It takes the concept of __Headless BI__ to it's logical conclusion by providing 
 and flexible __metrics engine__ that can be built upon in a variety of ways.
 
 
-## Unified data model
+## A structured way to describe your metrics
 
-Dictum data model is a single source of truth about the _meaning_ and _structure_ of
+```yaml
+# metrics/revenue.yml
+name: Revenue
+description: Sum of all order amounts excluding bonus currency spending.
+table: orders
+expr: sum(amount - coalesce(bonus_spent, 0))
+format:
+  kind: currency
+  currency: USD
+```
+
+Dictum [Data Model](model/index.md) is a single source of truth about the _meaning_ and _structure_ of
 your data. It describes your metrics, dimensions and table relationships.
 
 The model is a collection of YAML files that is supposed to be version-controlled and
@@ -27,7 +38,14 @@ To learn more about the data model, read the [Data Model Guide](model/index.md).
 
 ## Interactive analytics in Jupyter
 
-After describing a couple of your existing metrics, you can query your data model in
+```py
+from dictum import Project
+
+project = Project("/path/to/project")
+project.select("revenue").by("date.month")
+```
+
+After describing your existing metrics, you can query your data model in
 every analyst's favourite tool for data analysis: [Jupyter](https://jupyter.org).
 
 Build beautiful visualizations using [Altair](https://altair-viz.github.io/) or retrieve

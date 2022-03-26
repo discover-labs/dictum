@@ -17,9 +17,6 @@ sqlparse = "^0.4.2"
 Babel = "^2.9.1"
 altair = { version = "4.2.0rc1", allow-prereleases = true }
 
-[tool.poetry.extras]
-postgres = ["psycopg2-binary^2.9.1"]
-
 [tool.poetry.dev-dependencies]
 black = "^21.9b0"
 flake8 = "^3.9.2"
