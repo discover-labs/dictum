@@ -7,10 +7,10 @@ from dictum.schema.model.calculations import Dimension, Measure
 
 
 class RelatedTable(BaseModel):
-    table: str
+    str_table: str = Field(alias="table")
     foreign_key: str
     alias: str = Field(alias="id")
-    related_key: Optional[str]
+    str_related_key: Optional[str] = Field(alias="related_key")
 
 
 class Table(BaseModel):
