@@ -1,3 +1,4 @@
+import locale
 from typing import Dict, List, Optional
 
 from babel.dates import format_date, format_datetime
@@ -38,6 +39,8 @@ class Formatter:
         if format.kind == "string":
             return str(value)
         if format.kind == "currency":
-            return format_currency(value, format.currency, format=format.pattern)
+            return format_currency(
+                value, format.currency, format=format.pattern, locale=self.locale
+            )
         formatter = self.formatters[format.kind]
         return formatter(value, format=format.pattern, locale=self.locale)

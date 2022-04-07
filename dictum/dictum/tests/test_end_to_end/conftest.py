@@ -18,7 +18,18 @@ def save_result(fn, name: str):
                 json.dump(result._rendered_dict(), fp)
                 png = altair_output / f"{name}.png"
                 fp.flush()
-                subprocess.check_call(["vl2png", fp.name, str(png)])
+                subprocess.check_call(
+                    [
+                        "npx",
+                        "-p",
+                        "vega",
+                        "-p",
+                        "vega-lite",
+                        "vl2png",
+                        fp.name,
+                        str(png),
+                    ]
+                )
         return result
 
     return wrapped
