@@ -95,31 +95,8 @@ class Model:
 
         # add all tables, their relationships and calculations
         for config_table in model.tables.values():
-            table = self.ensure_table(config_table)
-            for related in config_table.related.values():
-                if related.table not in model.tables:
-                    raise KeyError(
-                        f"Table {related.table} is referenced as a foreign key target "
-                        f"for table {table.id}, but it's not defined in the config."
-                    )
-                related_table = model.tables[related.table]
-                if related_table.primary_key is None and related.related_key is None:
-                    raise ValueError(
-                        f"Table {related.table} is a related table for {table.id}, but "
-                        "it doesn't have a primary key. You have to set related_key for "
-                        "the relation or primary_key on the related table itself."
-                    )
-                related_key = (
-                    related_table.primary_key
-                    if related.related_key is None
-                    else related.related_key
-                )
-                table.related[related.alias] = RelatedTable.create(
-                    parent=table,
-                    table=self.ensure_table(related_table),
-                    related_key=related_key,
-                    **related.dict(include={"foreign_key", "alias"}),
-                )
+            table = self.create_table(config_table)
+            self.tables[table.id] = table
 
             # add table dimensions
             for dimension in config_table.dimensions.values():
@@ -131,7 +108,7 @@ class Model:
 
         # add detached dimensions
         for dimension in model.dimensions.values():
-            table = self.tables.get(dimension.table)
+            table = self.tables[dimension.table]
             self.add_dimension(dimension, table)
 
         # add metrics
@@ -143,6 +120,21 @@ class Model:
             for measure in table.measures.values():
                 for target in table.allowed_join_paths:
                     target.measure_backlinks[measure.id] = table
+
+    def create_table(self, table: schema.Table):
+        result = Table(
+            **table.dict(include={"id", "source", "description", "primary_key"})
+        )
+        for related in table.related.values():
+            result.related[related.alias] = RelatedTable(
+                parent=result,
+                tables=self.tables,
+                **related.dict(
+                    include={"str_table", "str_related_key", "foreign_key", "alias"}
+                ),
+            )
+        result.filters = [TableFilter(str_expr=f, table=result) for f in table.filters]
+        return result
 
     def add_measure(self, measure: schema.Measure, table: Table) -> Measure:
         result = Measure(
@@ -183,15 +175,6 @@ class Model:
             store=self,
             **metric.dict(include=table_calc_fields),
         )
-
-    def ensure_table(self, table: schema.Table) -> Table:
-        if table.id not in self.tables:
-            t = Table(
-                **table.dict(include={"id", "source", "description", "primary_key"}),
-            )
-            t.filters = [TableFilter(str_expr=f, table=t) for f in table.filters]
-            self.tables[table.id] = t
-        return self.tables[table.id]
 
     # def suggest_metrics(self, query: schema.Query) -> List[Measure]:
     #     """Suggest a list of possible metrics based on a query.

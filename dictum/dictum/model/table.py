@@ -1,44 +1,61 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import cached_property
+from functools import cache, cached_property
 from typing import Any, Dict, List, Optional, Tuple
+from xml.sax.handler import property_dom_node
 
 from lark import Tree
 
 from dictum.model.calculations import Dimension, TableFilter
 from dictum.model.dicts import DimensionDict, MeasureDict
+from dictum.schema.model import table as schema
 
 
 @dataclass
 class RelatedTable:
-    table: Any
+    str_table: str
     foreign_key: str
-    related_key: str
-    join_expr: Tree
+    str_related_key: str
     alias: str
 
-    @classmethod
-    def create(
-        self, parent: str, table: str, foreign_key: str, related_key: str, alias: str
-    ) -> "RelatedTable":
-        join_expr = Tree(
+    parent: "Table"
+    tables: Dict[str, "Table"]
+
+    @property
+    def table(self) -> "Table":
+        if self.str_table not in self.tables:
+            raise KeyError(
+                f"Table {self.str_table} is referenced as related to {self.parent.id} with "
+                f"alias {self.alias}, but it doesn't exist in the config"
+            )
+        return self.tables[self.str_table]
+
+    @cached_property
+    def related_key(self) -> str:
+        if self.str_related_key is not None:
+            return self.str_related_key
+        if self.table.primary_key is None:
+            raise ValueError(
+                f"Table {self.table.id} with alias {self.alias} "
+                f"is referenced as related to {self.parent.id}, "
+                f"but neither primary_key on {self.table.id} nor "
+                "related_key on the relationship are specified."
+            )
+        return self.table.primary_key
+
+    @cached_property
+    def join_expr(self) -> Tree:
+        return Tree(
             "expr",
             [
                 Tree(
                     "eq",
                     [
-                        Tree("column", [parent.id, foreign_key]),
-                        Tree("column", [parent.id, alias, related_key]),
+                        Tree("column", [self.parent.id, self.foreign_key]),
+                        Tree("column", [self.parent.id, self.alias, self.related_key]),
                     ],
                 )
             ],
-        )
-        return RelatedTable(
-            table=table,
-            foreign_key=foreign_key,
-            related_key=related_key,
-            alias=alias,
-            join_expr=join_expr,
         )
 
 

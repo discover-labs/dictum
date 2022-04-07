@@ -43,21 +43,24 @@ def t1() -> Table:
     Returns: t1
     """
 
-    def create_rel(parent, table):
-        return RelatedTable.create(
-            table=table,
-            alias=table.id,
-            foreign_key=f"{table.id}_id",
-            related_key="id",
-            parent=parent,
-        )
-
     t1 = Table(id="t1", source="test")
     t2 = Table(id="t2", source="test")
     t3 = Table(id="t3", source="test")
     t4 = Table(id="t4", source="test")
     t5 = Table(id="t5", source="test")
     t6 = Table(id="t6", source="test")
+    tables = {"t1": t1, "t2": t2, "t3": t3, "t4": t4, "t5": t5, "t6": t6}
+
+    def create_rel(parent, table):
+        return RelatedTable(
+            str_table=table.id,
+            foreign_key=f"{table.id}_id",
+            str_related_key="id",
+            alias=table.id,
+            parent=parent,
+            tables=tables,
+        )
+
     t1.related["t1"] = create_rel(t1, t1)
     t1.related["t2"] = create_rel(t1, t2)
     t1.related["t6"] = create_rel(t1, t6)
