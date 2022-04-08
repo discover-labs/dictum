@@ -39,9 +39,7 @@ tables:
         name: Total Order Amount ($10 bins)
         expr: Total // 10 * 10
         type: int
-        format:
-          kind: currency
-          currency: USD
+        format: currency
 
       invoice_year:
         name: Invoice Year

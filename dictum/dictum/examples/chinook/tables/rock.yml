@@ -17,7 +17,5 @@ tables:
       rock_revenue:
         name: Revenue
         expr: sum(UnitPrice * Quantity)
-        format:
-          kind: currency
-          currency: USD
+        format: currency
         missing: 0

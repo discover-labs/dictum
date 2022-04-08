@@ -15,15 +15,11 @@ metrics:
     expr: sum(UnitPrice * Quantity)
     missing: 0
     type: float
-    format:
-      kind: currency
-      currency: USD
+    format: currency
   revenue_per_track:
     name: Revenue per Track in the Library
     expr: $revenue / $track_count
-    format:
-      kind: currency
-      currency: USD
+    format: currency
 
 dimensions:
   genre:
