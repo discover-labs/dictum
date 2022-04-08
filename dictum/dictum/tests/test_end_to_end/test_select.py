@@ -415,3 +415,13 @@ def test_format_dimension_transform_alias(project: Project):
 def test_filtered_table(project: Project):
     result = project.select(project.m.rock_revenue).df()
     assert result.iloc[0, 0] == 826.65
+
+
+def test_filtered_measure(project: Project):
+    result = project.select("music_revenue").df()
+    assert result.iloc[0, 0] == 2107.71
+
+
+def test_filtered_and_unfiltered_measures_together(project: Project):
+    result = project.select("revenue", "music_revenue").df()
+    assert next(result.itertuples(index=False)) == (2328.6, 2107.71)

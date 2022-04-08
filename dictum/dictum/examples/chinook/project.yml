@@ -9,13 +9,6 @@ unions:
     type: str
 
 metrics:
-  revenue:
-    name: Revenue
-    table: invoice_items
-    expr: sum(UnitPrice * Quantity)
-    missing: 0
-    type: float
-    format: currency
   revenue_per_track:
     name: Revenue per Track in the Library
     expr: $revenue / $track_count

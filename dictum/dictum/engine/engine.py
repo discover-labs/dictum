@@ -83,6 +83,8 @@ class Engine:
             for path in column.join_paths:
                 result.add_join_path(path)
             result.add_aggregate(column)
+            if measure.filter is not None:
+                result.add_filter_expr(measure.filter)
 
         # add filters
         for filter in filters:
@@ -94,12 +96,7 @@ class Engine:
 
         # add anchor table's filters
         for f in anchor.filters:
-            expr = deepcopy(f.expr)
-            # add joins necessary for the filter
-            for ref in expr.find_data("column"):
-                _, *path, _ = ref.children
-                result.add_join_path(path)
-            result.filters.append(expr)
+            result.add_filter_expr(f.expr)
 
         return result
 

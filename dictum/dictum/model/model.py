@@ -139,7 +139,7 @@ class Model:
     def add_measure(self, measure: schema.Measure, table: Table) -> Measure:
         result = Measure(
             table=table,
-            **measure.dict(include=table_calc_fields),
+            **measure.dict(include=table_calc_fields | {"str_filter"}),
         )
         if measure.metric:
             self.metrics.add(Metric.from_measure(measure, self))

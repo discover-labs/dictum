@@ -263,6 +263,8 @@ class MeasureTransformer(Transformer):
 
 @dataclass(repr=False)
 class Measure(TableCalculation):
+    str_filter: Optional[str] = None
+
     def __post_init__(self):
         super().__post_init__()
         if self.kind != "aggregate":
@@ -277,6 +279,16 @@ class Measure(TableCalculation):
             self.table, self.table.measures, self.table.allowed_dimensions
         )
         return transformer.transform(self.parsed_expr)
+
+    @cached_property
+    def filter(self) -> Tree:
+        if self.str_filter is None:
+            return None
+        self.check_references()
+        transformer = DimensionTransformer(
+            self.table, self.table.measure_backlinks, self.table.allowed_dimensions
+        )
+        return transformer.transform(parse_expr(self.str_filter))
 
     @cached_property
     def total_function(self) -> Optional[str]:

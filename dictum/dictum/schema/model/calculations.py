@@ -1,3 +1,4 @@
+from optparse import Option
 from typing import Any, Optional
 
 from pydantic import Field
@@ -21,6 +22,7 @@ class Calculation(Displayed):
 class Measure(Calculation):
     type: Type = "float"
     metric: bool = True
+    str_filter: Optional[str] = Field(alias="filter")
 
 
 class Metric(Calculation):

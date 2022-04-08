@@ -12,6 +12,21 @@ tables:
 
     measures:
       # revenue is defined as a metric in project.yml
+      revenue:
+        name: Revenue
+        expr: sum(UnitPrice * Quantity)
+        missing: 0
+        type: float
+        format: currency
+
+      music_revenue:
+        name: Music Revenue
+        description: |
+          Revenue, but only for music files. Used for demonstrating
+          filtered measures.
+        expr: $revenue
+        format: currency
+        filter: track.MediaTypeId in (1, 2, 4, 5)
 
       unique_paying_customers:
         name: Unique Paying Customers

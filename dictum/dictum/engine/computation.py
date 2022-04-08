@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
@@ -191,6 +192,13 @@ class RelationalQuery(Relation):
 
     def add_aggregate(self, column: Column):
         self._aggregate.append(column)
+
+    def add_filter_expr(self, expr: Tree):
+        expr = deepcopy(expr)
+        for ref in expr.find_data("column"):
+            _, *path, _ = ref.children
+            self.add_join_path(path)
+        self.filters.append(expr)
 
     @property
     def groupby(self) -> List[Tree]:
