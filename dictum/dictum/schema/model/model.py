@@ -1,8 +1,9 @@
+from glob import glob
 from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, root_validator, validator
 
 from dictum.schema import utils
 from dictum.schema.model.calculations import DetachedDimension, DimensionsUnion, Metric
@@ -16,6 +17,7 @@ class Model(BaseModel):
     name: str
     description: Optional[str]
     locale: str = "en_US"
+    currency: str = "USD"
 
     dimensions: Dict[str, DetachedDimension] = {}
     metrics: Dict[str, Metric] = {}
@@ -63,3 +65,20 @@ class Model(BaseModel):
     set_transforms_ids = validator("transforms", allow_reuse=True, pre=True)(
         utils.set_ids
     )
+
+    @root_validator(pre=True)
+    def set_default_currency(cls, value: dict):
+        currency = value.get("currency", "USD")
+
+        def _set(calculation: dict):
+            if calculation.get("format") == "currency":
+                calculation["format"] = dict(kind="currency", currency=currency)
+
+        for table in value.get("tables", {}).values():
+            for key in ["measures", "dimensions"]:
+                for calculation in table.get(key, {}).values():
+                    _set(calculation)
+        for key in ["metrics", "dimensions", "unions"]:
+            for calculation in value.get(key, {}).values():
+                _set(calculation)
+        return value

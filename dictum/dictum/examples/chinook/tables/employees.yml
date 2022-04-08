@@ -47,6 +47,4 @@ tables:
         name: Employee Revenue
         expr: $revenue
         type: float
-        format:
-          kind: currency
-          currency: USD
+        format: currency

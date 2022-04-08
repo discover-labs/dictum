@@ -32,17 +32,13 @@ tables:
         name: Customer's Total Orders Amount
         expr: $revenue
         type: float
-        format:
-          kind: currency
-          currency: USD
+        format: currency
 
       customer_orders_amount_10_bins:
         name: Customer's Total Orders Amount ($10 bins)
         expr: :customer_orders_amount // 10 * 10
         type: int
-        format:
-          kind: currency
-          currency: USD
+        format: currency
 
       customer_first_sale_date:
         name: Customer's First Sale Date

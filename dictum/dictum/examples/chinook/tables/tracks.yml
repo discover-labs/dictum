@@ -36,9 +36,7 @@ tables:
           Average price of a track in our library. For average sold item size, see
           Average Sold Unit Price.
         expr: avg(UnitPrice)
-        format:
-          kind: currency
-          currency: USD
+        format: currency
 
 
     dimensions:
