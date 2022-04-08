@@ -338,13 +338,13 @@ class MetricTransformer(Transformer):
 
 @dataclass(repr=False)
 class Metric(Calculation):
-    store: "dictum.model.Model"
+    model: "dictum.model.Model"
     is_measure: bool = False
 
     @classmethod
-    def from_measure(cls, measure: Measure, store: "dictum.model.Model") -> "Metric":
+    def from_measure(cls, measure: Measure, model: "dictum.model.Model") -> "Metric":
         return cls(
-            store=store,
+            model=model,
             id=measure.id,
             name=measure.name,
             description=measure.description,
@@ -357,9 +357,9 @@ class Metric(Calculation):
 
     @cached_property
     def expr(self) -> Tree:
-        metrics = self.store.metrics.copy()
+        metrics = self.model.metrics.copy()
         del metrics[self.id]
-        transformer = MetricTransformer(metrics, self.store.measures)
+        transformer = MetricTransformer(metrics, self.model.measures)
         try:
             expr = transformer.transform(self.parsed_expr)
         except Exception as e:
@@ -393,7 +393,7 @@ class Metric(Calculation):
     def measures(self) -> List[Measure]:
         result = []
         for ref in self.expr.find_data("measure"):
-            result.append(self.store.measures.get(ref.children[0]))
+            result.append(self.model.measures.get(ref.children[0]))
         return result
 
     @cached_property

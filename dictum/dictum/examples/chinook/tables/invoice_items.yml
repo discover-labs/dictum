@@ -12,13 +12,6 @@ tables:
 
     measures:
       # revenue is defined as a metric in project.yml
-      revenue:
-        name: Revenue
-        expr: sum(UnitPrice * Quantity)
-        missing: 0
-        type: float
-        format: currency
-
       music_revenue:
         name: Music Revenue
         description: |

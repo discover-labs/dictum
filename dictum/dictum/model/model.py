@@ -172,7 +172,7 @@ class Model:
 
         # no, it's a real metric
         self.metrics[metric.id] = Metric(
-            store=self,
+            model=self,
             **metric.dict(include=table_calc_fields),
         )
 
