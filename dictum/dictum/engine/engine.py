@@ -108,16 +108,21 @@ class Engine:
             raise ValueError("You must request at least one metric")
 
         # group measures by table, don't add the same measure twice
-        tables = defaultdict(set)
-        for request in query.metrics:
-            for measure in request.metric.measures:
-                tables[measure.table].add(measure)
+        # tables = defaultdict(set)
+        # for request in query.metrics:
+        #     for measure in request.metric.measures:
+        #         tables[measure.table].add(measure)
+
+        # define a set of selected measures
+        measures = set(
+            measure for request in query.metrics for measure in request.metric.measures
+        )
 
         queries = []
         # add aggregate queries
-        for measures in tables.values():
+        for measure in measures:
             child_query = self.get_aggregation(
-                measures=list(measures),
+                measures=[measure],
                 dimensions=query.dimensions,
                 filters=query.filters,
             )
