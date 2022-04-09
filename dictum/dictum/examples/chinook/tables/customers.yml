@@ -1,46 +1,36 @@
-tables:
-  customers:
-    source: customers
-    primary_key: CustomerId
+source: customers
+primary_key: CustomerId
 
-    related:
-      employee:
-        table: employees
-        foreign_key: SupportRepId
+related:
+  employee:
+    table: employees
+    foreign_key: SupportRepId
 
+dimensions:
+  customer_country:
+    union: country
+    name: Customer Country
+    type: str
+    expr: Country
 
-    measures:
-      n_customers:
-        name: Number of Customers
-        expr: count()
-        type: int
+  customer_city:
+    name: Customer City
+    type: str
+    expr: City
 
+  customer_orders_amount:
+    name: Customer's Total Orders Amount
+    expr: $revenue
+    type: float
+    format: currency
 
-    dimensions:
-      customer_country:
-        union: country
-        name: Customer Country
-        type: str
-        expr: Country
+  customer_orders_amount_10_bins:
+    name: Customer's Total Orders Amount ($10 bins)
+    expr: :customer_orders_amount // 10 * 10
+    type: int
+    format: currency
 
-      customer_city:
-        name: Customer City
-        type: str
-        expr: City
-
-      customer_orders_amount:
-        name: Customer's Total Orders Amount
-        expr: $revenue
-        type: float
-        format: currency
-
-      customer_orders_amount_10_bins:
-        name: Customer's Total Orders Amount ($10 bins)
-        expr: :customer_orders_amount // 10 * 10
-        type: int
-        format: currency
-
-      customer_first_sale_date:
-        name: Customer's First Sale Date
-        expr: $min_sale_date
-        type: datetime
+  customer_first_sale_date:
+    name: Customer's First Sale Date
+    expr: $min_sale_date
+    type: datetime

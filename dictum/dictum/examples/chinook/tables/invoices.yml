@@ -1,57 +1,53 @@
-tables:
-  invoices:
-    source: invoices
-    primary_key: InvoiceId
+source: invoices
+primary_key: InvoiceId
 
-    related:
-      customer:
-        table: customers
-        foreign_key: CustomerId
+related:
+  customer:
+    table: customers
+    foreign_key: CustomerId
 
+measures:
+  min_sale_date:
+    metric: false
+    name: First Sale Date
+    description: Not a metric, used in customers dimension.
+    type: date
+    expr: min(InvoiceDate)
 
-    measures:
-      min_sale_date:
-        metric: false
-        name: First Sale Date
-        description: Not a metric, used in customers dimension.
-        type: date
-        expr: min(InvoiceDate)
+dimensions:
+  invoice_date:
+    name: Sale Date
+    expr: InvoiceDate
+    type: date
 
+  invoice_datetime:
+    name: Sale Datetime
+    description: User for testing purposes (type casting)
+    expr: InvoiceDate
+    type: datetime
 
-    dimensions:
-      invoice_date:
-        name: Sale Date
-        expr: InvoiceDate
-        type: date
+  order_amount:
+    name: Order Amount
+    expr: Total
+    type: float
 
-      invoice_datetime:
-        name: Sale Datetime
-        description: User for testing purposes (type casting)
-        expr: InvoiceDate
-        type: datetime
+  order_amount_10_dollar_bins:
+    name: Total Order Amount ($10 bins)
+    expr: Total // 10 * 10
+    type: int
+    format: currency
 
-      order_amount:
-        name: Order Amount
-        expr: Total
-        type: float
+  invoice_year:
+    name: Invoice Year
+    expr: datepart('year', :invoice_date)
+    type: int
 
-      order_amount_10_dollar_bins:
-        name: Total Order Amount ($10 bins)
-        expr: Total // 10 * 10
-        type: int
-        format: currency
-
-      invoice_year:
-        name: Invoice Year
-        expr: datepart('year', :invoice_date)
-        type: int
-
-      leap_year:
-        name: Invoice Date is in Leap Year
-        expr: |
-          if(
-            :invoice_year % 400 == 0, 'Yes',
-            :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
-            'No'
-          )
-        type: str
+  leap_year:
+    name: Invoice Date is in Leap Year
+    expr: |
+      if(
+        :invoice_year % 400 == 0, 'Yes',
+        :invoice_year % 100 != 0 and :invoice_year % 4 == 0, 'Yes',
+        'No'
+      )
+    type: str

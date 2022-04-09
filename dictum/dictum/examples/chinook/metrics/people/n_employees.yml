@@ -1,0 +1,4 @@
+name: Number of Employees
+expr: count()
+table: employees
+type: int

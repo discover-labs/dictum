@@ -1,0 +1,4 @@
+name: Number of Customers
+expr: count()
+table: customers
+type: int

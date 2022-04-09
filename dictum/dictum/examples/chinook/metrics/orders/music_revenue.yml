@@ -1,0 +1,8 @@
+name: Music Revenue
+description: |
+  Revenue, but only for music files. Used for demonstrating
+  filtered measures.
+expr: $revenue
+table: invoice_items
+filter: track.MediaTypeId in (1, 2, 4, 5)
+format: currency

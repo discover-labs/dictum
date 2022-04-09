@@ -1,0 +1,6 @@
+name: Unique Paying Customers
+expr: countd(invoice.CustomerId)
+table: invoice_items
+description: |
+  Number of unique users who made an order.
+type: int

@@ -1,0 +1,6 @@
+name: Number of Tracks
+description: |
+  Total Number of Tracks in the Library.
+type: int
+expr: count()
+table: tracks
