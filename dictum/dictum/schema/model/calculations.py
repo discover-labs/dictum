@@ -21,13 +21,14 @@ class Calculation(Displayed):
 
 class Measure(Calculation):
     type: Type = "float"
-    metric: bool = True
+    metric: bool = False
     str_filter: Optional[str] = Field(alias="filter")
 
 
 class Metric(Calculation):
     type: Type = "float"
     table: Optional[str]
+    filter: Optional[str]
 
 
 class Dimension(Calculation):

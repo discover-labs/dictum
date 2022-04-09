@@ -1,0 +1,5 @@
+name: Averate Sold Unit Price
+description: Average price of a track that we sold.
+expr: $revenue / $items_sold
+type: float
+format: currency

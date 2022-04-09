@@ -1,0 +1,4 @@
+name: Number of Items Sold
+expr: sum(Quantity)
+type: int
+table: invoice_items

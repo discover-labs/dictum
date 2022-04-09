@@ -1,0 +1,7 @@
+name: Average Track Price
+description: |
+  Average price of a track in our library. For average sold item size, see
+  Average Sold Unit Price.
+expr: avg(UnitPrice)
+table: tracks
+format: currency

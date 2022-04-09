@@ -1,0 +1,9 @@
+source: genres
+primary_key: GenreId
+
+dimensions:
+  genre:
+    name: Genre
+    table: genres
+    expr: Name
+    type: str

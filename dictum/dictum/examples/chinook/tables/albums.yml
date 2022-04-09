@@ -1,0 +1,14 @@
+source: albums
+primary_key: AlbumId
+
+related:
+  artist:
+    table: artists
+    foreign_key: ArtistId
+
+dimensions:
+  album:
+    name: Album
+    table: albums
+    expr: Title
+    type: str

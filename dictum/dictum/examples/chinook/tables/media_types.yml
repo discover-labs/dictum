@@ -1,0 +1,9 @@
+source: media_types
+primary_key: MediaTypeId
+
+dimensions:
+  media_type:
+    name: Media Type
+    table: media_types
+    expr: Name
+    type: str

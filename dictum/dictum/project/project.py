@@ -66,27 +66,15 @@ class Project:
 
     @cached_property
     def _project(self) -> schema.Project:
-        return schema.Project.from_yaml(self.path)
+        return schema.Project.load(self.path)
 
     @cached_property
     def model(self) -> Model:
-        return Model(self._project)
+        return Model(self._project.get_model())
 
     @cached_property
     def backend(self) -> Backend:
-        if self.profile is None and self._project.default_profile is None:
-            raise ValueError(
-                "Profile name is not specified for the project and no "
-                "default_profile setting found"
-            )
-
-        profile_name = (
-            self.profile if self.profile is not None else self._project.default_profile
-        )
-        profile = self._project.profiles.get(profile_name)
-        if profile is None:
-            raise KeyError(f"Profile {profile_name} not defined in the project")
-
+        profile = self._project.get_profile(self.profile)
         return Backend.create(profile.type, profile.parameters)
 
     def execute(self, query: Query) -> engine.Result:

@@ -98,8 +98,7 @@ def store_full():
 @pytest.fixture(scope="session")
 def chinook():
     os.environ["CHINOOK_DATABASE"] = ""
-    proj = schema.Project.from_yaml(chinook_path)
-    return Model(proj)
+    return Model(schema.Project.load(chinook_path).get_model())
 
 
 @pytest.fixture(scope="session")
