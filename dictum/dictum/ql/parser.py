@@ -61,7 +61,9 @@ dimension_filter = Lark(grammar, start="dimension")
 
 
 def parse_dimension(expr: str):
-    """A separate function to parse string transform definitions during interactive use"""
+    """
+    A separate function to parse string transform definitions during interactive use
+    """
     return pre.transform(dimension_filter.parse(expr))
 
 

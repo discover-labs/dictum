@@ -22,7 +22,8 @@ class Project:
     Internally Dictum works with two main classes: ``Store``, which contains all you
     tables, metrics and dimensions; and ``Connection``, which represents a concrete
     backend implementation. ``Store`` takes a query and transforms it into a
-    ``Computation`` object, which is then compiled to SQL by the Connection and executed.
+    ``Computation`` object, which is then compiled to SQL by the Connection and
+    executed.
 
     The ``Project`` class exists to bring everything together. This is what we advise to
     use during the development of your data model.

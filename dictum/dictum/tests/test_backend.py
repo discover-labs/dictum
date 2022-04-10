@@ -194,10 +194,10 @@ def test_datetrunc(compute):
 
 def test_datepart(compute):
     """ISO states that the first week of the year is the week that contains the first
-    Thursday of the year, or the week that contains January 4th. Not all database engines
-    conform to this and it would be very tedious to implement that on the backend level,
-    so we don't test for the edge cases (start and end of year) here. Just use whatever
-    logic the RDBMS provides.
+    Thursday of the year, or the week that contains January 4th. Not all database
+    engines conform to this and it would be very tedious to implement that on the
+    backend level, so we don't test for the edge cases (start and end of year) here.
+    Just use whatever logic the RDBMS provides.
     """
     dt = "2021-12-19 14:05:38"
 

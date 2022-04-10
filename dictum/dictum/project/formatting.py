@@ -1,4 +1,3 @@
-import locale
 from typing import Dict, List, Optional
 
 from babel.dates import format_date, format_datetime

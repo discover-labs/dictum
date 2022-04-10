@@ -2,6 +2,8 @@ import pytest
 from lark import Token, Tree
 
 from dictum.model import Dimension, Model
+from dictum.model.time import Time
+from dictum.schema import Query
 
 
 @pytest.fixture(scope="module")
@@ -107,3 +109,15 @@ def test_metric_missing(chinook: Model):
     assert chinook.metrics.get("revenue").expr.children[0] == Tree(
         "call", ["coalesce", Tree("measure", ["revenue"]), Token("INTEGER", 0)]
     )
+
+
+def test_resolve_time(chinook: Model):
+    resolved = chinook.get_resolved_query(
+        query=Query.parse_obj(
+            {
+                "metrics": [{"metric": {"id": "revenue"}}],
+                "dimensions": [{"dimension": {"id": "Time"}}],
+            }
+        )
+    )
+    assert resolved.dimensions[0].dimension is Time

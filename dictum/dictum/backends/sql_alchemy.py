@@ -255,7 +255,9 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             cond = (
                 and_(*(coalesced[c] == join.c[c] for c in on))
                 if len(on) > 0
-                else true()  # when there's no merge_on or no common columns just cross join
+                else true()
+                # true() is when there's no merge_on
+                # or no common columns just cross join
             )
 
             # add the new join

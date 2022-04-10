@@ -54,7 +54,8 @@ def postgres():
             time.sleep(1)
 
     restore_cmd = shlex.split(
-        f"docker container exec {container_name} psql -U chinook -W chinook -f /script.sql"
+        f"docker container exec {container_name} "
+        "psql -U chinook -W chinook -f /script.sql"
     )
     subprocess.check_call(restore_cmd)
     try:

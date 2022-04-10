@@ -314,7 +314,10 @@ def iteritems(self):
 
 
 def iterunits(self, data=None):
-    """Iterate over all the embedded lowest-level specs, returning a tuple of spec, data"""
+    """
+    Iterate over all the embedded lowest-level specs,
+    returning a tuple of spec, data
+    """
     if "mark" in self._kwds:
         yield self, self.data if data is None else data
         return

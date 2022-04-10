@@ -5,6 +5,7 @@ from dictum import schema
 from dictum.model.calculations import Dimension, DimensionsUnion, Measure, Metric
 from dictum.model.dicts import DimensionDict, MeasureDict, MetricDict
 from dictum.model.table import RelatedTable, Table, TableFilter
+from dictum.model.time import dimensions as time_dimensions
 from dictum.transforms.scalar import ScalarTransform
 from dictum.transforms.scalar import transforms as scalar_transforms
 from dictum.transforms.table import TableTransform
@@ -70,7 +71,8 @@ class Model:
     `execute_query` method returns an object that can then be executed on a backend.
 
     Query processing consists of figuring out which joins need to be performed,
-    deduplicating the joins, arranging them in a tree and returning a Calculation object.
+    deduplicating the joins, arranging them in a tree and returning a Calculation
+    object.
     """
 
     def __init__(self, model: schema.Model):
@@ -121,6 +123,9 @@ class Model:
                 for target in table.allowed_join_paths:
                     target.measure_backlinks[measure.id] = table
 
+        # add default time dimensions
+        self.dimensions.update(time_dimensions)
+
     def create_table(self, table: schema.Table):
         result = Table(
             **table.dict(include={"id", "source", "description", "primary_key"})
@@ -139,7 +144,7 @@ class Model:
     def add_measure(self, measure: schema.Measure, table: Table) -> Measure:
         result = Measure(
             table=table,
-            **measure.dict(include=table_calc_fields | {"str_filter"}),
+            **measure.dict(include=table_calc_fields | {"str_filter", "str_time"}),
         )
         if measure.metric:
             self.metrics.add(Metric.from_measure(measure, self))
@@ -202,9 +207,10 @@ class Model:
     #     return sorted([self.dimensions[d] for d in dims], key=lambda x: x.name)
 
     # def get_range_computation(self, dimension_id: str) -> Computation:
-    #     """Get a computation that will compute a range of values for a given dimension.
-    #     This is seriously out of line with what different parts of computation mean, so
-    #     maybe we need to give them more abstract names.
+    #     """Get a computation that will compute a range of values for a given
+    #       dimension.
+    #     This is seriously out of line with what different parts of computation mean,
+    #     so maybe we need to give them more abstract names.
     #     """
     #     dimension = self.dimensions.get(dimension_id)
     #     table = dimension.table
@@ -219,8 +225,8 @@ class Model:
     #     )
 
     # def get_values_computation(self, dimension_id: str) -> Computation:
-    #     """Get a computation that will compute a list of unique possible values for this
-    #     dimension.
+    #     """Get a computation that will compute a list of unique possible values for
+    #     this dimension.
     #     """
     #     dimension = self.dimensions.get(dimension_id)
     #     table = dimension.table
@@ -282,7 +288,8 @@ class Model:
             of = [self.get_resolved_dimension(d) for d in transform.of]
             within = [self.get_resolved_dimension(d) for d in transform.within]
 
-            # for top and bottom, of is everything that's not within (if not specified otherwise)
+            # for top and bottom, of is everything that's not within
+            # (if not specified otherwise)
             if len(of) == 0 and transform.id in {"top", "bottom"}:
                 within_names = set(d.name for d in within)
                 of = [d for d in dimensions if d.name not in (within_names)]

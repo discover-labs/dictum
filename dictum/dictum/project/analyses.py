@@ -81,7 +81,8 @@ class Select(Analysis):
     This class is not supposed to be instantiated directly, for instantiating use
     ``Project.select(*metrics: str)``.
 
-    After selecting the metrics, the query can be further refined by calling its methods.
+    After selecting the metrics, the query can be further refined by calling its
+    methods.
     """
 
     def by(self, *dimensions) -> "Select":
@@ -93,7 +94,8 @@ class Select(Analysis):
                 List of one of:
 
                 - Dimension ID in string form to add: ``"date"``
-                - String grouping expression with a transform: ``"date.datepart('year')"``
+                - String grouping expression with a transform:
+                  ``"date.datepart('year')"``
                 - Built grouping expression: ``project["date"].datepart("year")``
 
             alias: An optional alias for the resulting column name. Use this when you
@@ -204,7 +206,8 @@ class Pivot(Select):
                 One of:
 
                 - Dimension ID in string form to add: ``"date"``
-                - String grouping expression with a transform: ``"date.datepart('year')"``
+                - String grouping expression with a transform:
+                  ``"date.datepart('year')"``
                 - Built grouping expression: ``project.date.year.name("year")``
 
             alias: An optional alias for the resulting column name. Use this when you
@@ -231,7 +234,8 @@ class Pivot(Select):
                 One of:
 
                 - Dimension ID in string form to add: ``"date"``
-                - String grouping expression with a transform: ``"date.datepart('year')"``
+                - String grouping expression with a transform:
+                  ``"date.datepart('year')"``
                 - Built grouping expression: ``project.date.datepart("year")``
 
             alias: An optional alias for the resulting column name. Use this when you

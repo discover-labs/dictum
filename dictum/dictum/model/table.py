@@ -1,14 +1,12 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import cache, cached_property
-from typing import Any, Dict, List, Optional, Tuple
-from xml.sax.handler import property_dom_node
+from functools import cached_property
+from typing import Dict, List, Optional, Tuple
 
 from lark import Tree
 
 from dictum.model.calculations import Dimension, TableFilter
 from dictum.model.dicts import DimensionDict, MeasureDict
-from dictum.schema.model import table as schema
 
 
 @dataclass
@@ -25,8 +23,8 @@ class RelatedTable:
     def table(self) -> "Table":
         if self.str_table not in self.tables:
             raise KeyError(
-                f"Table {self.str_table} is referenced as related to {self.parent.id} with "
-                f"alias {self.alias}, but it doesn't exist in the config"
+                f"Table {self.str_table} is referenced as related to {self.parent.id} "
+                f"with alias {self.alias}, but it doesn't exist in the config"
             )
         return self.tables[self.str_table]
 

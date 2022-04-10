@@ -1,5 +1,5 @@
-"""Mostly tests that Altair integration works without errors. Tests must return the chart,
-which will be rendered and saved to altair_output folder (see conftest.py).
+"""Mostly tests that Altair integration works without errors. Tests must return the
+chart, which will be rendered and saved to altair_output folder (see conftest.py).
 
 When possible, the tests check that the output is correct, but generally it's better
 to visually inspect the output.

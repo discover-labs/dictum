@@ -82,7 +82,8 @@ class Relation:
                 join_tree=[],
                 alias=alias,
                 expr=parse_expr(
-                    f"{self.source.id}.{alias}.__pk = {self.source.id}.{self.source.primary_key}"
+                    f"{self.source.id}.{alias}.__pk = "
+                    f"{self.source.id}.{self.source.primary_key}"
                 ),
             )
             self.join_tree.append(join)

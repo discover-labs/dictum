@@ -213,7 +213,8 @@ class ExprKindTransformer(AbstractExprTransformer):
         if fn in aggregate_functions:
             if args and args[0] == ExprKind.aggregate:
                 raise ValueError(
-                    f"Aggregate function {fn} expects a scalar or a column expression argument"
+                    f"Aggregate function {fn} expects a scalar "
+                    "or a column expression argument"
                 )
             return ExprKind.aggregate
         return _infer_kind(args)

@@ -1,21 +1,13 @@
 import os
 from itertools import chain
 from pathlib import Path
-from re import L
 from typing import Dict, Optional, Union
 
 import yaml
 from jinja2 import Template
 from pydantic import BaseModel
 
-from dictum.schema.model.model import Model
-from dictum.schema.model.table import Table
-
-
-class Profile(BaseModel):
-    type: str
-    parameters: dict
-
+from dictum.schema.model import Model
 
 root_items = {"tables", "metrics", "unions", "profiles"}
 

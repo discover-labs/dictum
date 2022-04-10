@@ -447,7 +447,8 @@ class Backend(ABC):
         ):
             return entry_point.load()
         raise ImportError(
-            f"Backend {type} was not found. Try installing dictum-backend-{type} package."
+            f"Backend {type} was not found. Try installing dictum-backend-{type} "
+            "package."
         )
 
     def display_query(self, query):

@@ -16,7 +16,7 @@ measures:
 
 dimensions:
   invoice_date:
-    name: Sale Date
+    name: Invoice Date
     expr: InvoiceDate
     type: date
 

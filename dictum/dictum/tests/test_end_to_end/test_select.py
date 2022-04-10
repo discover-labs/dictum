@@ -399,7 +399,7 @@ def test_format_transform(project: Project):
         .by(project.d.invoice_date.year)
         .df(format=True)
     )
-    assert list(result.columns) == ["Sale Date", "Revenue"]
+    assert list(result.columns) == ["Invoice Date", "Revenue"]
     assert result.iloc[0, 0] == "2009"
 
 
@@ -425,3 +425,24 @@ def test_filtered_measure(project: Project):
 def test_filtered_and_unfiltered_measures_together(project: Project):
     result = project.select("revenue", "music_revenue").df()
     assert next(result.itertuples(index=False)) == (2328.6, 2107.71)
+
+
+def test_generic_time(project: Project):
+    result = project.select("revenue").by("Time.datetrunc('year')").df()
+    assert result.shape == (5, 2)
+
+
+def test_generic_time_trunc(project: Project):
+    result = project.select("revenue").by("Month").df()
+    assert result.shape == (60, 2)
+
+
+def test_generic_time_trunc_transform(project: Project):
+    result = project.select("revenue").by("Month.datetrunc('year')").df()
+    assert result.shape == (5, 2)
+
+
+def test_generic_time_date(project: Project):
+    """Date is an alias for Day, test that it works"""
+    result = project.select("revenue").by("Date").df()
+    assert result.shape == (354, 2)
