@@ -1,4 +1,3 @@
-from collections import defaultdict
 from copy import deepcopy
 from typing import List
 
@@ -14,6 +13,8 @@ from dictum.engine.operators import (
     QueryOperator,
 )
 from dictum.engine.result import DisplayInfo
+from dictum.model.time import TimeDimensionMeta
+from dictum.transforms.scalar import DatetruncTransform
 
 
 def metric_expr(expr: Tree):
@@ -61,41 +62,47 @@ class Engine:
 
     def get_aggregation(
         self,
-        measures: List["model.Measure"],
+        measure: "model.Measure",
         dimensions: List["model.ResolvedQueryDimensionRequest"],
         filters: List["model.ResolvedQueryDimensionRequest"],
     ) -> RelationalQuery:
-        anchor = measures[0].table
-        result = RelationalQuery(source=anchor, join_tree=[])
+        result = RelationalQuery(source=measure.table, join_tree=[])
 
         # add dimensions
         for request in dimensions:
-            column = self.get_dimension_column(anchor, request)
+            if isinstance(request.dimension, TimeDimensionMeta):
+                # add a datetrunc in front if there's a period specified
+                if request.dimension.period is not None:
+                    request.transforms = [
+                        DatetruncTransform(request.dimension.period),
+                        *request.transforms,
+                    ]
+                # then just replace with the appropriate dimension
+                request.dimension = measure.time
+
+            column = self.get_dimension_column(measure.table, request)
             for path in column.join_paths:
                 result.add_join_path(path)
             result.add_groupby(column)
 
-        # add measures
-        for measure in measures:
-            column = Column(
-                name=measure.id, expr=deepcopy(measure.expr), type=measure.type
-            )
-            for path in column.join_paths:
-                result.add_join_path(path)
-            result.add_aggregate(column)
-            if measure.filter is not None:
-                result.add_filter_expr(measure.filter)
+        # add measure
+        column = Column(name=measure.id, expr=deepcopy(measure.expr), type=measure.type)
+        for path in column.join_paths:
+            result.add_join_path(path)
+        result.add_aggregate(column)
+        if measure.filter is not None:
+            result.add_filter_expr(measure.filter)
 
         # add filters
         for filter in filters:
-            column = self.get_dimension_column(anchor, filter)
+            column = self.get_dimension_column(measure.table, filter)
             assert column.type == "bool"
             for path in column.join_paths:
                 result.add_join_path(path)
             result.filters.append(column.expr)
 
         # add anchor table's filters
-        for f in anchor.filters:
+        for f in measure.table.filters:
             result.add_filter_expr(f.expr)
 
         return result
@@ -103,12 +110,6 @@ class Engine:
     def get_terminal(self, query: "model.ResolvedQuery") -> MergeOperator:
         if len(query.metrics) == 0:
             raise ValueError("You must request at least one metric")
-
-        # group measures by table, don't add the same measure twice
-        # tables = defaultdict(set)
-        # for request in query.metrics:
-        #     for measure in request.metric.measures:
-        #         tables[measure.table].add(measure)
 
         # define a set of selected measures
         measures = set(
@@ -119,7 +120,7 @@ class Engine:
         # add aggregate queries
         for measure in measures:
             child_query = self.get_aggregation(
-                measures=[measure],
+                measure=measure,
                 dimensions=query.dimensions,
                 filters=query.filters,
             )

@@ -1,4 +1,3 @@
-from optparse import Option
 from typing import Any, Optional
 
 from pydantic import Field
@@ -19,16 +18,18 @@ class Calculation(Displayed):
     str_expr: str = Field(..., alias="expr")
 
 
-class Measure(Calculation):
+class AggregateCalculation(Calculation):
     type: Type = "float"
-    metric: bool = False
     str_filter: Optional[str] = Field(alias="filter")
+    str_time: Optional[str] = Field(alias="time")
 
 
-class Metric(Calculation):
-    type: Type = "float"
-    table: Optional[str]
-    filter: Optional[str]
+class Measure(AggregateCalculation):
+    metric: bool = False
+
+
+class Metric(AggregateCalculation):
+    table: Optional[str]  # this one is for metric-measures
 
 
 class Dimension(Calculation):

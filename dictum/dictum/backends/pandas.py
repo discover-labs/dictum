@@ -27,7 +27,10 @@ class PandasColumnTransformer(Transformer):
 
 class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def column(self, table: str, name: str):
-        """Not required, columns are replaced by pd.Series with PandasColumnTransformer"""
+        """
+        Not required, columns are replaced by pd.Series
+        with PandasColumnTransformer
+        """
 
     def IN(self, value, values):
         return value.isin(values)

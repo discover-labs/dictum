@@ -1,6 +1,7 @@
 name: Revenue
 expr: sum(UnitPrice * Quantity)
 table: invoice_items
+time: invoice_date
 missing: 0
 type: float
 format: currency

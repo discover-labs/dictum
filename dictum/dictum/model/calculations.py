@@ -172,8 +172,8 @@ class Dimension(TableCalculation):
     # @cached_property
     # def related(self) -> Dict[str, "dictum.engine.RelationalQuery"]:
     #     """Virtual related tables that need to be added to the user-defined related
-    #     tables. Will be joined as a subquery. Aggregate dimensions are implemented this
-    #     way.
+    #     tables. Will be joined as a subquery. Aggregate dimensions are implemented
+    #     this way.
     #     """
     #     result = {}
     #     for ref in self.expr.find_data("column"):
@@ -264,12 +264,22 @@ class MeasureTransformer(Transformer):
 @dataclass(repr=False)
 class Measure(TableCalculation):
     str_filter: Optional[str] = None
+    str_time: Optional[str] = None
 
     def __post_init__(self):
         super().__post_init__()
         if self.kind != "aggregate":
             raise ValueError(
                 f"Measures must be aggregate, {self} expression is not: {self.str_expr}"
+            )
+
+        if (
+            self.str_time is not None
+            and self.str_time not in self.table.allowed_dimensions
+        ):
+            raise KeyError(
+                f"{self.str_time} is specified as a time dimension for {self}, "
+                "but it can't be used with this measure"
             )
 
     @cached_property
@@ -289,6 +299,16 @@ class Measure(TableCalculation):
             self.table, self.table.measure_backlinks, self.table.allowed_dimensions
         )
         return transformer.transform(parse_expr(self.str_filter))
+
+    @property
+    def time(self) -> Dimension:
+        if self.str_time is None:
+            raise ValueError(
+                f"{self} doesn't have a time dimension specified so it "
+                "can't be used with the built-in Time dimension"
+            )
+
+        return self.table.allowed_dimensions[self.str_time]
 
     @cached_property
     def total_function(self) -> Optional[str]:
