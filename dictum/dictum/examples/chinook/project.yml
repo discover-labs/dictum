@@ -2,8 +2,3 @@ name: Chinook Example
 description: |
   An example project based on Chinook sqlite database. Use for testing, introductory
   tutorial and as a basic example of what can be done here.
-
-metadata:
-  notion:
-    page_id: 796b8050730b46a5932b672fd7b5584f
-    token: secret_xFPfrxHV3ITV6O8hntC8kK0GJWn1gXgr0U7yk4agrrr
