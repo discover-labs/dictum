@@ -2,12 +2,13 @@ from typing import Any, Optional
 
 from pydantic import Field
 
+from dictum.schema.id import ID
 from dictum.schema.model.format import Formatted
 from dictum.schema.model.type import Type
 
 
 class Displayed(Formatted):
-    id: str
+    id: ID
     name: str
     description: Optional[str]
     type: Type
