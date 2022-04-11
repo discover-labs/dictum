@@ -5,6 +5,7 @@ import yaml
 from pydantic import BaseModel, root_validator, validator
 
 from dictum.schema import utils
+from dictum.schema.id import ID
 from dictum.schema.model.calculations import DetachedDimension, DimensionsUnion, Metric
 from dictum.schema.model.table import Table
 from dictum.schema.model.transform import Transform
@@ -18,13 +19,13 @@ class Model(BaseModel):
     locale: str = "en_US"
     currency: str = "USD"
 
-    dimensions: Dict[str, DetachedDimension] = {}
-    metrics: Dict[str, Metric] = {}
-    unions: Dict[str, DimensionsUnion] = {}
+    dimensions: Dict[ID, DetachedDimension] = {}
+    metrics: Dict[ID, Metric] = {}
+    unions: Dict[ID, DimensionsUnion] = {}
 
-    tables: Dict[str, Table] = {}
+    tables: Dict[ID, Table] = {}
     transforms: Dict[
-        str, Transform
+        ID, Transform
     ] = {}  # ignored for now, TODO: load as LiteralTransform
 
     theme: Optional[dict]

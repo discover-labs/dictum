@@ -3,24 +3,25 @@ from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, Field, validator
 
 from dictum.schema import utils
+from dictum.schema.id import ID
 from dictum.schema.model.calculations import Dimension, Measure
 
 
 class RelatedTable(BaseModel):
     str_table: str = Field(alias="table")
     foreign_key: str
-    alias: str = Field(alias="id")
+    alias: ID = Field(alias="id")
     str_related_key: Optional[str] = Field(alias="related_key")
 
 
 class Table(BaseModel):
-    id: str
+    id: ID
     description: Optional[str]
     source: Union[str, Dict]
     primary_key: Optional[str]
-    related: Dict[str, RelatedTable] = {}
-    measures: Dict[str, Measure] = {}
-    dimensions: Dict[str, Dimension] = {}
+    related: Dict[ID, RelatedTable] = {}
+    measures: Dict[ID, Measure] = {}
+    dimensions: Dict[ID, Dimension] = {}
     filters: List[str] = []
 
     set_related_ids = validator("related", allow_reuse=True, pre=True)(utils.set_ids)

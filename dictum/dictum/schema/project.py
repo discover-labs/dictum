@@ -7,6 +7,7 @@ import yaml
 from jinja2 import Template
 from pydantic import BaseModel
 
+from dictum.schema.id import ID
 from dictum.schema.model import Model
 
 root_items = {"tables", "metrics", "unions", "profiles"}
@@ -72,7 +73,7 @@ class Profile(BaseModel):
 
 class Profiles(BaseModel):
     default_profile: str
-    profiles: Dict[str, Profile]
+    profiles: Dict[ID, Profile]
 
 
 class Project(BaseModel):
