@@ -169,50 +169,6 @@ class Dimension(TableCalculation):
             )
             measure.check_references(path)
 
-    # @cached_property
-    # def related(self) -> Dict[str, "dictum.engine.RelationalQuery"]:
-    #     """Virtual related tables that need to be added to the user-defined related
-    #     tables. Will be joined as a subquery. Aggregate dimensions are implemented
-    #     this way.
-    #     """
-    #     result = {}
-    #     for ref in self.expr.find_data("column"):
-    #         if len(ref.children) < 3:  # not on a related table
-    #             continue
-    #         _, *path, measure_id = ref.children
-    #         if not path[0].startswith("__subquery__"):  # not a subquery
-    #             continue
-    #         # figure out the subquery — group the measure by self.table.primary_key
-    #         source_table = self.table.measure_backlinks[measure_id]
-    #         measure = source_table.measures.get(measure_id)
-
-    #         # a fake dimension representing the pk
-    #         pk = Dimension(
-    #             id="__pk",
-    #             name="__pk",
-    #             type=None,
-    #             str_expr=source_table.primary_key,
-    #             table=source_table,
-    #         )
-
-    #         engine = dictum.engine.Engine()
-    #         subquery = engine.get_aggregation(
-    #             measures=[measure],
-    #             dimensions=[
-    #                 dictum.model.ResolvedQueryDimensionRequest(
-    #                     dimension=pk, transforms=[], name="__pk"
-    #                 )
-    #             ],
-    #         )
-    #         result[f"__subquery__{measure_id}"] = dictum.model.RelatedTable.create(
-    #             parent=self.table,
-    #             table=subquery,
-    #             foreign_key=self.table.primary_key,
-    #             related_key=self.table.primary_key,
-    #             alias=f"__subquery__{measure_id}",
-    #         )
-    #     return result
-
 
 @dataclass
 class TableFilter:
@@ -271,15 +227,6 @@ class Measure(TableCalculation):
         if self.kind != "aggregate":
             raise ValueError(
                 f"Measures must be aggregate, {self} expression is not: {self.str_expr}"
-            )
-
-        if (
-            self.str_time is not None
-            and self.str_time not in self.table.allowed_dimensions
-        ):
-            raise KeyError(
-                f"{self.str_time} is specified as a time dimension for {self}, "
-                "but it can't be used with this measure"
             )
 
     @cached_property
