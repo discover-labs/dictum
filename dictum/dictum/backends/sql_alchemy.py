@@ -343,7 +343,6 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
 
 class SQLAlchemyBackend(Backend):
 
-    type = "sql_alchemy"
     compiler_cls = SQLAlchemyCompiler
 
     def __init__(

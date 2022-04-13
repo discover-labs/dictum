@@ -434,22 +434,18 @@ class Backend(ABC):
 
     @classmethod
     def create(cls, type: str, parameters: Optional[dict] = None):
-        if type in cls.registry:
-            backend_cls = cls.registry[type]
-            return backend_cls(**parameters)
+        if type not in cls.registry:
+            raise ImportError(
+                f"Backend {type} was not found. Try installing dictum-backend-{type} "
+                "package."
+            )
 
-        return cls.get_plugin_backend(type)(**parameters)
+        return cls.registry[type](**parameters)
 
     @staticmethod
-    def get_plugin_backend(type: str):
-        for entry_point in pkg_resources.iter_entry_points(
-            "dictum.backends", name=type
-        ):
-            return entry_point.load()
-        raise ImportError(
-            f"Backend {type} was not found. Try installing dictum-backend-{type} "
-            "package."
-        )
+    def discover_plugins():
+        for entry_point in pkg_resources.iter_entry_points("dictum.backends"):
+            entry_point.load()
 
     def display_query(self, query):
         return str(query)
@@ -481,3 +477,6 @@ class Backend(ABC):
     @abstractmethod
     def execute(self, query) -> DataFrame:
         """Execute query, return results"""
+
+
+Backend.discover_plugins()
