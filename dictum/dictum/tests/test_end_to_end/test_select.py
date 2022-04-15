@@ -1,3 +1,5 @@
+import pytest
+
 from dictum.project import Project
 
 
@@ -432,17 +434,26 @@ def test_generic_time(project: Project):
     assert result.shape == (5, 2)
 
 
-def test_generic_time_trunc(project: Project):
-    result = project.select("revenue").by("Month").df()
-    assert result.shape == (60, 2)
+@pytest.mark.parametrize(
+    "dimension,n",
+    [
+        ("Year", 5),
+        ("Quarter", 20),
+        ("Month", 60),
+        ("Week", 202),
+        ("Day", 354),
+        ("Date", 354),
+        ("Hour", 354),  # dates in the database
+        ("Minute", 354),
+        ("Second", 354),
+        ("Time", 354),
+    ],
+)
+def test_generic_time_trunc(project: Project, dimension: str, n: int):
+    result = project.select("revenue").by(dimension).df()
+    assert result.shape == (n, 2)
 
 
 def test_generic_time_trunc_transform(project: Project):
     result = project.select("revenue").by("Month.datetrunc('year')").df()
     assert result.shape == (5, 2)
-
-
-def test_generic_time_date(project: Project):
-    """Date is an alias for Day, test that it works"""
-    result = project.select("revenue").by("Date").df()
-    assert result.shape == (354, 2)
