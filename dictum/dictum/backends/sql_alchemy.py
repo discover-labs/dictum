@@ -134,6 +134,21 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def abs(self, args):
         return func.abs(*args)
 
+    def datepart(self, args: list):
+        return func.date_part(*args)
+
+    def datetrunc(self, args: list):
+        return func.date_trunc(*args)
+
+    def datediff(self, args: list):
+        return func.datediff(*args)
+
+    def now(self, _):
+        return func.now()
+
+    def today(self, _):
+        return self.todate(func.now())
+
     def coalesce(self, args: list):
         return func.coalesce(*args)
 
@@ -354,6 +369,7 @@ class SQLAlchemyBackend(Backend):
         username: Optional[str] = None,
         password: Optional[str] = None,
         pool_size: Optional[int] = None,
+        default_schema: Optional[str] = None,
     ):
         self.url = URL.create(
             drivername=drivername,
@@ -363,7 +379,8 @@ class SQLAlchemyBackend(Backend):
             username=username,
             password=password,
         )
-        self.pool_size = pool_size  # TODO: include pool size in config
+        self.pool_size = pool_size
+        self.default_schema = default_schema
         super().__init__()
 
     @cached_property
@@ -387,4 +404,6 @@ class SQLAlchemyBackend(Backend):
         return read_sql(query, self.engine, coerce_float=True)
 
     def table(self, name: str, schema: Optional[str] = None) -> Table:
+        if schema is None:
+            schema = self.default_schema
         return Table(name, self.metadata, schema=schema, autoload=True)
