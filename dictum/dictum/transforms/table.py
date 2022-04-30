@@ -255,8 +255,19 @@ class PercentTransform(TotalTransform):
 
 class SumTransform(TableTransform):
     """
-    TODO
+    Table SUM transform.
     """
 
     id = "sum"
     name = "Sum"
+    return_type = "float"
+
+    def __call__(
+        self,
+        terminal: "engine.MergeOperator",
+        transform: "engine.Operator",
+        column: Optional["engine.Column"],
+    ) -> "engine.Operator":
+        terminal.inputs.append(transform)
+        column.expr = Tree("expr", [Tree("column", [None, transform.columns[-1].name])])
+        return terminal

@@ -457,3 +457,21 @@ def test_generic_time_trunc(project: Project, dimension: str, n: int):
 def test_generic_time_trunc_transform(project: Project):
     result = project.select("revenue").by("Month.datetrunc('year')").df()
     assert result.shape == (5, 2)
+
+
+def test_sum_table_transform(project: Project):
+    result = project.select("revenue.sum").by("genre").df()
+    assert result["revenue__sum"].unique().size == 1
+    assert result["revenue__sum"].unique()[0] == 2328.6
+
+
+def test_sum_table_transform_within(project: Project):
+    result = (
+        project.select("revenue", "revenue.sum() within (genre)")
+        .by("genre", "artist")
+        .df()
+    )
+    gb = result.groupby("genre").aggregate(
+        {"revenue": "sum", "revenue__sum_within_genre": "max"}
+    )
+    assert (gb["revenue"].round(2) == gb["revenue__sum_within_genre"]).all()
