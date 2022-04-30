@@ -191,26 +191,6 @@ class InnerJoinOperator(Operator, MaterializeMixin):
         return self.query.types
 
 
-class CalculateOperator(Operator):
-    def __init__(self, input: Operator, columns: List[engine.Column]):
-        self.input = input
-        self.columns = columns
-
-    def execute(self, backend: Backend):
-        result = self.input.get_result(backend)
-        if isinstance(result, DataFrame):
-            ...  # calculate with pandas and return
-        return backend.calculate(result, self.columns)
-
-    @property
-    def level_of_detail(self) -> List[str]:
-        return self.input.level_of_detail
-
-    @property
-    def types(self) -> Dict[str, str]:
-        return self.input.types
-
-
 class MergeOperator(Operator, MaterializeMixin):
     def __init__(
         self,
