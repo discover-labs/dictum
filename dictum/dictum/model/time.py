@@ -1,4 +1,4 @@
-class TimeDimensionMeta:
+class TimeDimension:
     def __init__(cls, name, bases, attrs):
         cls.id = name
         cls.name = name
@@ -8,32 +8,32 @@ class TimeDimensionMeta:
         return self.name
 
 
-class TimeDimension(metaclass=TimeDimensionMeta):
+class BaseTimeDimension(metaclass=TimeDimension):
     def __init__(self):
         raise ValueError("Time dimensions are singletons, don't instantiate them")
 
 
-class Time(TimeDimension):
+class Time(BaseTimeDimension):
     period = None
 
 
-class Year(TimeDimension):
+class Year(BaseTimeDimension):
     period = "year"
 
 
-class Quarter(TimeDimension):
+class Quarter(BaseTimeDimension):
     period = "quarter"
 
 
-class Month(TimeDimension):
+class Month(BaseTimeDimension):
     period = "month"
 
 
-class Week(TimeDimension):
+class Week(BaseTimeDimension):
     period = "week"
 
 
-class Day(TimeDimension):
+class Day(BaseTimeDimension):
     period = "day"
 
 
@@ -41,15 +41,15 @@ class Date(Day):
     period = "day"
 
 
-class Hour(TimeDimension):
+class Hour(BaseTimeDimension):
     period = "hour"
 
 
-class Minute(TimeDimension):
+class Minute(BaseTimeDimension):
     period = "minute"
 
 
-class Second(TimeDimension):
+class Second(BaseTimeDimension):
     period = "second"
 
 

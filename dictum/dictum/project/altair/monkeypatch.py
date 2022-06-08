@@ -90,7 +90,7 @@ def _wrap_in_channel_cls(name, obj):
 def encode(self, *args, **kwargs):
     for name, obj in kwargs.items():
         if isinstance(obj, AltairEncodingChannelHook):
-            # shorthands passed directly are wrapped with encoding schannel constructor
+            # shorthands passed directly are wrapped with encoding channel constructor
             # channel's __init__ will handle resolution
             kwargs[name] = _wrap_in_channel_cls(name, obj)
         elif isinstance(obj, (list, tuple)):

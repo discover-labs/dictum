@@ -1,9 +1,9 @@
-from typing import Dict
-
 from babel.dates import match_skeleton
 
 import dictum.model
 import dictum.project
+from dictum.engine.metrics import limit_transforms
+from dictum.engine.metrics import transforms as table_transforms
 from dictum.project.altair.encoding import AltairEncodingChannelHook
 from dictum.project.altair.format import (
     ldml_date_to_d3_time_format,
@@ -19,8 +19,10 @@ from dictum.schema.query import (
     QueryScalarTransform,
     QueryTableTransform,
 )
-from dictum.transforms.scalar import ScalarTransform
-from dictum.transforms.table import TableTransform
+from dictum.model.scalar import transforms as scalar_transforms
+
+scalar_transforms = set(scalar_transforms)
+table_transforms = set(table_transforms) | set(limit_transforms)
 
 
 def format_config_to_d3_format(config, locale):
@@ -107,13 +109,12 @@ class ProjectCalculation(AltairEncodingChannelHook):
 class ProjectMetricRequest(ProjectCalculation):
     kind = "metric"
 
-    def __init__(self, calculation, locale: str, transforms: Dict[str, TableTransform]):
+    def __init__(self, calculation, locale: str):
         self.request = QueryMetricRequest(metric=QueryMetric(id=calculation.id))
-        self.transforms = transforms
         super().__init__(calculation, locale)
 
     def __getattr__(self, name: str):
-        if name not in self.transforms:
+        if name not in table_transforms:
             raise AttributeError(name)
         self.request.metric.transforms.append(QueryTableTransform(id=name))
         return self
@@ -130,18 +131,14 @@ class ProjectMetricRequest(ProjectCalculation):
 class ProjectMetric(ProjectMetricRequest):
     def name(self, name: str):
         return ProjectMetricRequest(
-            calculation=self.calculation, locale=self.locale, transforms=self.transforms
+            calculation=self.calculation, locale=self.locale
         ).name(name)
 
     def __getattr__(self, name: str):
-        if name not in self.transforms:
+        if name not in table_transforms:
             raise AttributeError(name)
         return getattr(
-            ProjectMetricRequest(
-                calculation=self.calculation,
-                locale=self.locale,
-                transforms=self.transforms,
-            ),
+            ProjectMetricRequest(calculation=self.calculation, locale=self.locale),
             name,
         )
 
@@ -149,12 +146,11 @@ class ProjectMetric(ProjectMetricRequest):
 class ProjectMetrics:
     def __init__(self, project: "dictum.project.Project"):
         self.__project = project
-        transforms = project.model.table_transforms
         for metric in project.model.metrics.values():
             setattr(
                 self,
                 metric.id,
-                ProjectMetric(metric, project.model.locale, transforms),
+                ProjectMetric(metric, project.model.locale),
             )
 
     def _repr_html_(self):
@@ -165,17 +161,14 @@ class ProjectMetrics:
 class ProjectDimensionRequest(ProjectCalculation):
     kind = "dimension"
 
-    def __init__(
-        self, calculation, locale: str, transforms: Dict[str, ScalarTransform]
-    ):
+    def __init__(self, calculation, locale: str):
         self.request = QueryDimensionRequest(
             dimension=QueryDimension(id=calculation.id)
         )
-        self.transforms = transforms
         super().__init__(calculation, locale)
 
     def __getattr__(self, name: str):
-        if name not in self.transforms:
+        if name not in scalar_transforms:
             raise AttributeError(name)  # for Jupyter checking for _repr_html_ etc.
         self.request.dimension.transforms.append(QueryScalarTransform(id=name))
         return self
@@ -187,19 +180,15 @@ class ProjectDimensionRequest(ProjectCalculation):
 
 class ProjectDimension(ProjectDimensionRequest):
     def __getattr__(self, name: str):
-        if name not in self.transforms:
+        if name not in scalar_transforms:
             raise AttributeError(name)  # for Jupyter checking for _repr_html_ etc.
         return getattr(
-            ProjectDimensionRequest(
-                self.calculation, locale=self.locale, transforms=self.transforms
-            ),
+            ProjectDimensionRequest(self.calculation, locale=self.locale),
             name,
         )
 
     def name(self, name: str):
-        return ProjectDimensionRequest(
-            self.calculation, locale=self.locale, transforms=self.transforms
-        ).name(name)
+        return ProjectDimensionRequest(self.calculation, locale=self.locale).name(name)
 
     def __str__(self):
         return self.calculation.id
@@ -208,14 +197,11 @@ class ProjectDimension(ProjectDimensionRequest):
 class ProjectDimensions:
     def __init__(self, project: "dictum.project.Project"):
         self.__project = project
-        transforms = project.model.scalar_transforms
         for dimension in project.model.dimensions.values():
             setattr(
                 self,
                 dimension.id,
-                ProjectDimension(
-                    dimension, locale=project.model.locale, transforms=transforms
-                ),
+                ProjectDimension(dimension, locale=project.model.locale),
             )
 
     def _repr_html_(self):

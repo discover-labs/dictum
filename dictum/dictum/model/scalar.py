@@ -2,9 +2,9 @@ from typing import List, Optional
 
 from lark import Transformer, Tree
 
-from dictum import schema
+from dictum import engine, schema
 from dictum.model.expr import parse_expr
-from dictum.transforms.base import BaseTransform
+from dictum.utils import value_to_token
 
 
 class TransformTransformer(Transformer):
@@ -26,9 +26,9 @@ class TransformTransformer(Transformer):
 transforms = {}
 
 
-class ScalarTransform(BaseTransform):
-    """A scalar transform. Transforms a given ColumnCalculation. Can change it's expr,
-    name and type.
+class ScalarTransform:
+    """A scalar transform. Column in, Column out. Can change different aspects
+    of the column, expression (always), name, format etc.
     """
 
     id: str
@@ -36,9 +36,52 @@ class ScalarTransform(BaseTransform):
     description: Optional[str] = None
     return_type: Optional[schema.Type] = None
 
+    def __init__(self, *args):
+        self._args = [value_to_token(a) for a in args]
+
     def __init_subclass__(cls):
         if hasattr(cls, "id") and cls.id is not None:
             transforms[cls.id] = cls
+
+    def get_name(self, name: str) -> str:
+        return name
+
+    def get_display_name(self, name: str) -> str:
+        return name
+
+    def get_return_type(self, original: schema.Type) -> schema.Type:
+        if self.return_type is not None:
+            return self.return_type
+        return original
+
+    def get_format(self, format: schema.FormatConfig) -> schema.FormatConfig:
+        return format
+
+    def get_display_info(
+        self, display_info: Optional["engine.DisplayInfo"]
+    ) -> "engine.DisplayInfo":
+        if display_info is None:
+            return None
+        return engine.DisplayInfo(
+            name=(
+                self.get_display_name(display_info.name)
+                if not display_info.keep_name
+                else display_info.name
+            ),
+            format=self.get_format(display_info.format),
+            keep_name=display_info.keep_name,
+        )
+
+    def transform_expr(self, expr: Tree) -> Tree:
+        raise NotImplementedError
+
+    def __call__(self, column: "engine.Column"):
+        return engine.Column(
+            name=self.get_name(column.name),
+            type=self.get_return_type(column.type),
+            expr=Tree("expr", [self.transform_expr(column.expr.children[0])]),
+            display_info=self.get_display_info(column.display_info),
+        )
 
 
 class LiteralTransform(ScalarTransform):

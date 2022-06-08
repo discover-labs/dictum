@@ -189,9 +189,13 @@ class RelationalQuery(Relation):
     limit: Optional[int] = None
 
     def add_groupby(self, column: Column):
+        for path in column.join_paths:
+            self.add_join_path(path)
         self._groupby.append(column)
 
     def add_aggregate(self, column: Column):
+        for path in column.join_paths:
+            self.add_join_path(path)
         self._aggregate.append(column)
 
     def add_filter_expr(self, expr: Tree):
@@ -211,6 +215,7 @@ class RelationalQuery(Relation):
 
     @staticmethod
     def prepare_expr(expr: Tree) -> Tree:
+        expr = deepcopy(expr)
         for ref in expr.find_data("column"):
             *path, id_ = ref.children
             ref.children = [".".join(path), id_]
@@ -218,9 +223,9 @@ class RelationalQuery(Relation):
 
     def prepare(self):
         for column in self._aggregate + self._groupby:
-            self.prepare_expr(column.expr)
+            column.expr = self.prepare_expr(column.expr)
         self.filters = list(map(self.prepare_expr, self.filters))
         for item in self.order:
-            self.prepare_expr(item.expr)
+            item.expr = self.prepare_expr(item.expr)
         for join in self.join_tree:
             join.prepare()

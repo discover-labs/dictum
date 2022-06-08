@@ -6,8 +6,9 @@ from typing import Optional, Union
 import altair as alt
 import pandas as pd
 
-from dictum import engine, schema
+from dictum import schema
 from dictum.backends.base import Backend
+from dictum.engine import Engine, Result
 from dictum.model import Model
 from dictum.project import analyses
 from dictum.project.calculations import ProjectDimensions, ProjectMetrics
@@ -59,7 +60,6 @@ class Project:
         self.m = ProjectMetrics(self)
         self.metrics = self.m
         self.d = ProjectDimensions(self)
-        self.engine = engine.Engine()
         self.dimensions = self.d
         if self.model.theme is not None:
             alt.themes.register("dictum_theme", lambda: self.model.theme)
@@ -74,18 +74,20 @@ class Project:
         return Model(self._project.get_model())
 
     @cached_property
+    def engine(self) -> Engine:
+        return Engine(self.model)
+
+    @cached_property
     def backend(self) -> Backend:
         profile = self._project.get_profile(self.profile)
         return Backend.create(profile.type, profile.parameters)
 
-    def execute(self, query: Query) -> engine.Result:
-        resolved = self.model.get_resolved_query(query)
-        computation = self.engine.get_computation(resolved)
+    def execute(self, query: Query) -> Result:
+        computation = self.engine.get_computation(query)
         return computation.execute(self.backend)
 
     def query_graph(self, query: Query):
-        resolved = self.model.get_resolved_query(query)
-        computation = self.engine.get_computation(resolved)
+        computation = self.engine.get_computation(query)
         return computation.graph()
 
     def ql(self, query: str):

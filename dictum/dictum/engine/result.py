@@ -12,6 +12,10 @@ class ExecutedQuery:
 
 @dataclass
 class DisplayInfo:
+    """Information for the displaying code:
+    either data formatter or Altair
+    """
+
     name: str
     format: schema.FormatConfig
     type: Optional[schema.Type] = None

@@ -12,10 +12,9 @@ from dictum.schema import Query
 
 
 @pytest.fixture(scope="module")
-def compute_df(chinook: Model, engine: Engine, backend: Backend):
+def compute_df(engine: Engine, backend: Backend):
     def compute(query: Query):
-        resolved = chinook.get_resolved_query(query)
-        computation = engine.get_computation(resolved)
+        computation = engine.get_computation(query)
         return DataFrame(computation.execute(backend).data)
 
     return compute
@@ -24,8 +23,7 @@ def compute_df(chinook: Model, engine: Engine, backend: Backend):
 @pytest.fixture(scope="module")
 def compute_results(chinook: Model, engine: Engine, backend: Backend):
     def compute(query: Query):
-        resolved = chinook.get_resolved_query(query)
-        computation = engine.get_computation(resolved)
+        computation = engine.get_computation(query)
         return computation.execute(backend).data
 
     return compute
