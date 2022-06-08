@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "dictum"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
-authors = ["Mikhail Akimov <mikhail.akimov@gmail.com>"]
+authors = ["Mikhail Akimov"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
