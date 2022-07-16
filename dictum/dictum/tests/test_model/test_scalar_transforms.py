@@ -2,7 +2,7 @@ import pytest
 from lark import Token, Tree
 
 from dictum.engine import Column
-from dictum.transforms.scalar import LiteralTransform, ScalarTransform, transforms
+from dictum.model.scalar import LiteralTransform, ScalarTransform, transforms
 
 
 @pytest.fixture(scope="module")

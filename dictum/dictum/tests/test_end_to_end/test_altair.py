@@ -25,6 +25,17 @@ def test_metric_dimension(project: Project):
     )
 
 
+def test_metric_dimension_year(project: Project):
+    return (
+        project.chart()
+        .mark_bar()
+        .encode(
+            x=alt.X(project.d.Year, type="ordinal"),
+            y=project.m.revenue,
+        )
+    )
+
+
 def test_override_type(project: Project):
     chart = (
         project.chart()
@@ -93,9 +104,9 @@ def test_facet_column(project: Project):
             y=alt.Y(project.m.revenue),
         )
         .properties(width=150, height=100)
-        .facet(row=project.d.genre)
+        .facet(column=project.d.genre)
     )
-    assert chart._render_self().facet.row["header"]["title"] == "Genre"
+    assert chart._render_self().facet.column["header"]["title"] == "Genre"
     return chart
 
 
@@ -209,3 +220,14 @@ def test_calculate_transform(project: Project):
         .transform_calculate(max_pct="datum.revenue / datum.max")
     )
     return chart
+
+
+def test_custom_calculation_format(project: Project):
+    return (
+        project.chart()
+        .mark_bar()
+        .encode(
+            x=project.m.revenue_per_track,
+            y=project.d.genre,
+        )
+    )

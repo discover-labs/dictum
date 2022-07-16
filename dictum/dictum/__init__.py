@@ -1,6 +1,6 @@
 from dictum.project import Project
 
-__all__ = ["Project", "Store"]
+__all__ = ["Project"]
 
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"

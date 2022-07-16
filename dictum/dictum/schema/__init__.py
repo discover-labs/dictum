@@ -10,6 +10,7 @@ from dictum.schema.query import (
     QueryDimensionRequest,
     QueryMetric,
     QueryMetricRequest,
+    QueryScalarTransform,
     QueryTableTransform,
     QueryTransform,
 )
@@ -27,6 +28,7 @@ __all__ = [
     "QueryDimensionRequest",
     "QueryMetric",
     "QueryMetricRequest",
+    "QueryScalarTransform",
     "QueryTableTransform",
     "QueryTransform",
     "Table",

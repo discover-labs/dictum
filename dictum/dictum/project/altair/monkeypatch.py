@@ -39,14 +39,10 @@ from dictum.project.altair.encoding import (
     filter_fields,
     type_to_encoding_type,
 )
-from dictum.project.altair.format import (
-    ldml_date_to_d3_time_format,
-    ldml_number_to_d3_format,
-)
+from dictum.project.altair.format import format_config_to_d3_format
 from dictum.project.altair.locale import (
     cldr_locale_to_d3_number,
     cldr_locale_to_d3_time,
-    get_default_format_for_kind,
 )
 from dictum.ql.transformer import compile_dimension_request, compile_metric_request
 from dictum.schema.query import Query, QueryMetricRequest
@@ -90,7 +86,7 @@ def _wrap_in_channel_cls(name, obj):
 def encode(self, *args, **kwargs):
     for name, obj in kwargs.items():
         if isinstance(obj, AltairEncodingChannelHook):
-            # shorthands passed directly are wrapped with encoding schannel constructor
+            # shorthands passed directly are wrapped with encoding channel constructor
             # channel's __init__ will handle resolution
             kwargs[name] = _wrap_in_channel_cls(name, obj)
         elif isinstance(obj, (list, tuple)):
@@ -248,14 +244,16 @@ def render_self(self):
 
                 info = result.display_info[channel.field]
 
-                fmt = None
-                if info.format.pattern is not None:
-                    if info.type in {"date", "datetime"}:
-                        fmt = ldml_date_to_d3_time_format(info.format.pattern)
-                    elif info.type in {"int", "float"}:
-                        fmt = ldml_number_to_d3_format(info.format.pattern)
-                else:
-                    fmt = get_default_format_for_kind(info.format.kind, model.locale)
+                fmt = format_config_to_d3_format(info.format, model.locale)
+                # if info.format.pattern is not None:
+                #     if info.type in {"date", "datetime"}:
+                #         fmt = ldml_date_to_d3_time_format(info.format.pattern)
+                #     elif info.type in {"int", "float"}:
+                #         fmt = ldml_number_to_d3_format(info.format.pattern)
+                # elif info.format.skeleton is not None:
+                #     pass
+                # else:
+                #     fmt = get_default_format_for_kind(info.format.kind, model.locale)
 
                 title = {"title": info.name}
                 if fmt is not None:
@@ -381,7 +379,7 @@ def requests_from_channel(channel):
     result = []
     if request := request_from_field(channel.field):
         result = [request]
-        channel.field = request.name
+        channel.field = request.alias if request.alias is not None else request.name
     if "sort" in channel._kwds:
         if isinstance(channel.sort, dict):
             try:
@@ -393,7 +391,9 @@ def requests_from_channel(channel):
         ):
             request = request_from_field(channel.sort.field)
             result.append(request)
-            channel.sort.field = request.name
+            channel.sort.field = (
+                request.alias if request.alias is not None else request.name
+            )
     return result
 
 

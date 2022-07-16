@@ -475,3 +475,8 @@ def test_sum_table_transform_within(project: Project):
         {"revenue": "sum", "revenue__sum_within_genre": "max"}
     )
     assert (gb["revenue"].round(2) == gb["revenue__sum_within_genre"]).all()
+
+
+def test_measure_with_related_column(project: Project):
+    """Test that related columns are supported in measures"""
+    project.select("unique_paying_customers").df()  # no error

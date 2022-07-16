@@ -1,80 +1,19 @@
 import dataclasses
-from typing import Dict, List, Optional
+from typing import Dict
 
 from dictum import schema
 from dictum.model.calculations import Dimension, DimensionsUnion, Measure, Metric
 from dictum.model.dicts import DimensionDict, MeasureDict, MetricDict
+from dictum.model.scalar import transforms as scalar_transforms
 from dictum.model.table import RelatedTable, Table, TableFilter
 from dictum.model.time import dimensions as time_dimensions
-from dictum.transforms.scalar import ScalarTransform
-from dictum.transforms.scalar import transforms as scalar_transforms
-from dictum.transforms.table import TableTransform
-from dictum.transforms.table import transforms as table_transforms
-
-# from toolz import compose_left
-
 
 displayed_fields = {"id", "name", "description", "type", "format", "missing"}
 
 table_calc_fields = displayed_fields | {"str_expr"}
 
 
-@dataclasses.dataclass
-class ResolvedQueryDimensionRequest:
-    dimension: Dimension
-    transforms: List[ScalarTransform]
-    name: str
-    alias: Optional[str] = None
-    keep_name: bool = False
-
-
-@dataclasses.dataclass
-class ResolvedQueryMetricRequest:
-    metric: Metric
-    transforms: List[TableTransform]
-    name: str
-    alias: Optional[str] = None
-    keep_name: bool = False
-
-
-@dataclasses.dataclass
-class ResolvedQuery:
-    """Same as Query, but everything is replaced with the actual model objects."""
-
-    metrics: List[ResolvedQueryMetricRequest] = dataclasses.field(default_factory=list)
-    dimensions: List[ResolvedQueryDimensionRequest] = dataclasses.field(
-        default_factory=list
-    )
-    filters: List[ResolvedQueryDimensionRequest] = dataclasses.field(
-        default_factory=list
-    )
-    limit: List[ResolvedQueryMetricRequest] = dataclasses.field(default_factory=list)
-
-
 class Model:
-    """The actual metrics store. Receives a query object, figures out which computations
-    on the source tables are required to be performed in order to fulfil the query.
-
-    The main purpose of this object is to take in the config and prepare all the data
-    structures for the incoming queries.
-    - It parses the expressions.
-    - Resolves references to anchor tables (tables on which a calculation was declared)
-      by adding the actual table id. E.g. sum(amount) -> sum(anchor_table.amount)
-    - Resolves references to other calculations by replacing the reference with the
-      referenced calculation's parse tree.
-    - If the referenced calculation uses any columns of it's related tables, prepends
-      references to these columns with the anchor table of the referenced calculation,
-      e.g. if the calculation on table `orders` is `users.channel`, and
-      `channel` dimension on `users` is `attributions.channel`, the resolved reference
-      on orders will be `users.attributions.channel`.
-
-    `execute_query` method returns an object that can then be executed on a backend.
-
-    Query processing consists of figuring out which joins need to be performed,
-    deduplicating the joins, arranging them in a tree and returning a Calculation
-    object.
-    """
-
     def __init__(self, model: schema.Model):
         self.name = model.name
         self.description = model.description
@@ -85,7 +24,6 @@ class Model:
         self.dimensions = DimensionDict()
         self.metrics = MetricDict()
         self.scalar_transforms = scalar_transforms
-        self.table_transforms = table_transforms
 
         self.theme = model.theme
 
@@ -250,123 +188,3 @@ class Model:
             if dimension.format is not None and dimension.format.currency is not None:
                 currencies.add(dimension.format.currency)
         return currencies
-
-    def get_resolved_dimension(
-        self, query_dimension: schema.QueryDimension
-    ) -> ResolvedQueryDimensionRequest:
-        dimension = self.dimensions.get(query_dimension.id)
-        transforms = []
-        for transform in query_dimension.transforms:
-            tr = self.scalar_transforms.get(transform.id)(*transform.args)
-            transforms.append(tr)
-        return ResolvedQueryDimensionRequest(
-            dimension=dimension, transforms=transforms, name=query_dimension.name
-        )
-
-    def get_resolved_dimension_request(
-        self, request: schema.QueryDimensionRequest
-    ) -> ResolvedQueryDimensionRequest:
-        resolved = self.get_resolved_dimension(request.dimension)
-        return ResolvedQueryDimensionRequest(
-            dimension=resolved.dimension,
-            transforms=resolved.transforms,
-            name=request.name,
-            alias=request.alias,
-            keep_name=request.alias is not None,
-        )
-
-    def get_resolved_metric(
-        self,
-        query_metric: schema.QueryMetric,
-        dimensions: List[ResolvedQueryDimensionRequest],
-        filters: List[ResolvedQueryMetricRequest],
-    ) -> ResolvedQueryMetricRequest:
-        metric = self.metrics.get(query_metric.id)
-
-        transforms = []
-        for transform in query_metric.transforms:
-            of = [self.get_resolved_dimension(d) for d in transform.of]
-            within = [self.get_resolved_dimension(d) for d in transform.within]
-
-            # for top and bottom, of is everything that's not within
-            # (if not specified otherwise)
-            if len(of) == 0 and transform.id in {"top", "bottom"}:
-                within_names = set(d.name for d in within)
-                of = [d for d in dimensions if d.name not in (within_names)]
-
-            resolved = ResolvedQuery(
-                metrics=[
-                    ResolvedQueryMetricRequest(
-                        metric=metric, transforms=[], name=query_metric.name
-                    )
-                ],
-                dimensions=[*of, *within],
-                filters=filters,
-            )
-            tr = self.table_transforms.get(transform.id)(
-                *transform.args,
-                metric_id=metric.id,
-                query=resolved,
-                of=of,
-                within=within,
-            )
-            transforms.append(tr)
-
-        return ResolvedQueryMetricRequest(
-            metric=metric, transforms=transforms, name=query_metric.name
-        )
-
-    def get_resolved_metric_request(
-        self,
-        request: schema.QueryMetricRequest,
-        dimensions: List[ResolvedQueryDimensionRequest],
-        filters: List[ResolvedQueryDimensionRequest],
-    ) -> ResolvedQueryMetricRequest:
-        resolved = self.get_resolved_metric(request.metric, dimensions, filters)
-        return ResolvedQueryMetricRequest(
-            metric=resolved.metric,
-            transforms=resolved.transforms,
-            name=request.name,
-            alias=request.alias,
-            keep_name=request.alias is not None,
-        )
-
-    def get_resolved_query(self, query: schema.Query) -> ResolvedQuery:
-        result = ResolvedQuery()
-        for filter in query.filters:
-            result.filters.append(self.get_resolved_dimension(filter))
-        for request in query.dimensions:
-            result.dimensions.append(self.get_resolved_dimension_request(request))
-        for request in query.metrics:
-            resolved = self.get_resolved_metric_request(
-                request, result.dimensions, result.filters
-            )
-            for transform in resolved.transforms:
-                if transform.id in {"top", "bottom"}:
-                    raise ValueError(
-                        "Top and Bottom transforms are only allowed inside limit clause"
-                    )
-            result.metrics.append(resolved)
-        for limit in query.limit:
-            result.limit.append(
-                self.get_resolved_metric(limit, result.dimensions, result.filters)
-            )
-        return result
-
-    def get_names(self, ids: List[str]) -> Dict[str, str]:
-        result = {}
-        for item in ids:
-            if item in self.metrics:
-                result[item] = self.metrics[item].name
-            if item in self.dimensions:
-                result[item] = self.dimensions[item].name
-        return result
-
-    def get_formats(self, ids: List[str]) -> Dict[str, schema.FormatConfig]:
-        result = {}
-        for item in ids:
-            if item in self.metrics:
-                result[item] = self.metrics[item].format
-            if item in self.dimensions:
-                result[item] = self.dimensions[item].format
-        return result

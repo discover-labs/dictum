@@ -1,5 +1,24 @@
 from babel import dates, numbers
 
+import dictum.project.altair.locale
+
+
+def get_default_format_for_kind(kind: str, locale: str) -> str:
+    data = dictum.project.altair.locale.load_locale(locale)
+    if kind == "date":
+        return ldml_date_to_d3_time_format(data.date_formats["short"].pattern)
+    if kind == "datetime":
+        short_date = data.date_formats["short"].pattern
+        short_time = data.time_formats["short"].pattern
+        datetime = data.datetime_formats["short"].format(short_time, short_date)
+        return ldml_date_to_d3_time_format(datetime)
+    if kind == "currency":
+        return ldml_number_to_d3_format(data.currency_formats["standard"].pattern)
+    if kind == "percent":
+        return ldml_number_to_d3_format(data.percent_formats[None].pattern)
+    if kind in {"number", "decimal"}:
+        return ldml_number_to_d3_format(data.decimal_formats[None].pattern)
+
 
 def ldml_number_to_d3_format(pattern: str) -> str:
     """Convert CLDR number format pattern to d3-format specifier.
@@ -187,3 +206,31 @@ mapper = DateFormatMapper()
 def ldml_date_to_d3_time_format(pattern: str) -> str:
     pat = dates.parse_pattern(pattern)
     return pat.format % mapper
+
+
+def format_config_to_d3_format(config, locale):
+    if config is None:
+        return None
+
+    if config.kind == "string":
+        return None
+
+    convert = ldml_number_to_d3_format
+    if config.kind in {"date", "datetime"}:
+        convert = ldml_date_to_d3_time_format
+
+    pattern = config.pattern
+    if config.skeleton is not None:
+        _locale = dictum.project.altair.locale.load_locale(locale)
+        format = _locale.datetime_skeletons.get(config.skeleton)
+        if format is None:
+            skel_key = dates.match_skeleton(config.skeleton, _locale.datetime_skeletons)
+            if skel_key is not None:
+                format = _locale.datetime_skeletons[skel_key]
+        if format is not None:
+            pattern = format.pattern
+
+    if pattern is None:
+        return get_default_format_for_kind(config.kind, locale)
+
+    return convert(pattern)

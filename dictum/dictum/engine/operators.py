@@ -9,6 +9,7 @@ from pandas import DataFrame, concat, isna, merge
 from dictum import engine
 from dictum.backends.base import Backend
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
+from dictum.engine.computation import Column
 from dictum.engine.result import ExecutedQuery, Result
 
 
@@ -194,14 +195,49 @@ class InnerJoinOperator(Operator, MaterializeMixin):
 class MergeOperator(Operator, MaterializeMixin):
     def __init__(
         self,
-        inputs: List[Operator],
-        columns: List[engine.Column],
+        inputs: List[QueryOperator],
     ):
         super().__init__()
         self.inputs = inputs
-        self.columns = columns
+        self.dimensions = []
+        self.metrics = []
         self.limit: Optional[int] = None
         self.order: Optional[List[engine.LiteralOrderItem]] = None
+
+    @property
+    def columns(self):
+        return self.dimensions + self.metrics
+
+    @property
+    def level_of_detail(self) -> List[str]:
+        result = set()
+        for item in self.inputs:
+            result |= set(item.level_of_detail)
+        return list(result)
+
+    @property
+    def types(self) -> Dict[str, str]:
+        return {c.name: c.type for c in self.columns}
+
+    def add_query(self, query: QueryOperator):
+        """It's important that dimension columns are added to the merge
+        as they appear in the original queries if they are transformed.
+        We need to keep the transformed format, name and other display info.
+        So, adding these needs to happen automatically, without the engine
+        handling getting them out of queries.
+        """
+        names = {c.name for c in self.dimensions}
+        for column in query.input._groupby:
+            if column.name not in names:
+                self.dimensions.append(
+                    Column(
+                        name=column.name,
+                        expr=Tree("expr", [Tree("column", [None, column.name])]),
+                        type=column.type,
+                        display_info=column.display_info,
+                    )
+                )
+        self.inputs.append(query)
 
     def calculate_pandas(self, input: List[list]) -> List[list]:
         column_transformer = PandasColumnTransformer({None: input})
@@ -291,17 +327,6 @@ class MergeOperator(Operator, MaterializeMixin):
             result = backend.order(result, self.order)
 
         return result
-
-    @property
-    def level_of_detail(self) -> List[str]:
-        result = set()
-        for item in self.inputs:
-            result |= set(item.level_of_detail)
-        return list(result)
-
-    @property
-    def types(self) -> Dict[str, str]:
-        return {c.name: c.type for c in self.columns}
 
 
 class MaterializeOperator(Operator, MaterializeMixin):
@@ -431,8 +456,11 @@ class FinalizeOperator(Operator):
         for column in self.input.inputs[0].columns:
             info = column.display_info
             info.type = column.type
-            name = self.aliases.get(column.name, column.name)
-            display_info[name] = info
+            if column.name in self.aliases:
+                column.name = self.aliases[column.name]
+                info.name = column.name
+                info.keep_name = True
+            display_info[column.name] = info
         return Result(
             data=data,
             executed_queries=self.get_executed_queries(),

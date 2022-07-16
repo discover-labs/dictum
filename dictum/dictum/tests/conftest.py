@@ -33,7 +33,7 @@ def chinook():
 
 
 @pytest.fixture(scope="session")
-def engine():
+def engine(chinook):
     from dictum.engine import Engine
 
-    return Engine()
+    return Engine(chinook)

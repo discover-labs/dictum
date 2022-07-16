@@ -25,6 +25,8 @@ def save_result(fn, name: str):
                         "vega",
                         "-p",
                         "vega-lite",
+                        "-p",
+                        "vega-cli",
                         "vl2png",
                         fp.name,
                         str(png),
