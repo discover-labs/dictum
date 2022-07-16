@@ -1,15 +1,9 @@
-from babel.dates import match_skeleton
-
 import dictum.model
 import dictum.project
 from dictum.engine.metrics import limit_transforms
 from dictum.engine.metrics import transforms as table_transforms
+from dictum.model.scalar import transforms as scalar_transforms
 from dictum.project.altair.encoding import AltairEncodingChannelHook
-from dictum.project.altair.format import (
-    ldml_date_to_d3_time_format,
-    ldml_number_to_d3_format,
-)
-from dictum.project.altair.locale import get_default_format_for_kind, load_locale
 from dictum.project.templates import environment
 from dictum.schema.query import (
     QueryDimension,
@@ -19,35 +13,9 @@ from dictum.schema.query import (
     QueryScalarTransform,
     QueryTableTransform,
 )
-from dictum.model.scalar import transforms as scalar_transforms
 
 scalar_transforms = set(scalar_transforms)
 table_transforms = set(table_transforms) | set(limit_transforms)
-
-
-def format_config_to_d3_format(config, locale):
-    if config.kind == "string":
-        return None
-
-    convert = ldml_number_to_d3_format
-    if config.kind in {"date", "datetime"}:
-        convert = ldml_date_to_d3_time_format
-
-    pattern = config.pattern
-    if config.skeleton is not None:
-        _locale = load_locale(locale)
-        format = _locale.datetime_skeletons.get(config.skeleton)
-        if format is None:
-            skel_key = match_skeleton(config.skeleton, _locale.datetime_skeletons)
-            if skel_key is not None:
-                format = _locale.datetime_skeletons[skel_key]
-        if format is not None:
-            pattern = format.pattern
-
-    if pattern is None:
-        return get_default_format_for_kind(config.kind, locale)
-
-    return convert(pattern)
 
 
 class ProjectCalculation(AltairEncodingChannelHook):

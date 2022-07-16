@@ -3,32 +3,12 @@ from typing import Optional
 
 from babel.core import Locale
 
-from dictum.project.altair.format import (
-    ldml_date_to_d3_time_format,
-    ldml_number_to_d3_format,
-)
+import dictum.project.altair.format
 
 currency_symbol_overrides = {
     "RUB": "₽",
     None: "",
 }
-
-
-def get_default_format_for_kind(kind: str, locale: str) -> str:
-    data = load_locale(locale)
-    if kind == "date":
-        return ldml_date_to_d3_time_format(data.date_formats["short"].pattern)
-    if kind == "datetime":
-        short_date = data.date_formats["short"].pattern
-        short_time = data.time_formats["short"].pattern
-        datetime = data.datetime_formats["short"].format(short_time, short_date)
-        return ldml_date_to_d3_time_format(datetime)
-    if kind == "currency":
-        return ldml_number_to_d3_format(data.currency_formats["standard"].pattern)
-    if kind == "percent":
-        return ldml_number_to_d3_format(data.percent_formats[None].pattern)
-    if kind in {"number", "decimal"}:
-        return ldml_number_to_d3_format(data.decimal_formats[None].pattern)
 
 
 @cache
@@ -58,8 +38,12 @@ def cldr_locale_to_d3_number(locale: str, currency: Optional[str] = None):
 def cldr_locale_to_d3_time(locale: str):
     data = load_locale(locale)
     days = [6] + list(range(6))  # days in d3 start from Sunday
-    short_date = ldml_date_to_d3_time_format(data.date_formats["short"].pattern)
-    short_time = ldml_date_to_d3_time_format(data.time_formats["short"].pattern)
+    short_date = dictum.project.altair.format.ldml_date_to_d3_time_format(
+        data.date_formats["short"].pattern
+    )
+    short_time = dictum.project.altair.format.ldml_date_to_d3_time_format(
+        data.time_formats["short"].pattern
+    )
     datetime = data.datetime_formats["short"].format(short_time, short_date)
     return {
         "dateTime": datetime,

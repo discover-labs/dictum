@@ -252,6 +252,11 @@ class AddTotalMetric(AddTransformedMetric):
         )
 
     def __call__(self, merge: MergeOperator):
+        # TODO: optimize by using get_expr_total_function
+        # if the total function is defined (expr is additive),
+        # then use a window function instead of adding another
+        # query to the merge
+
         # we have to add the measures for the original metric in case the total
         # is the only one requested
         merge = AddMetric(request=self.request, builder=self.builder)(merge)

@@ -1,15 +1,12 @@
 import dataclasses
-from typing import Dict, List
+from typing import Dict
 
 from dictum import schema
 from dictum.model.calculations import Dimension, DimensionsUnion, Measure, Metric
 from dictum.model.dicts import DimensionDict, MeasureDict, MetricDict
+from dictum.model.scalar import transforms as scalar_transforms
 from dictum.model.table import RelatedTable, Table, TableFilter
 from dictum.model.time import dimensions as time_dimensions
-from dictum.model.scalar import transforms as scalar_transforms
-
-# from toolz import compose_left
-
 
 displayed_fields = {"id", "name", "description", "type", "format", "missing"}
 
@@ -191,21 +188,3 @@ class Model:
             if dimension.format is not None and dimension.format.currency is not None:
                 currencies.add(dimension.format.currency)
         return currencies
-
-    def get_names(self, ids: List[str]) -> Dict[str, str]:
-        result = {}
-        for item in ids:
-            if item in self.metrics:
-                result[item] = self.metrics[item].name
-            if item in self.dimensions:
-                result[item] = self.dimensions[item].name
-        return result
-
-    def get_formats(self, ids: List[str]) -> Dict[str, schema.FormatConfig]:
-        result = {}
-        for item in ids:
-            if item in self.metrics:
-                result[item] = self.metrics[item].format
-            if item in self.dimensions:
-                result[item] = self.dimensions[item].format
-        return result

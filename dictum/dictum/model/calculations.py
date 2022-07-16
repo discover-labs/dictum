@@ -8,7 +8,7 @@ from lark import Transformer, Tree
 import dictum.model
 from dictum import schema
 from dictum.model import utils
-from dictum.model.expr import get_expr_kind, get_expr_total_function, parse_expr
+from dictum.model.expr import get_expr_kind, parse_expr
 from dictum.utils import value_to_token
 
 
@@ -256,10 +256,6 @@ class Measure(TableCalculation):
             )
 
         return self.table.allowed_dimensions[self.str_time]
-
-    @cached_property
-    def total_function(self) -> Optional[str]:
-        return get_expr_total_function(self.expr)
 
     @cached_property
     def dimensions(self):
