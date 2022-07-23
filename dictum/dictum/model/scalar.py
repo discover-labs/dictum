@@ -63,11 +63,12 @@ class ScalarTransform:
         if display_info is None:
             return None
         return engine.DisplayInfo(
-            name=(
-                self.get_display_name(display_info.name)
+            display_name=(
+                self.get_display_name(display_info.display_name)
                 if not display_info.keep_name
-                else display_info.name
+                else display_info.display_name
             ),
+            column_name=display_info.column_name,
             format=self.get_format(display_info.format),
             keep_name=display_info.keep_name,
         )

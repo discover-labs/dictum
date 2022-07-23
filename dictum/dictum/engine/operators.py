@@ -1,6 +1,6 @@
 import time
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Dict, FrozenSet, List, Optional, Union
 
 import dateutil
 from lark import Tree
@@ -11,6 +11,7 @@ from dictum.backends.base import Backend
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.engine.computation import Column
 from dictum.engine.result import ExecutedQuery, Result
+from dictum.schema import Query
 
 
 def _date_mapper(v):
@@ -195,14 +196,24 @@ class InnerJoinOperator(Operator, MaterializeMixin):
 class MergeOperator(Operator, MaterializeMixin):
     def __init__(
         self,
-        inputs: List[QueryOperator],
+        query: Query,
+        inputs: Optional[List[Union[QueryOperator, "MergeOperator"]]] = None,
     ):
         super().__init__()
-        self.inputs = inputs
-        self.dimensions = []
-        self.metrics = []
+        self.query = query
+        self.inputs = inputs if inputs is not None else []
+        self.dimensions: List[Column] = []
+        self.metrics: List[Column] = []
         self.limit: Optional[int] = None
         self.order: Optional[List[engine.LiteralOrderItem]] = None
+
+    @property
+    def digest(self) -> str:
+        return self.query.digest
+
+    @property
+    def digests(self) -> FrozenSet[str]:
+        return frozenset(i.digest for i in self.inputs if isinstance(i, MergeOperator))
 
     @property
     def columns(self):
@@ -298,6 +309,7 @@ class MergeOperator(Operator, MaterializeMixin):
         """
         results = []
         for input in self.inputs:
+            # TODO: skip duplicate inputs (use digests)
             results.append(input.get_result(backend))
 
         if len(results) > 0:
@@ -405,6 +417,7 @@ class TuplesFilterOperator(Operator):
 
     def execute(self, backend: Backend):
         filters: List[DataFrame] = self.materialized.get_result(backend)
+        breakpoint()
         if self.drop_last_column:
             filters = [f.iloc[:, :-1] for f in filters]
 
@@ -413,8 +426,8 @@ class TuplesFilterOperator(Operator):
         if isinstance(result, DataFrame):
             return self.filter_pandas(result, filters)
 
-        tuples = [list(df.itertuples(index=False)) for df in filters]
-        return backend.filter_with_tuples(result, tuples)
+        tuples = [list(df.to_dict(orient="records")) for df in filters]
+        return backend.filter_with_records(result, tuples)
 
     @property
     def level_of_detail(self) -> List[str]:

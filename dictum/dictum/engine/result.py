@@ -16,7 +16,8 @@ class DisplayInfo:
     either data formatter or Altair
     """
 
-    name: str
+    display_name: str
+    column_name: str
     format: schema.FormatConfig
     type: Optional[schema.Type] = None
     keep_name: bool = False

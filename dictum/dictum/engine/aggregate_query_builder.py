@@ -6,9 +6,9 @@ from toolz import compose_left
 from dictum.engine.computation import Column, RelationalQuery
 from dictum.engine.result import DisplayInfo
 from dictum.model import DimensionsUnion, Measure, Model
+from dictum.model.scalar import DatetruncTransform
 from dictum.model.time import TimeDimension
 from dictum.schema import QueryDimension, QueryDimensionRequest
-from dictum.model.scalar import DatetruncTransform
 
 
 @dataclass
@@ -65,11 +65,12 @@ class AggregateQueryBuilder:
         expr = dimension.prefixed_expr(join_path)
 
         result = Column(
-            name=request.name,
+            name=request.digest,
             expr=expr,
             type=dimension.type,
             display_info=DisplayInfo(
-                name=dimension.name if not request.alias else request.alias,
+                display_name=dimension.name if not request.alias else request.alias,
+                column_name=request.name,
                 format=dimension.format,
             ),
         )

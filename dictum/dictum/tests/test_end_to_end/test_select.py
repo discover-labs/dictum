@@ -5,6 +5,7 @@ from dictum.project import Project
 
 def test_single_measure(project: Project):
     result = project.select(project.metrics.revenue).df()
+    assert result.columns[0] == "revenue"
     assert result.iloc[0, 0] == 2328.6
 
 
@@ -24,7 +25,7 @@ def test_multiple_anchors(project: Project):
     assert next(result.itertuples()) == (0, 2328.6, 3503)
 
 
-def test_multiple_anchors_by(project: Project):
+def test_multiple_anchors_by(project: Project, engine):
     select = project.select(project.m.revenue, project.m.track_count).by(
         project.d.genre
     )
@@ -330,6 +331,9 @@ def test_total_metric(project: Project):
     )
 
 
+# TODO: test_total_transformed_dimension
+
+
 def test_total_filters(project: Project):
     """Test that filters are applied to the table transforms too (was a bug)"""
     select = (
@@ -345,6 +349,39 @@ def test_percent_basic(project: Project):
     result = project.select(project.m.revenue.percent()).by(project.d.genre).df()
     assert result.shape == (24, 2)
     assert result["revenue__percent"].sum() == 1
+
+
+def test_percent_of(project: Project):
+    result = project.select("revenue.percent of (artist)").by("genre", "artist").df()
+    unique = result.groupby("genre").sum().iloc[:, 0].round(4).unique()
+    assert unique.size == 1
+    assert unique[0] == 1.0
+
+
+def test_percent_within(project: Project):
+    result = project.select("revenue.percent within (genre)").by("genre", "artist").df()
+    unique = result.groupby("genre").sum().iloc[:, 0].round(4).unique()
+    assert unique.size == 1
+    assert unique[0] == 1.0
+
+
+from dictum.engine import Engine
+
+
+def test_percent_of_within(project: Project, engine: Engine):
+    result = (
+        project.select(
+            "revenue",
+            # "revenue.percent of (artist) within (genre)",
+            "revenue.total of (artist) within (genre)",
+            "revenue.total within (genre)",
+        ).by("genre", "artist", "album")
+        # .where("artist = 'Faith No More'")
+        .df()
+    )
+    breakpoint()
+    # comp = engine.get_computation(result.query)
+    # breakpoint()
 
 
 def test_percent_with_top(project: Project):
@@ -434,6 +471,11 @@ def test_generic_time(project: Project):
     assert result.shape == (5, 2)
 
 
+def test_generic_time_format(project: Project):
+    result = project.select("revenue").by("Year").df(format=True)
+    assert result.iloc[0]["Invoice Date"] == "2009"
+
+
 @pytest.mark.parametrize(
     "dimension,n",
     [
@@ -480,3 +522,8 @@ def test_sum_table_transform_within(project: Project):
 def test_measure_with_related_column(project: Project):
     """Test that related columns are supported in measures"""
     project.select("unique_paying_customers").df()  # no error
+
+
+def test_default_time_format(project: Project):
+    result = project.select("revenue").by("invoice_date").df(format=True)
+    assert result.iloc[0]["Invoice Date"] == "1/1/09"

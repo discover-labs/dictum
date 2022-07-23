@@ -167,7 +167,7 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def filter(self, query, conditions: Dict[str, Any]):
         raise NotImplementedError
 
-    def filter_with_tuples(self, query, tuples):
+    def filter_with_records(self, query, records: List[List[Dict[str, Any]]]):
         raise NotImplementedError
 
     def inner_join(self, query, to_join, join_on: List[str]):

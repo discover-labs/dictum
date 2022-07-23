@@ -1,3 +1,4 @@
+from hashlib import md5
 from typing import List, Optional
 
 from pydantic import BaseModel, root_validator
@@ -70,13 +71,23 @@ class QueryCalculation(BaseModel):
                 result += f".{transform.render()}"
         return result
 
+    @property
+    def digest(self) -> str:
+        return md5(self.json(sort_keys=True).encode("UTF-8")).hexdigest()
+
 
 class QueryCalculationRequest(BaseModel):
     alias: Optional[str]
 
     @property
     def name(self) -> str:
+        if self.alias is not None:
+            return self.alias
         return self.calculation.name
+
+    @property
+    def digest(self) -> str:
+        return self.calculation.digest
 
     @property
     def calculation(self) -> QueryCalculation:
@@ -150,13 +161,19 @@ class Query(BaseModel):
     filters: List[QueryDimension] = []
     limit: List[QueryMetric] = []
 
+    @property
+    def digest(self) -> str:
+        return md5(self.json(sort_keys=True).encode("UTF-8")).hexdigest()
+
     @root_validator(skip_on_failure=True)
     def validate_names(cls, values: dict):
         names = set()
         for item in values.get("metrics", []):
             request = QueryMetricRequest.parse_obj(item)
             if request.name in names:
-                raise ValueError(f"Duplicate column name in query: {request.name}")
+                raise ValueError(
+                    f"Duplicate column name in query: {request.display_name}"
+                )
             names.add(request.name)
         for item in values.get("dimensions", []):
             request = QueryDimensionRequest.parse_obj(item)

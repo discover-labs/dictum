@@ -1,6 +1,6 @@
 import logging
 from functools import cached_property
-from typing import Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import sqlparse
 from lark import Transformer, Tree
@@ -336,11 +336,11 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             query = query.where(condition)
         return query
 
-    def filter_with_tuples(self, query: Select, filters: List[List[NamedTuple]]):
-        if len(filters) == 0:
+    def filter_with_records(self, query: Select, Records: List[List[Dict[str, Any]]]):
+        if len(Records) == 0:
             return query
 
-        for tuples in filters:
+        for tuples in Records:
             conditions = []
             for tup in tuples:
                 conditions.append(

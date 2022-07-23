@@ -49,7 +49,7 @@ class Engine:
             model=self.model, dimensions=query.dimensions, filters=query.filters
         )
 
-        merge = MergeOperator(inputs=[])
+        merge = MergeOperator(query=query)
 
         # add metrics
         adders = []
@@ -76,9 +76,5 @@ class Engine:
         terminal = self.get_terminal(query)
         return FinalizeOperator(
             input=MaterializeOperator([terminal]),
-            aliases={
-                r.name: r.alias
-                for r in query.metrics + query.dimensions
-                if r.alias is not None
-            },
+            aliases={r.digest: r.name for r in query.metrics + query.dimensions},
         )
