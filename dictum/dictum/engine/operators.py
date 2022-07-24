@@ -250,6 +250,13 @@ class MergeOperator(Operator, MaterializeMixin):
                 )
         self.inputs.append(query)
 
+    def add_merge(self, merge: "MergeOperator"):
+        """Add an input merge operator. Checks that the digest doesn't already exist
+        in the inputs.
+        """
+        if merge.digest not in self.digests:
+            self.inputs.append(merge)
+
     def calculate_pandas(self, input: List[list]) -> List[list]:
         column_transformer = PandasColumnTransformer({None: input})
         compiler = PandasCompiler()
@@ -309,7 +316,6 @@ class MergeOperator(Operator, MaterializeMixin):
         """
         results = []
         for input in self.inputs:
-            # TODO: skip duplicate inputs (use digests)
             results.append(input.get_result(backend))
 
         if len(results) > 0:
@@ -417,7 +423,6 @@ class TuplesFilterOperator(Operator):
 
     def execute(self, backend: Backend):
         filters: List[DataFrame] = self.materialized.get_result(backend)
-        breakpoint()
         if self.drop_last_column:
             filters = [f.iloc[:, :-1] for f in filters]
 

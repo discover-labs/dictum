@@ -52,15 +52,9 @@ def test_calculation_name():
 
 
 def test_request_name():
-    assert QueryMetricRequest(metric=QueryMetric(id="a"), alias="b").display_name == "b"
-    assert QueryMetricRequest(metric=QueryMetric(id="a"), alias="b").column_name == "a"
+    assert QueryMetricRequest(metric=QueryMetric(id="a"), alias="b").name == "b"
     assert (
-        QueryDimensionRequest(dimension=QueryDimension(id="a"), alias="b").display_name
-        == "b"
-    )
-    assert (
-        QueryDimensionRequest(dimension=QueryDimension(id="a"), alias="b").column_name
-        == "a"
+        QueryDimensionRequest(dimension=QueryDimension(id="a"), alias="b").name == "b"
     )
 
 

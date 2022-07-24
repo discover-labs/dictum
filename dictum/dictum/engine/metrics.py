@@ -122,7 +122,12 @@ class AddTransformedMetric(AddMetric):
             dimensions=dimensions,
             filters=filters,
         )
-        return self.get_terminal_for_query(query)
+        result = self.get_terminal_for_query(query)
+
+        # replace with the request's expected column name
+        result.metrics[0].name = request.digest
+
+        return result
 
     def get_unlisted_query_dimensions(self) -> List[QueryDimension]:
         """Get a list of requests for dimensions that appear neither
@@ -185,7 +190,7 @@ class AddTopBottomLimit(AddLimit):
             [Tree("order_by_item", [metric_expr, self.ascending])],
         )
 
-        within_names = {r.name for r in within}
+        within_names = {r.digest for r in within}
         partition_by = Tree(
             "partition_by", [c.expr for c in merge.columns if c.name in within_names]
         )
@@ -200,6 +205,7 @@ class AddTopBottomLimit(AddLimit):
             ],
         )
         column.name = "__row_number"
+        column.type = "int"
         return merge
 
     def __call__(self, merge: MergeOperator):
@@ -210,6 +216,7 @@ class AddTopBottomLimit(AddLimit):
 
         terminal = self.get_transform_terminal()
         terminal = self.wrap_in_row_number(terminal, self.transform.within)
+
         # add <= filter by row_number
         terminal = FilterOperator(
             input=terminal,
@@ -274,8 +281,8 @@ class AddTotalMetric(AddTransformedMetric):
 
     def get_column(self) -> Column:
         return Column(
-            name=self.request.column_name,
-            expr=Tree("expr", [Tree("column", [None, self.request.column_name])]),
+            name=self.request.name,
+            expr=Tree("expr", [Tree("column", [None, self.request.digest])]),
             type=self.metric.type,
             display_info=DisplayInfo(
                 display_name=(
@@ -283,6 +290,7 @@ class AddTotalMetric(AddTransformedMetric):
                     if self.request.alias is None
                     else self.request.alias
                 ),
+                column_name=self.request.name,
                 format=self.metric.format,
                 type=self.metric.type,
             ),
@@ -300,7 +308,7 @@ class AddTotalMetric(AddTransformedMetric):
         merge.metrics.pop(-1)  # remove the last metric, we only need the query
 
         terminal = self.get_transform_terminal()
-        merge.inputs.append(terminal)
+        merge.add_merge(terminal)
         merge.metrics.append(self.get_column())
         return merge
 
@@ -392,9 +400,11 @@ class AddPercentMetric(AddTotalMetric):
                             )
                         ],
                     ),
-                )
+                ),
+                dimensions=self.transform.of + self.transform.within,
             )
             numerator = Tree("column", [None, numerator_terminal.metrics[0].name])
+            merge.add_merge(numerator_terminal)
 
             denominator_terminal = self.get_transform_terminal(
                 request=QueryMetricRequest(
@@ -407,20 +417,26 @@ class AddPercentMetric(AddTotalMetric):
                             )
                         ],
                     ),
-                )
+                ),
+                dimensions=self.transform.within,
             )
             denominator = Tree("column", [None, denominator_terminal.metrics[0].name])
-            merge.inputs.extend([numerator_terminal, denominator_terminal])
+            merge.add_merge(denominator_terminal)
 
         column = Column(
-            name=self.request.column_name,
+            name=self.request.name,
             expr=Tree(
                 "expr",
                 [Tree("div", [numerator, denominator])],
             ),
             type="float",
             display_info=DisplayInfo(
-                display_name=self.metric.name,
+                display_name=(
+                    self.metric.name
+                    if self.request.alias is None
+                    else self.request.alias
+                ),
+                column_name=self.request.name,
                 format=FormatConfig(kind="percent"),
                 type=self.metric.type,
             ),
@@ -453,16 +469,21 @@ class AddSumMetric(AddAdditivelyTransformedMetric):
         expr = self.metric.merged_expr.children[0]
         dimensions = self.transform.of + self.transform.within
         partition_by = Tree(
-            "partition_by", [Tree("column", [None, d.name]) for d in dimensions]
+            "partition_by", [Tree("column", [None, d.digest]) for d in dimensions]
         )
         return Column(
-            name=self.request.column_name,
+            name=self.request.name,
             expr=Tree(
                 "expr", [Tree("call_window", ["sum", expr, partition_by, None, None])]
             ),
             type=self.metric.type,
             display_info=DisplayInfo(
-                display_name=self.metric.name,
+                display_name=(
+                    self.metric.name
+                    if self.request.alias is None
+                    else self.request.alias
+                ),
+                column_name=self.request.name,
                 format=self.metric.format,
                 type=self.metric.type,
             ),

@@ -331,7 +331,13 @@ def test_total_metric(project: Project):
     )
 
 
-# TODO: test_total_transformed_dimension
+def test_total_transformed_dimension(project: Project):
+    result = (
+        project.select("revenue.total within (Time.year)")
+        .by("Time.year", "Time.month")
+        .df()
+    )
+    assert len(result.iloc[:, -1].unique()) == 5
 
 
 def test_total_filters(project: Project):
@@ -365,23 +371,20 @@ def test_percent_within(project: Project):
     assert unique[0] == 1.0
 
 
-from dictum.engine import Engine
-
-
-def test_percent_of_within(project: Project, engine: Engine):
+def test_percent_of_within(project: Project):
     result = (
         project.select(
             "revenue",
-            # "revenue.percent of (artist) within (genre)",
-            "revenue.total of (artist) within (genre)",
-            "revenue.total within (genre)",
+            "revenue.percent of (artist) within (genre)",
         ).by("genre", "artist", "album")
         # .where("artist = 'Faith No More'")
         .df()
     )
-    breakpoint()
-    # comp = engine.get_computation(result.query)
-    # breakpoint()
+    values = result.query("genre == 'TV Shows' and artist == 'The Office'")[
+        "revenue__percent_of_artist_within_genre"
+    ].unique()
+    assert len(values) == 1
+    assert values.round(4)[0] == 0.3404
 
 
 def test_percent_with_top(project: Project):

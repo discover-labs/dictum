@@ -222,8 +222,7 @@ class Pivot(Select):
             else:
                 self.by(dimension)
                 dim = self.query.dimensions[-1]
-                name = dim.alias if dim.alias is not None else dim.display_name
-                self._rows.append(name)
+                self._rows.append(dim.name)
         return self
 
     def columns(self, *dimensions: Union[str, ProjectDimensionRequest]) -> "Pivot":
@@ -250,8 +249,7 @@ class Pivot(Select):
             else:
                 self.by(dimension)
                 dim = self.query.dimensions[-1]
-                name = dim.alias if dim.alias is not None else dim.display_name
-                self._columns.append(name)
+                self._columns.append(dim.name)
         return self
 
     def _pivot(self, df: DataFrame, rows: List[str], columns: List[str]) -> DataFrame:
@@ -261,7 +259,7 @@ class Pivot(Select):
         if len(rows) == 0 and len(columns) == 0:
             return df
 
-        dimensions = [(r.alias or r.display_name) for r in self.query.dimensions]
+        dimensions = [r.name for r in self.query.dimensions]
         df = df.melt(id_vars=dimensions, value_name="__")
 
         if "$" not in rows and "$" not in rows:

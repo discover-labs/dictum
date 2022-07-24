@@ -336,20 +336,15 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             query = query.where(condition)
         return query
 
-    def filter_with_records(self, query: Select, Records: List[List[Dict[str, Any]]]):
-        if len(Records) == 0:
+    def filter_with_records(self, query: Select, records: List[List[Dict[str, Any]]]):
+        if len(records) == 0:
             return query
 
-        for tuples in Records:
+        for recordset in records:
             conditions = []
-            for tup in tuples:
+            for record in recordset:
                 conditions.append(
-                    and_(
-                        *[
-                            query.selected_columns[k] == v
-                            for k, v in tup._asdict().items()
-                        ]
-                    )
+                    and_(*[query.selected_columns[k] == v for k, v in record.items()])
                 )
             query = query.where(or_(*conditions))
 

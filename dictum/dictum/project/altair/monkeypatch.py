@@ -379,9 +379,7 @@ def requests_from_channel(channel):
     result = []
     if request := request_from_field(channel.field):
         result = [request]
-        channel.field = (
-            request.alias if request.alias is not None else request.display_name
-        )
+        channel.field = request.name
     if "sort" in channel._kwds:
         if isinstance(channel.sort, dict):
             try:
@@ -393,9 +391,7 @@ def requests_from_channel(channel):
         ):
             request = request_from_field(channel.sort.field)
             result.append(request)
-            channel.sort.field = (
-                request.alias if request.alias is not None else request.display_name
-            )
+            channel.sort.field = request.name
     return result
 
 
@@ -404,7 +400,7 @@ def requests_from_list(items: List[str]):
     for i, item in enumerate(items):
         if (req := request_from_field(item)) is not None:
             result.append(req)
-            items[i] = req.display_name
+            items[i] = req.name
     return result
 
 
