@@ -10,7 +10,9 @@ how they are computed from the source data.
 In addition to that, it empowers your team to expore the data without
 thinking about distracting implementation details.
 
-<img src="docs/docs/assets/demo.gif" width="500">
+<p align="center">
+<img src="docs/docs/assets/demo.gif" width="800">
+</p>
 
 Dictum supports a simple, __SQL-like expression language__ for defining
 metrics and __automatic multi-hop joins__ to quickly slice and dice the data
