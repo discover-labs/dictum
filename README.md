@@ -35,12 +35,9 @@ format:
 ```
 
 Dictum __Data Model__ is a single source of truth about
-the _meaning_ and _structure_ of your data. It describes your metrics, dimensions =
-and table relationships.
+the _meaning_ and _structure_ of your data. It describes your metrics, dimensions and table relationships.
 
-The model is a collection of YAML files that is supposed to be version-controlled and
-shared across your analytics team. This allows your team to govern metric definitions
-systematically, making your analysis consistent and repeatable.
+The model is a collection of YAML files that is supposed to be version-controlled and shared across your analytics team. This allows your team to govern metric definitions systematically, making your analysis consistent and repeatable.
 
 
 ## Interactive analytics in Jupyter
