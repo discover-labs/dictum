@@ -1,6 +1,6 @@
-# Dictum
-
-<img src="docs/docs/assets/logo.png" align="left" width="100" style="margin: 1em">
+<p align="center">
+<img src="docs/docs/assets/dictum-logo-text.png" width="200" style="margin: 1em">
+</p>
 
 Dictum is a general-purpose __metrics engine__ written in Python.
 It allows your organization to have a __shared__, __version-controlled__ and
@@ -11,7 +11,7 @@ In addition to that, it empowers your team to expore the data without
 thinking about distracting implementation details.
 
 <p align="center">
-<img src="docs/docs/assets/demo.gif" width="800">
+<img src="docs/docs/assets/demo.gif" width="500">
 </p>
 
 Dictum supports a simple, __SQL-like expression language__ for defining
