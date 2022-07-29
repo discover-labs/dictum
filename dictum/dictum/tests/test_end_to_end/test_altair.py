@@ -121,6 +121,8 @@ def test_repeat(project: Project):
         .properties(width=150, height=100)
         .repeat([project.m.revenue, project.m.items_sold])
     )
+    rendered = chart._rendered_dict()
+    assert len(rendered["spec"]["encoding"]["tooltip"]) == 3
     return chart
 
 

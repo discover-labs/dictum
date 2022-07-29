@@ -126,7 +126,7 @@ To do this, you can just use `$revenue` in the dimension expression:
 # tables/users.yml
 ...
 primary_key: id  # primary_key is required for aggregate dimensions to work
-dimension:
+dimensions:
   user_revenue_bracket:
     name: User Revenue Bracket
     description: |
@@ -140,8 +140,3 @@ dimension:
              else '>= 1000'
         end
 ```
-
-
-
-
-## Examples

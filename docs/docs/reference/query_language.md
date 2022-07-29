@@ -319,16 +319,40 @@ select revenue
 by order_amount.step(10)
 ```
 
-## Metric transforms
+## Metric (table) transforms
+
+Dimension transforms are applied to the detailed data. It's is just a different way to
+describe an expression as a `GROUP BY` column.
+
+On the other hand, metric transforms, or __table transforms__, are applied _after_ the
+query is executed and the final table is formed. They describe modifications to the way
+a metric is computed.
+
+For example, if you want to see a percentage instead of absolute value, you can use
+the `percent` transform.
+
+### `of` and `within` clauses
+
+Table transforms are described relative to dimensions. If you want to see a percentage
+for a metric, you have to specify which dimensions should add up to 100%. That's what
+`of` and `within` clauses are for. The are similar to the window definition in SQL
+(`partition by` in particular), but are much more powerful and flexible.
 
 ### `total`
 
-Computes the total value of a metric within a given combination of dimensions.
+Computes the total value of a metric within a given combination of dimensions. This is
+NOT a sum, the actual metric value will be computed, so it works correctly for `countd`
+or any other non-additive calculations.
+
+When no `of` or `within` is specified, the total will be the same for each row. For the
+query below, the value of the second metric will be the same as the sum of the first
 
 ```sql
-select revenue, revenue.total within (country)
+select revenue, revenue.total as "Revenue (Total)"
 by country, city
 ```
+
+
 
 ### `percent`
 

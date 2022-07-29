@@ -80,16 +80,6 @@ field_only = {
 }
 
 
-type_to_encoding_type = {
-    "bool": "ordinal",
-    "date": "temporal",
-    "datetime": "temporal",
-    "int": "quantitative",
-    "float": "quantitative",
-    "str": "nominal",
-}
-
-
 class AltairEncodingChannelHook(ABC):
     @abstractmethod
     def encoding_fields(self, cls: Optional[type] = None) -> dict:

@@ -13,7 +13,7 @@ from dictum.engine.operators import (
     MergeOperator,
     Operator,
     QueryOperator,
-    TuplesFilterOperator,
+    RecordsFilterOperator,
 )
 from dictum.engine.result import DisplayInfo, Result
 
@@ -32,5 +32,5 @@ __all__ = [
     "QueryOperator",
     "RelationalQuery",
     "Result",
-    "TuplesFilterOperator",
+    "RecordsFilterOperator",
 ]

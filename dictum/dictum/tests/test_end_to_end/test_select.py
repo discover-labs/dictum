@@ -305,6 +305,45 @@ def test_top_with_metric_within_of(project: Project):
     assert result.shape == (6, 4)
 
 
+def test_tops_with_total(project: Project, engine):
+    result = (
+        project.select("revenue", "revenue.total")
+        .by("customer_country", "customer_city")
+        .limit(
+            "revenue.top(3) of (customer_country)",
+            "revenue.top(1) of (customer_city) within (customer_country)",
+        )
+        .df()
+    )
+    assert result.shape == (3, 4)
+
+
+def test_tops_with_total_within(project: Project):
+    result = project.ql(
+        """
+    select revenue, revenue.total within (customer_country)
+    by customer_country, customer_city
+    limit revenue.top(5) of (customer_country),
+        revenue.top(1) of (customer_city) within (customer_country)
+    """
+    ).df()
+    assert result.shape == (5, 4)
+
+
+def test_tops_with_matching_total_and_percent(project: Project):
+    result = project.ql(
+        """
+    select revenue,
+        revenue.percent of (customer_city) as "% of City Revenue",
+        revenue.total within (customer_country) as "Total Revenue: Country"
+    by customer_country, customer_city
+    limit revenue.top(5) of (customer_country),
+        revenue.top(1) of (customer_city) within (customer_country)
+    """
+    ).df()
+    assert result.shape == (5, 5)
+
+
 def test_total_basic(project: Project):
     result = (
         project.select(project.m.revenue, project.m.revenue.total())
@@ -325,7 +364,7 @@ def test_total_metric(project: Project):
         .limit(project.m.revenue.top(3, within=[project.d.genre]))
     )
     result = select.df()
-    assert result.shape == (57, 4)
+    assert result.shape == (56, 4)
     assert len(set(result.genre)) == len(
         set(result.revenue_per_track__total_within_genre)
     )
@@ -441,7 +480,7 @@ def test_format_transform(project: Project):
         .by(project.d.invoice_date.year)
         .df(format=True)
     )
-    assert list(result.columns) == ["Invoice Date", "Revenue"]
+    assert list(result.columns) == ["Invoice Date (year)", "Revenue"]
     assert result.iloc[0, 0] == "2009"
 
 
@@ -474,9 +513,14 @@ def test_generic_time(project: Project):
     assert result.shape == (5, 2)
 
 
+def test_generic_time_alias_display_name(project: Project):
+    result = project.select("revenue").by("Year as test").df(format=True)
+    assert result.columns[0] == "test"
+
+
 def test_generic_time_format(project: Project):
     result = project.select("revenue").by("Year").df(format=True)
-    assert result.iloc[0]["Invoice Date"] == "2009"
+    assert result.iloc[0]["Year"] == "2009"
 
 
 @pytest.mark.parametrize(
@@ -530,3 +574,27 @@ def test_measure_with_related_column(project: Project):
 def test_default_time_format(project: Project):
     result = project.select("revenue").by("invoice_date").df(format=True)
     assert result.iloc[0]["Invoice Date"] == "1/1/09"
+
+
+def test_percents_without_alias(project: Project):
+    """Bug found writing the docs. Something is wrong when running this query, fails
+    in the pandas merge Visitor with KeyError, column not found.
+    """
+    (
+        project.select(
+            "revenue.percent within (invoice_date.year)",
+            "revenue.percent of (invoice_date.quarter) within (invoice_date.year)",
+        )
+        .by("invoice_date.year", "invoice_date.quarter", "invoice_date.month")
+        .df()
+    )
+
+
+def test_total_of_within_keyerror(project: Project):
+    """Bug found writing the docs, similar to the above"""
+    (
+        project.select(
+            "revenue.total within (Year)",
+            "revenue.total of (Year)",
+        ).by("Year", "Quarter")
+    ).df()

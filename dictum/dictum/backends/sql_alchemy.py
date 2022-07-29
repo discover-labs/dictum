@@ -155,7 +155,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def tointeger(self, args: list):
         return cast(args[0], Integer)
 
-    def tonumber(self, args: list):
+    def tofloat(self, args: list):
         return cast(args[0], Float)
 
     def todate(self, args: list):
@@ -343,10 +343,16 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         for recordset in records:
             conditions = []
             for record in recordset:
-                conditions.append(
-                    and_(*[query.selected_columns[k] == v for k, v in record.items()])
-                )
-            query = query.where(or_(*conditions))
+                # some filter columns might be missing from the query
+                # for example if the query calculated a total
+                condition_list = [
+                    query.selected_columns[k] == v
+                    for k, v in record.items()
+                    if k in query.selected_columns
+                ]
+                if len(condition_list) > 0:
+                    conditions.append(and_(*condition_list))
+            query = query.where(or_(*(c for c in conditions)))
 
         return query
 

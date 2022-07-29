@@ -65,12 +65,13 @@ class ScalarTransform:
         return engine.DisplayInfo(
             display_name=(
                 self.get_display_name(display_info.display_name)
-                if not display_info.keep_name
+                if not display_info.keep_display_name
                 else display_info.display_name
             ),
             column_name=display_info.column_name,
             format=self.get_format(display_info.format),
-            keep_name=display_info.keep_name,
+            keep_display_name=display_info.keep_display_name,
+            kind=display_info.kind,
         )
 
     def transform_expr(self, expr: Tree) -> Tree:
@@ -205,12 +206,16 @@ class DatepartTransform(LiteralTransform):
     def get_format(self, format: schema.FormatConfig) -> schema.FormatConfig:
         return schema.FormatConfig(kind="decimal", pattern="#")
 
+    def get_display_name(self, name: str) -> str:
+        return f"{name} ({self._args[0]})"
+
     def __init__(self, part: str):
         super().__init__(part)
 
 
 class ShortDatepartTransform(DatepartTransform):
     id = None
+    altair_time_unit = None
 
     def __init__(self):
         super().__init__(self.id)
@@ -270,6 +275,16 @@ class DatetruncTransform(ScalarTransform):
     name = "Truncate a date"
     return_type = "datetime"
 
+    part_to_altair_time_unit = {
+        "year": "year",
+        "quarter": "yearquarter",
+        "month": "yearmonth",
+        "day": "yearmonthdate",
+        "hour": "yearmonthdatehours",
+        "minute": "yearmonthdatehoursminutes",
+        "second": "yearmonthdatehoursminutesseconds",
+    }
+
     def __init__(self, period: str):
         super().__init__(period)
 
@@ -278,6 +293,13 @@ class DatetruncTransform(ScalarTransform):
         if part in date_skeletons:
             return schema.FormatConfig(kind="date", skeleton=date_skeletons[part])
         return schema.FormatConfig(kind="datetime")
+
+    def get_display_info(
+        self, display_info: Optional["engine.DisplayInfo"]
+    ) -> "engine.DisplayInfo":
+        info = super().get_display_info(display_info)
+        info.altair_time_unit = self.part_to_altair_time_unit.get(self._args[0])
+        return info
 
     def transform_expr(self, expr: Tree):
         return Tree("call", ["datetrunc", *self._args, expr])

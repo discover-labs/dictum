@@ -10,7 +10,7 @@ from dictum.engine.operators import (
     MaterializeOperator,
     MergeOperator,
     QueryOperator,
-    TuplesFilterOperator,
+    RecordsFilterOperator,
 )
 from dictum.engine.result import DisplayInfo
 from dictum.model import Metric, Model
@@ -77,6 +77,7 @@ class AddMetric:
                 column_name=self.request.name,
                 format=self.metric.format,
                 type=self.metric.type,
+                kind="metric",
             ),
         )
         merge.metrics.append(column)
@@ -101,24 +102,22 @@ class AddTransformedMetric(AddMetric):
         dimensions: Optional[List[QueryDimension]] = None,
         filters: Optional[List[QueryDimension]] = None,
     ) -> MergeOperator:
-        # create our own builder based on the transform
+        # create our own query based on the transform
         # dimensions are of + within if not specified
         if request is None:
             request = self.request
 
         if dimensions is None:
             dimensions = [*self.transform.of, *self.transform.within]
+
         dimensions = [QueryDimensionRequest(dimension=d) for d in dimensions]
 
         if filters is None:
             filters = self.builder.filters
 
+        # ignore alias and transforms
         query = Query(
-            metrics=[
-                QueryMetricRequest(
-                    alias=request.alias, metric=QueryMetric(id=request.metric.id)
-                )
-            ],
+            metrics=[QueryMetricRequest(metric=QueryMetric(id=request.metric.id))],
             dimensions=dimensions,
             filters=filters,
         )
@@ -133,13 +132,13 @@ class AddTransformedMetric(AddMetric):
         """Get a list of requests for dimensions that appear neither
         in "of" nor in "within".
         """
-        names = {d.name for d in self.transform.of} | {
-            d.name for d in self.transform.within
+        digests = {d.digest for d in self.transform.of} | {
+            d.digest for d in self.transform.within
         }
         return [
             r.dimension
             for r in self.builder.dimensions
-            if r.dimension.name not in names
+            if r.dimension.digest not in digests
         ]
 
 
@@ -234,7 +233,7 @@ class AddTopBottomLimit(AddLimit):
         # if the inputs to the merge are TuplesFilters, it means that
         # this top isn't the first, so we just add the terminal to
         # materialize
-        if all(isinstance(i, TuplesFilterOperator) for i in merge.inputs):
+        if all(isinstance(i, RecordsFilterOperator) for i in merge.inputs):
             materialized = merge.inputs[0].materialized
             materialized.inputs.append(terminal)
             return merge
@@ -245,19 +244,17 @@ class AddTopBottomLimit(AddLimit):
         # terminal Merge -> Materialize
         materialized = MaterializeOperator([terminal])
 
-        # add TuplesFilter to each query of the original merge
+        # add TuplesFilter to each input of the original merge
         # (excluding merges which mean transformed metrics)
         new_inputs = []
         for input in merge.inputs:
-            if isinstance(input, QueryOperator):
-                new_inputs.append(
-                    TuplesFilterOperator(
-                        query=input, materialized=materialized, drop_last_column=True
-                    )
+            new_inputs.append(
+                RecordsFilterOperator(
+                    query=input, materialized=materialized, drop_last_column=True
                 )
-            else:
-                new_inputs.append(input)
+            )
         merge.inputs = new_inputs
+
         return merge
 
 
@@ -280,20 +277,25 @@ class AddTotalMetric(AddTransformedMetric):
     name = "Total"
 
     def get_column(self) -> Column:
-        return Column(
-            name=self.request.name,
-            expr=Tree("expr", [Tree("column", [None, self.request.digest])]),
-            type=self.metric.type,
-            display_info=DisplayInfo(
-                display_name=(
-                    self.metric.name
-                    if self.request.alias is None
-                    else self.request.alias
-                ),
-                column_name=self.request.name,
-                format=self.metric.format,
-                type=self.metric.type,
-            ),
+        return
+
+    def add_base_dimensions(self, merge: MergeOperator):
+        """To have all the dimensions in the merge for sure, we have to add the measures
+        for the original metric in case the total is the only one requested
+        """
+        merge = AddMetric(request=self.request, builder=self.builder)(merge)
+        merge.metrics.pop(-1)  # remove the last metric, we only need the query
+
+    def get_total_metric_request(
+        self, dimensions: Optional[List[QueryDimension]] = None
+    ) -> QueryMetricRequest:
+        if dimensions is None:
+            dimensions = [*self.transform.of, *self.transform.within]
+        return QueryMetricRequest(
+            metric=QueryMetric(
+                id=self.metric.id,
+                transforms=[QueryTableTransform(id="total", within=dimensions)],
+            )
         )
 
     def __call__(self, merge: MergeOperator):
@@ -302,14 +304,26 @@ class AddTotalMetric(AddTransformedMetric):
         # then use a window function instead of adding another
         # query to the merge
 
-        # we have to add the measures for the original metric in case the total
-        # is the only one requested. we'll need the metric anyway most of the times
-        merge = AddMetric(request=self.request, builder=self.builder)(merge)
-        merge.metrics.pop(-1)  # remove the last metric, we only need the query
-
-        terminal = self.get_transform_terminal()
+        self.add_base_dimensions(merge)
+        terminal = self.get_transform_terminal(request=self.get_total_metric_request())
         merge.add_merge(terminal)
-        merge.metrics.append(self.get_column())
+        column = Column(
+            name=self.request.name,
+            expr=Tree("expr", [Tree("column", [None, terminal.metrics[0].name])]),
+            type=self.metric.type,
+            display_info=DisplayInfo(
+                display_name=(
+                    f"{self.metric.name} (Total)"
+                    if self.request.alias is None
+                    else self.request.alias
+                ),
+                column_name=self.request.name,
+                format=self.metric.format,
+                type=self.metric.type,
+                kind="metric",
+            ),
+        )
+        merge.metrics.append(column)
         return merge
 
 
@@ -319,15 +333,6 @@ class AddPercentMetric(AddTotalMetric):
 
     def get_metric_expr(self) -> Tree:
         return self.metric.merged_expr.children[0]
-
-    def get_column(self) -> Column:
-        column = super().get_column()
-        total = column.expr.children[0]
-        metric = self.metric.merged_expr.children[0]
-        column.expr = Tree("expr", [Tree("div", [metric, total])])
-        column.type = "float"
-        column.display_info.format = FormatConfig(kind="percent")
-        return column
 
     def __call__(self, merge: MergeOperator):
         """Percent actually includes two separate queries:
@@ -353,34 +358,30 @@ class AddPercentMetric(AddTotalMetric):
             The numerator is already computed — it's the metric itself, so we can just
             divide the metric by total within (country, region)
         """
+        self.add_base_dimensions(merge)
+
         # figure out which case we're dealing with
         # based on that info, we can construct queries for the numerator and denominator
         if len(self.transform.of) == 0:
             # cases 1 and 2, just divide metric by total
-            merge = AddTotalMetric(request=self.request, builder=self.builder)(merge)
-            denominator = merge.metrics.pop(-1).expr.children[0]
             numerator = self.get_metric_expr()
+            dimensions = [*self.transform.of, *self.transform.within]
+            denominator_terminal = self.get_transform_terminal(
+                request=self.get_total_metric_request(dimensions),
+                dimensions=dimensions,
+            )
+            denominator = Tree("column", [None, denominator_terminal.metrics[0].name])
+            merge.add_merge(denominator_terminal)
         elif len(self.transform.within) == 0:
             # case 4, of present, within absent
-            merge = AddTotalMetric(
-                request=QueryMetricRequest(
-                    metric=QueryMetric(
-                        id=self.request.metric.id,
-                        transforms=[
-                            self.transform.copy(
-                                deep=True,
-                                update={
-                                    "of": [],
-                                    "within": self.get_unlisted_query_dimensions(),
-                                },
-                            )
-                        ],
-                    )
-                ),
-                builder=self.builder,
-            )(merge)
-            denominator = merge.metrics.pop(-1).expr.children[0]
+            dimensions = self.get_unlisted_query_dimensions()
+            denominator_terminal = self.get_transform_terminal(
+                request=self.get_total_metric_request(dimensions),
+                dimensions=dimensions,
+            )
+            denominator = Tree("column", [None, denominator_terminal.metrics[0].name])
             numerator = self.get_metric_expr()
+            merge.add_merge(denominator_terminal)
         else:
             # case 3, we need to actually construct two terminals
             # like in total, add the metric query
@@ -388,36 +389,16 @@ class AddPercentMetric(AddTotalMetric):
             merge.metrics.pop(-1)  # remove the last metric, we only need the query
 
             # add numerator
+            dimensions = [*self.transform.of, *self.transform.within]
             numerator_terminal = self.get_transform_terminal(
-                request=QueryMetricRequest(
-                    metric=QueryMetric(
-                        id=self.metric.id,
-                        transforms=[  # need the tranform to produce the correct name
-                            QueryTableTransform(
-                                id="total",
-                                of=self.transform.of,
-                                within=self.transform.within,
-                            )
-                        ],
-                    ),
-                ),
+                request=self.get_total_metric_request(dimensions),
                 dimensions=self.transform.of + self.transform.within,
             )
             numerator = Tree("column", [None, numerator_terminal.metrics[0].name])
             merge.add_merge(numerator_terminal)
 
             denominator_terminal = self.get_transform_terminal(
-                request=QueryMetricRequest(
-                    metric=QueryMetric(
-                        id=self.metric.id,
-                        transforms=[  # need the tranform to produce the correct name
-                            QueryTableTransform(
-                                id="total",
-                                within=self.transform.within,
-                            )
-                        ],
-                    ),
-                ),
+                request=self.get_total_metric_request(self.transform.within),
                 dimensions=self.transform.within,
             )
             denominator = Tree("column", [None, denominator_terminal.metrics[0].name])
@@ -432,13 +413,14 @@ class AddPercentMetric(AddTotalMetric):
             type="float",
             display_info=DisplayInfo(
                 display_name=(
-                    self.metric.name
+                    f"{self.metric.name} (%)"
                     if self.request.alias is None
                     else self.request.alias
                 ),
                 column_name=self.request.name,
                 format=FormatConfig(kind="percent"),
                 type=self.metric.type,
+                kind="metric",
             ),
         )
         merge.metrics.append(column)
@@ -486,5 +468,6 @@ class AddSumMetric(AddAdditivelyTransformedMetric):
                 column_name=self.request.name,
                 format=self.metric.format,
                 type=self.metric.type,
+                kind="metric",
             ),
         )

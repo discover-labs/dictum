@@ -1,7 +1,10 @@
 # Expression language reference
 
-Dictum expression language is used to define calculations — Measures, Dimensions and
-Metrics. It's designed to be as similar as possible to SQL, but we should stress that it
+Dictum expression language is used to define calculations —
+[Measures](../concepts/model/measure.md),
+[Dimensions](../concepts/model/dimension.md) and
+[Metrics](../concepts/model//metric.md).
+It's designed to be as similar as possible to SQL, but we should stress that it
 is __not__ SQL. It's transformed to SQL by the database connection, but it's not passed
 as-is to your database.
 
@@ -102,7 +105,7 @@ arguments: `count()`. `count(distinct x)` is a separate function: `countd(x)`.
 ### Type casting
 
 The expression language doesn't support standard SQL `CAST(x AS y)` construct, there are
-specialized functions for each type: `toInteger`, `toNumber`, `toDate` and `toDatetime`.
+specialized functions for each type: `toInteger`, `toFloat`, `toDate` and `toDatetime`.
 
 ### Dates
 

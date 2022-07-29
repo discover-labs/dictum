@@ -1,7 +1,8 @@
 import datetime
 import inspect
 import warnings
-from typing import List
+from itertools import chain
+from typing import Dict, List
 
 import pandas as pd
 from altair import (
@@ -19,6 +20,7 @@ from altair import (
     RepeatSpec,
     Row,
     SchemaBase,
+    Text,
     TopLevelMixin,
     TopLevelRepeatSpec,
     TopLevelUnitSpec,
@@ -33,12 +35,9 @@ from altair.vegalite.v4.api import _EncodingMixin
 from jsonschema.exceptions import ValidationError
 from toolz.curried import curry
 
+from dictum.engine.computation import DisplayInfo
 from dictum.project.altair.data import DictumData
-from dictum.project.altair.encoding import (
-    AltairEncodingChannelHook,
-    filter_fields,
-    type_to_encoding_type,
-)
+from dictum.project.altair.encoding import AltairEncodingChannelHook, filter_fields
 from dictum.project.altair.format import format_config_to_d3_format
 from dictum.project.altair.locale import (
     cldr_locale_to_d3_number,
@@ -213,7 +212,55 @@ def _prep_data(data: List[dict]) -> List[dict]:
     return to_values(df)
 
 
+type_to_encoding_type_metrics = {
+    "bool": "ordinal",
+    "date": "temporal",
+    "datetime": "temporal",
+    "int": "quantitative",
+    "float": "quantitative",
+    "str": "nominal",
+}
+
+type_to_encoding_type_dimensions = {
+    "bool": "ordinal",
+    "date": "temporal",
+    "datetime": "temporal",
+    "int": "ordinal",
+    "float": "quantitative",
+    "str": "nominal",
+}
+
+
+def get_default_encoding_type(info: DisplayInfo):
+    """Get a default encoding type based on the column's DisplayInfo"""
+    if info.kind == "metric":
+        return type_to_encoding_type_metrics[info.type]
+    return type_to_encoding_type_dimensions[info.type]
+
+
+def build_default_tooltip(
+    query: Query, info: Dict[str, DisplayInfo], locale: str
+) -> List[dict]:
+    result = []
+    for request in chain(query.dimensions, query.metrics):
+        field = request.name
+        title = info[field].display_name
+        format = format_config_to_d3_format(info[field].format, locale=locale)
+        item = {
+            "field": field,
+            "title": title,
+            "type": get_default_encoding_type(info[field]),
+        }
+        if format is not None:
+            item["format"] = format
+        result.append(item)
+    return result
+
+
 def render_self(self):
+    """Extract and execute the query implied by the chart spec, embed the data, set
+    formats, axis/legend titles etc.
+    """
     self = self.copy(deep=True)  # don't mutate the original
     currencies = set()
     currency = None
@@ -221,7 +268,7 @@ def render_self(self):
 
     for unit, data in self._iterunits():
         if isinstance(data, DictumData):
-            query = unit._query()
+            query: Query = unit._query()
             result = data.execute(query)
 
             model = data.project.model
@@ -243,29 +290,36 @@ def render_self(self):
                     continue  # skip literal channels
 
                 info = result.display_info[channel.field]
-
-                fmt = format_config_to_d3_format(info.format, model.locale)
-                # if info.format.pattern is not None:
-                #     if info.type in {"date", "datetime"}:
-                #         fmt = ldml_date_to_d3_time_format(info.format.pattern)
-                #     elif info.type in {"int", "float"}:
-                #         fmt = ldml_number_to_d3_format(info.format.pattern)
-                # elif info.format.skeleton is not None:
-                #     pass
-                # else:
-                #     fmt = get_default_format_for_kind(info.format.kind, model.locale)
-
                 title = {"title": info.display_name}
+                fmt = format_config_to_d3_format(info.format, model.locale)
                 if fmt is not None:
                     title["format"] = fmt
 
                 fields = {k: title for k in ["axis", "legend", "header"]}
-                fields["type"] = type_to_encoding_type[info.type]
+                fields["type"] = get_default_encoding_type(info)
                 fields = _update_nested(fields, channel.to_dict())
                 fields = filter_fields(channel.__class__, fields)
+                if (
+                    fields["type"] == "temporal"
+                    and "timeUnit" not in fields
+                    and info.altair_time_unit is not None
+                ):
+                    fields["timeUnit"] = info.altair_time_unit
                 channel._kwds.update(fields)
+                if isinstance(channel, Text) and fmt is not None:
+                    channel.format = fmt
+
+        # add default tooltip if necessary
+        tooltip_unit = unit
+        if "spec" in unit._kwds:
+            tooltip_unit = unit.spec
+        if tooltip_unit.encoding.tooltip is Undefined:
+            tooltip_unit.encoding.tooltip = build_default_tooltip(
+                query, result.display_info, model.locale
+            )
 
     if len(currencies) == 1:
+        # if there's more than one currency per query, display no currency
         currency = currencies.pop()
     if model is not None:
         renderers.set_embed_options(
@@ -405,6 +459,7 @@ def requests_from_list(items: List[str]):
 
 
 def query(self):
+    """Extract the implied semantic Query from a chart spec"""
     metrics = []
     dimensions = []
 

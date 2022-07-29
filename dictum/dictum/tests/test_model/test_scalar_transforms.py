@@ -1,11 +1,12 @@
 import pytest
 from lark import Token, Tree
 
-from dictum.engine import Column
+from dictum.engine import Column, DisplayInfo
 from dictum.model.scalar import LiteralTransform, ScalarTransform, transforms
+from dictum.schema import FormatConfig
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def col():
     return Column(
         name="test",
@@ -123,6 +124,13 @@ def test_datepart(col: Column):
 
 
 def test_datetrunc(col: Column):
+    col.display_info = DisplayInfo(
+        display_name="xxx",
+        column_name="xxx",
+        format=FormatConfig(kind="date"),
+        kind="dimension",
+        altair_time_unit="month",
+    )
     datetrunc = transforms["datetrunc"]("month")
     result = datetrunc(col)
     assert result.type == "datetime"

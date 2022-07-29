@@ -480,3 +480,14 @@ def test_compile_metric_request():
             "alias": "al",
         }
     )
+
+
+def test_parse_unary_not():
+    assert parse_dimension("x.y(1).not") == Tree(
+        "dimension",
+        [
+            "x",
+            Tree("scalar_transform", ["y", 1]),
+            Tree("scalar_transform", ["invert"]),
+        ],
+    )

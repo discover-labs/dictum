@@ -337,7 +337,7 @@ class Compiler(ABC):
         """cast as int"""
 
     @abstractmethod
-    def tonumber(self, args: list):
+    def tofloat(self, args: list):
         """cast as float"""
 
     @abstractmethod

@@ -3,12 +3,13 @@
 !!! quote ""
     In general usage, a __dictum__ (plural dicta) is an authoritative or dogmatic statement.
 
-Dictum is a general-purpose __semantic data layer__ written in Python.
-It allows your organization to have a shared, __version-controlled__ and
+![Dictum logo](assets/logo.png){ align=left width=100 }
+Dictum is a general-purpose __metrics engine__ written in Python.
+It allows your organization to have a __shared__, __version-controlled__ and
 __well-documented__ understanding of what the important metrics are and
 how they are computed from the source data.
 
-In addition to that, it allows your team to expore the data without
+In addition to that, it empowers your team to expore the data without
 thinking about distracting implementation details.
 
 Dictum supports a simple, __SQL-like expression language__ for defining

@@ -1,14 +1,17 @@
 site_name: Dictum
 theme:
   name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
   icon:
     repo: fontawesome/brands/github
   features:
     # - navigation.tabs
     - navigation.sections
     - navigation.expand
-repo_url: https://github.com/rad-data-labs/dictum
-repo_name: Source code
+repo_url: https://github.com/discover-labs/dictum
+repo_name: discover-labs/dictum
+extra_css: [assets/extra.css]
 plugins:
   - mkdocs-jupyter:
       execute: True
@@ -37,9 +40,9 @@ nav:
       - Metric: concepts/model/metric.md
       - Formatting: concepts/model/formatting.md
     - Query:
-      - Python: concepts/query/python.ipynb
-      - Visualization with Altair: concepts/query/altair.md
-      - Query Language: concepts/query/ql.md
+      - Query Language: concepts/query/ql.ipynb
+      - Visualization with Altair: concepts/query/altair.ipynb
+      - Python API: concepts/query/python.ipynb
     - Backend: concepts/backend.md
   - Reference:
     - Expression Language: reference/expression_language.md

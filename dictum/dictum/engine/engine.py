@@ -35,13 +35,6 @@ class Engine:
         ...
 
     def get_terminal(self, query: "schema.Query") -> MergeOperator:
-        """
-        - Create a Merge
-        - For each metric:
-            - For each measure in the metric
-              check that the measure isn't already in the merge
-              add measure to the merge
-        """
         if len(query.metrics) == 0:
             raise ValueError("You must request at least one metric")
 

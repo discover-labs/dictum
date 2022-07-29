@@ -174,10 +174,12 @@ You can also reference other measures defined on the same table
 from within the expression.
 
 If you define two measures on a table:
+
 - `revenue` = `sum(amount)`
 - `unique_paying_customers` = `countd(user_id)`
 
 Then you can defined a third measure:
+
 - `revenue_per_paying_customer` = `$revenue / $unique_paying_customers`
 
 Measures are referenced by their identifier, the key under which they

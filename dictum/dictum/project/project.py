@@ -165,7 +165,7 @@ class Project:
         from IPython import get_ipython  # so that linters don't whine
 
         ip = get_ipython()
-        ip.register_magics(QlMagics(project=self))
+        ip.register_magics(QlMagics(project=self, shell=ip))
         print(
             r"The magic is registered, now you can use %ql and %%ql to query "
             f"{self.model.name} project"

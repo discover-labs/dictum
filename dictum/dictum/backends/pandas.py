@@ -116,7 +116,7 @@ class PandasCompiler(ArithmeticCompilerMixin, DatediffCompilerMixin, Compiler):
     def tointeger(self, args: list):
         return args[0].astype(int)
 
-    def tonumber(self, args: list):
+    def tofloat(self, args: list):
         return args[0].astype(float)
 
     def todate(self, args: list):

@@ -188,7 +188,8 @@ class TableFilter:
 
 @dataclass
 class DimensionsUnion(Displayed):
-    pass
+    def __str__(self):
+        return f"Union({self.id})"
 
 
 class MeasureTransformer(Transformer):

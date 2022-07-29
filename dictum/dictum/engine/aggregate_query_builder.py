@@ -35,12 +35,17 @@ class AggregateQueryBuilder:
 
         # if union, replace dimension with it
         if isinstance(dimension, DimensionsUnion):
-            dimension = anchor.allowed_dimensions.get(dimension.id)
+            union = dimension
+            dimension = anchor.allowed_dimensions.get(union.id)
+            if dimension is None:
+                raise ValueError(f"Can't use {union} with {measure}")
 
         transforms = [
             self.model.scalar_transforms[t.id](*t.args)
             for t in request.dimension.transforms
         ]
+
+        display_name = request.alias if request.alias else dimension.name
 
         # if generic time, prepend transforms with datetrunc
         # and replace the dimension with measure's time
@@ -52,6 +57,7 @@ class AggregateQueryBuilder:
                         f"You requested a generic Time dimension with {measure}, "
                         "but it doesn't have a time dimension specified"
                     )
+            display_name = dimension.name if request.alias is None else request.alias
             dimension = measure.time
 
         # get the expression with join info
@@ -69,9 +75,11 @@ class AggregateQueryBuilder:
             expr=expr,
             type=dimension.type,
             display_info=DisplayInfo(
-                display_name=dimension.name if not request.alias else request.alias,
+                display_name=display_name,
                 column_name=request.name,
                 format=dimension.format,
+                kind="dimension",
+                keep_display_name=(request.alias is not None),
             ),
         )
 
