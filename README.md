@@ -11,7 +11,7 @@ In addition to that, it empowers your team to expore the data without
 thinking about distracting implementation details.
 
 <p align="center">
-<img src="docs/docs/assets/demo.gif" width="500">
+<img src="docs/docs/assets/demo.gif" width="600">
 </p>
 
 Dictum supports a simple, __SQL-like expression language__ for defining
