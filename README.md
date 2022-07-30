@@ -2,6 +2,8 @@
 <img src="docs/docs/assets/dictum-logo-text.png" width="200" style="margin: 1em">
 </p>
 
+![Tests](https://github.com/discover-labs/dictum/actions/workflows/test.yml/badge.svg?branch=master)
+
 Dictum is a general-purpose __metrics engine__ written in Python.
 It allows your organization to have a __shared__, __version-controlled__ and
 __well-documented__ understanding of what the important metrics are and
