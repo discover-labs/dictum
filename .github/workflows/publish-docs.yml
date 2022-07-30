@@ -9,11 +9,12 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    working-directory: dictum
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: 3.9
       - run: pip install poetry
-      - run: cd dictum && poetry install -n
-      - run: cd docs && mkdocs build
+      - run: poetry install -n
+      - run: poetry run mkdocs build --config-file=../docs/mkdocs.yml
