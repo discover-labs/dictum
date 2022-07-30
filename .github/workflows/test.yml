@@ -1,4 +1,4 @@
-name: Run Dictum Tests
+name: Tests
 
 on:
   push:
@@ -19,3 +19,7 @@ jobs:
       - run: pip install poetry
       - run: poetry install
       - run: poetry run pytest
+      - uses: codecov/codecov-action@v3
+        with:
+          files:
+            - ./coverage.xml
