@@ -29,6 +29,7 @@ The main features are:
 - **SQL-like expression language.** Write metric expressions in the familiar SQL syntax.
 - **Reusable expressions.** Define metrics using other previously-defined metrics.
 - **Automatic multi-hop joins.** You define foreign keys for tables, Dictum writes boring boilerplate SQL for you.
+- **Python API**. Build data applications powered by your Dictum project.
 
 Example [Metric](https://discover-labs.github.io/dictum/concepts/model/metric/) definition:
 
