@@ -5,6 +5,7 @@ from dictum.project import Project
 
 def test_single_measure(project: Project):
     result = project.select(project.metrics.revenue).df()
+    assert result.columns[0] == "revenue"
     assert result.iloc[0, 0] == 2328.6
 
 
@@ -24,7 +25,7 @@ def test_multiple_anchors(project: Project):
     assert next(result.itertuples()) == (0, 2328.6, 3503)
 
 
-def test_multiple_anchors_by(project: Project):
+def test_multiple_anchors_by(project: Project, engine):
     select = project.select(project.m.revenue, project.m.track_count).by(
         project.d.genre
     )
@@ -304,6 +305,45 @@ def test_top_with_metric_within_of(project: Project):
     assert result.shape == (6, 4)
 
 
+def test_tops_with_total(project: Project, engine):
+    result = (
+        project.select("revenue", "revenue.total")
+        .by("customer_country", "customer_city")
+        .limit(
+            "revenue.top(3) of (customer_country)",
+            "revenue.top(1) of (customer_city) within (customer_country)",
+        )
+        .df()
+    )
+    assert result.shape == (3, 4)
+
+
+def test_tops_with_total_within(project: Project):
+    result = project.ql(
+        """
+    select revenue, revenue.total within (customer_country)
+    by customer_country, customer_city
+    limit revenue.top(5) of (customer_country),
+        revenue.top(1) of (customer_city) within (customer_country)
+    """
+    ).df()
+    assert result.shape == (5, 4)
+
+
+def test_tops_with_matching_total_and_percent(project: Project):
+    result = project.ql(
+        """
+    select revenue,
+        revenue.percent of (customer_city) as "% of City Revenue",
+        revenue.total within (customer_country) as "Total Revenue: Country"
+    by customer_country, customer_city
+    limit revenue.top(5) of (customer_country),
+        revenue.top(1) of (customer_city) within (customer_country)
+    """
+    ).df()
+    assert result.shape == (5, 5)
+
+
 def test_total_basic(project: Project):
     result = (
         project.select(project.m.revenue, project.m.revenue.total())
@@ -324,10 +364,19 @@ def test_total_metric(project: Project):
         .limit(project.m.revenue.top(3, within=[project.d.genre]))
     )
     result = select.df()
-    assert result.shape == (57, 4)
+    assert result.shape == (56, 4)
     assert len(set(result.genre)) == len(
         set(result.revenue_per_track__total_within_genre)
     )
+
+
+def test_total_transformed_dimension(project: Project):
+    result = (
+        project.select("revenue.total within (Time.year)")
+        .by("Time.year", "Time.month")
+        .df()
+    )
+    assert len(result.iloc[:, -1].unique()) == 5
 
 
 def test_total_filters(project: Project):
@@ -345,6 +394,36 @@ def test_percent_basic(project: Project):
     result = project.select(project.m.revenue.percent()).by(project.d.genre).df()
     assert result.shape == (24, 2)
     assert result["revenue__percent"].sum() == 1
+
+
+def test_percent_of(project: Project):
+    result = project.select("revenue.percent of (artist)").by("genre", "artist").df()
+    unique = result.groupby("genre").sum().iloc[:, 0].round(4).unique()
+    assert unique.size == 1
+    assert unique[0] == 1.0
+
+
+def test_percent_within(project: Project):
+    result = project.select("revenue.percent within (genre)").by("genre", "artist").df()
+    unique = result.groupby("genre").sum().iloc[:, 0].round(4).unique()
+    assert unique.size == 1
+    assert unique[0] == 1.0
+
+
+def test_percent_of_within(project: Project):
+    result = (
+        project.select(
+            "revenue",
+            "revenue.percent of (artist) within (genre)",
+        ).by("genre", "artist", "album")
+        # .where("artist = 'Faith No More'")
+        .df()
+    )
+    values = result.query("genre == 'TV Shows' and artist == 'The Office'")[
+        "revenue__percent_of_artist_within_genre"
+    ].unique()
+    assert len(values) == 1
+    assert values.round(4)[0] == 0.3404
 
 
 def test_percent_with_top(project: Project):
@@ -401,7 +480,7 @@ def test_format_transform(project: Project):
         .by(project.d.invoice_date.year)
         .df(format=True)
     )
-    assert list(result.columns) == ["Invoice Date", "Revenue"]
+    assert list(result.columns) == ["Invoice Date (year)", "Revenue"]
     assert result.iloc[0, 0] == "2009"
 
 
@@ -432,6 +511,16 @@ def test_filtered_and_unfiltered_measures_together(project: Project):
 def test_generic_time(project: Project):
     result = project.select("revenue").by("Time.datetrunc('year')").df()
     assert result.shape == (5, 2)
+
+
+def test_generic_time_alias_display_name(project: Project):
+    result = project.select("revenue").by("Year as test").df(format=True)
+    assert result.columns[0] == "test"
+
+
+def test_generic_time_format(project: Project):
+    result = project.select("revenue").by("Year").df(format=True)
+    assert result.iloc[0]["Year"] == "2009"
 
 
 @pytest.mark.parametrize(
@@ -480,3 +569,32 @@ def test_sum_table_transform_within(project: Project):
 def test_measure_with_related_column(project: Project):
     """Test that related columns are supported in measures"""
     project.select("unique_paying_customers").df()  # no error
+
+
+def test_default_time_format(project: Project):
+    result = project.select("revenue").by("invoice_date").df(format=True)
+    assert result.iloc[0]["Invoice Date"] == "1/1/09"
+
+
+def test_percents_without_alias(project: Project):
+    """Bug found writing the docs. Something is wrong when running this query, fails
+    in the pandas merge Visitor with KeyError, column not found.
+    """
+    (
+        project.select(
+            "revenue.percent within (invoice_date.year)",
+            "revenue.percent of (invoice_date.quarter) within (invoice_date.year)",
+        )
+        .by("invoice_date.year", "invoice_date.quarter", "invoice_date.month")
+        .df()
+    )
+
+
+def test_total_of_within_keyerror(project: Project):
+    """Bug found writing the docs, similar to the above"""
+    (
+        project.select(
+            "revenue.total within (Year)",
+            "revenue.total of (Year)",
+        ).by("Year", "Quarter")
+    ).df()

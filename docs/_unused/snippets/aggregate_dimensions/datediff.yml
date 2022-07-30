@@ -1,0 +1,9 @@
+orders:
+  ...
+  dimensions:
+    months_since_first_order:
+      name: Months Since First Order
+      description: |
+        How many months passed since order's user made their first order.
+      type: int
+      expr: datediff('month', :user_first_order_date, :order_created_at)

@@ -12,3 +12,5 @@ coverage.xml
 *.png
 *.pdf
 *.gv
+
+.DS_Store

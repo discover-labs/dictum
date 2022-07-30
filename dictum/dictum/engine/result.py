@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 from dictum import schema
 
@@ -10,16 +10,32 @@ class ExecutedQuery:
     time: float
 
 
+AltairTimeUnit = Literal[
+    "year",
+    "yearquarter",
+    "yearmonth",
+    "yearmonthdate",
+    "yearmonthdatehours",
+    "yearmonthdatehoursminutes",
+    "yearmonthdatehoursminutesseconds",
+]
+
+DisplayColumnKind = Literal["metric", "dimension"]
+
+
 @dataclass
 class DisplayInfo:
     """Information for the displaying code:
     either data formatter or Altair
     """
 
-    name: str
+    display_name: str
+    column_name: str
     format: schema.FormatConfig
+    kind: DisplayColumnKind
     type: Optional[schema.Type] = None
-    keep_name: bool = False
+    keep_display_name: bool = False
+    altair_time_unit: Optional[str] = None
 
 
 @dataclass

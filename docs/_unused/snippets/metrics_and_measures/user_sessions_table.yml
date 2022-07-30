@@ -1,0 +1,18 @@
+user_sessions:
+  source: user_sessions
+  primary_key: id
+  related:
+    user:
+      table: users
+      foreign_key: user_id
+  measures:
+    unique_active_users:
+      name: Unique Active Users (AU)
+      description: Unique number of users that had at least one session
+      expr: countd(user_id)
+  dimensions:
+    session_start_date:
+      name: Session Start Date
+      expr: started_at
+      type: date
+      union: date

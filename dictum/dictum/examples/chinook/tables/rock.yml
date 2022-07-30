@@ -13,7 +13,7 @@ filters:
 
 measures:
   rock_revenue:
-    name: Revenue
+    name: Revenue for "Rock" Genre
     expr: sum(UnitPrice * Quantity)
     format: currency
     missing: 0

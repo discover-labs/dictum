@@ -57,7 +57,7 @@ class Formatted(BaseModel):
         if type in {"int", "float"}:
             return FormatConfig(kind="number")
         if type in {"date", "datetime"}:
-            return FormatConfig(kind=type)
+            return FormatConfig(kind=type, pattern="short")
         if type in {"bool", "str"}:
             return FormatConfig(kind="string")
         raise ValueError

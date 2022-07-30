@@ -1,8 +1,0 @@
-categories:
-  source: categories
-  primary_key: id
-  dimensions:
-    category:
-      name: Category
-      type: str
-      expr: name

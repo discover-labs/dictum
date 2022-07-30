@@ -1,6 +1,0 @@
-default: example
-profiles:
-  example:
-    type: sqlite
-    parameters:
-      database: example.db

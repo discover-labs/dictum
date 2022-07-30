@@ -1,6 +1,6 @@
 import logging
 from functools import cached_property
-from typing import Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import sqlparse
 from lark import Transformer, Tree
@@ -155,7 +155,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
     def tointeger(self, args: list):
         return cast(args[0], Integer)
 
-    def tonumber(self, args: list):
+    def tofloat(self, args: list):
         return cast(args[0], Float)
 
     def todate(self, args: list):
@@ -336,22 +336,23 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
             query = query.where(condition)
         return query
 
-    def filter_with_tuples(self, query: Select, filters: List[List[NamedTuple]]):
-        if len(filters) == 0:
+    def filter_with_records(self, query: Select, records: List[List[Dict[str, Any]]]):
+        if len(records) == 0:
             return query
 
-        for tuples in filters:
+        for recordset in records:
             conditions = []
-            for tup in tuples:
-                conditions.append(
-                    and_(
-                        *[
-                            query.selected_columns[k] == v
-                            for k, v in tup._asdict().items()
-                        ]
-                    )
-                )
-            query = query.where(or_(*conditions))
+            for record in recordset:
+                # some filter columns might be missing from the query
+                # for example if the query calculated a total
+                condition_list = [
+                    query.selected_columns[k] == v
+                    for k, v in record.items()
+                    if k in query.selected_columns
+                ]
+                if len(condition_list) > 0:
+                    conditions.append(and_(*condition_list))
+            query = query.where(or_(*(c for c in conditions)))
 
         return query
 

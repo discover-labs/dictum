@@ -1,0 +1,13 @@
+users:
+  source: users
+  primary_key: id
+  measures:
+    users:
+      name: Number of Users
+      expr: count()
+    user_signups:
+      name: User Signups
+      description: Number of Users Signed Up
+      expr: $users
+  dimensions:
+    ...

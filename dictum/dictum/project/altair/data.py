@@ -7,6 +7,7 @@ from altair.utils.data import to_values
 import dictum.project
 import dictum.project.calculations
 from dictum import engine, schema
+from dictum.schema import Query
 
 
 class DictumData:
@@ -18,13 +19,15 @@ class DictumData:
         self.project = project
         self.requests = [m.request for m in metrics]
         self.filters = []
+        self.limits = []
 
-    def extend_query(self, query):
+    def extend_query(self, query: Query):
         query = query.copy()
         for req in self.requests:
             if req not in query.metrics:
                 query.metrics.append(req)
         query.filters.extend(self.filters)
+        query.limit.extend(self.limits)
         return query
 
     def get_values(self, query):

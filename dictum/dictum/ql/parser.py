@@ -18,6 +18,10 @@ def call_scalar_children(name: str):
 
 
 class Preprocessor(Transformer):
+    transform_aliases = {
+        "not": "invert",
+    }
+
     def identifier(self, children: list):
         return children[0]
 
@@ -36,8 +40,13 @@ class Preprocessor(Transformer):
     def FLOAT(self, value: str):
         return float(value)
 
-    def op(self, children: list):
+    def op(self, children: str):
         return children[0]
+
+    def scalar_transform(self, children: list):
+        id, *args = children
+        id = self.transform_aliases.get(id, id)
+        return Tree("scalar_transform", [id, *args])
 
     gt = call_scalar_children("gt")
     ge = call_scalar_children("ge")
@@ -57,14 +66,14 @@ def parse_ql(query: str):
     return pre.transform(ql.parse(query))
 
 
-dimension_filter = Lark(grammar, start="dimension")
+dimension = Lark(grammar, start="dimension")
 
 
 def parse_dimension(expr: str):
     """
     A separate function to parse string transform definitions during interactive use
     """
-    return pre.transform(dimension_filter.parse(expr))
+    return pre.transform(dimension.parse(expr))
 
 
 dimension_request = Lark(grammar, start="dimension_request")
@@ -72,6 +81,13 @@ dimension_request = Lark(grammar, start="dimension_request")
 
 def parse_dimension_request(expr: str):
     return pre.transform(dimension_request.parse(expr))
+
+
+metric = Lark(grammar, start="metric")
+
+
+def parse_metric(expr: str):
+    return pre.transform(metric.parse(expr))
 
 
 metric_request = Lark(grammar, start="metric_request")

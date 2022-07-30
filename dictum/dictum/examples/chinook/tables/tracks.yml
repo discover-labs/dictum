@@ -17,3 +17,13 @@ dimensions:
     name: Track Length (10-second bins)
     expr: Milliseconds / 1000 // 10 * 10
     type: int
+  music:
+    name: Track Media Type is Music
+    expr: |
+      :media_type in (
+        'AAC audio file',
+        'MPEG audio file',
+        'Protected AAC audio file',
+        'Purchased AAC audio file'
+      )
+    type: bool

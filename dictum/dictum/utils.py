@@ -10,7 +10,6 @@ def repr_expr_constant(val):
     return str(val)
 
 
-# TODO: move to utils
 def value_to_token(value):
     if value is True:
         return Token("TRUE", "True")

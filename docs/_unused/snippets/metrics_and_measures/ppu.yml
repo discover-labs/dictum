@@ -1,0 +1,8 @@
+metrics:
+  ppu:
+    name: Percentage of Paying Users (PPU)
+    description: |
+      Percentage of active users who made at least one order.
+      Active users are ones that had a least one session.
+    expr: $unique_paying_users / $unique_active_users
+    type: percent

@@ -1,3 +1,5 @@
+from typing import Dict
+
 import dictum.model
 import dictum.project
 from dictum.engine.metrics import limit_transforms
@@ -87,6 +89,9 @@ class ProjectMetricRequest(ProjectCalculation):
         self.request.metric.transforms.append(QueryTableTransform(id=name))
         return self
 
+    def __dir__(self):
+        return table_transforms.keys()
+
     def __call__(self, *args, of=None, within=None):
         of = [] if of is None else of
         within = [] if within is None else within
@@ -114,12 +119,19 @@ class ProjectMetric(ProjectMetricRequest):
 class ProjectMetrics:
     def __init__(self, project: "dictum.project.Project"):
         self.__project = project
-        for metric in project.model.metrics.values():
-            setattr(
-                self,
-                metric.id,
-                ProjectMetric(metric, project.model.locale),
-            )
+        self.__metrics: Dict[str, ProjectMetric] = {
+            m.id: ProjectMetric(m, project.model.locale)
+            for m in project.model.metrics.values()
+        }
+
+    def __getattr__(self, attr: str) -> ProjectMetric:
+        return self.__metrics[attr]
+
+    def __getitem__(self, key: str) -> ProjectMetric:
+        return self.__metrics[key]
+
+    def __dir__(self):
+        return self.__metrics.keys()
 
     def _repr_html_(self):
         template = environment.get_template("calculations.html.j2")

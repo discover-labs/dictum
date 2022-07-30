@@ -1,0 +1,16 @@
+users:
+  source: users
+  primary_key: id
+  measures:
+    users:
+      name: Number of Users
+      expr: count()
+  dimensions:
+    user_signup_date:
+      name: User Signup Date
+      type: date
+      expr: created_at
+    user_channel:
+      name: User's Marketing Channel
+      type: str
+      description: Marketing channel that the user's signup was attributed to

@@ -13,6 +13,16 @@ from dictum.model.expr import parse_expr
 
 @dataclass
 class Column:
+    """Represents a column selected from a relational calculation result.
+
+    Arguments:
+        name — column name in the resulting query
+        expr — Lark expression for the column
+        type — column data type
+        display_info — info for displaying the column in the formatted table
+            or an Altair chart
+    """
+
     name: str
     expr: Tree
     type: schema.Type

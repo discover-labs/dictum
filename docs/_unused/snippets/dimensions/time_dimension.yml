@@ -1,0 +1,18 @@
+name: Dictum Tutorial
+description: |
+  A tutorial project for Dictum docs. The `description` field is optional.
+
+tables:
+  orders:
+    source: orders
+    primary_key: id
+    measures:
+      revenue:
+        name: Revenue
+        description: Total amount of orders
+        expr: sum(amount)
+    dimensions:
+      order_created_at:
+        name: Date of Order
+        type: datetime
+        expr: created_at

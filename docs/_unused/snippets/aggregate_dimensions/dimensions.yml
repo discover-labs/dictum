@@ -1,0 +1,16 @@
+users:
+  source: users
+  primary_key: id
+  measures:
+    ...
+  dimensions:
+    user_order_count:
+      name: User's Order Count
+      type: int
+      description: Number of orders that a user made
+      expr: $orders
+    user_first_order_date:
+      name: User's First Order Date
+      type: date
+      expr: $min_order_date
+    ...

@@ -1,6 +1,6 @@
 import time
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Dict, FrozenSet, List, Optional, Union
 
 import dateutil
 from lark import Tree
@@ -11,6 +11,7 @@ from dictum.backends.base import Backend
 from dictum.backends.pandas import PandasColumnTransformer, PandasCompiler
 from dictum.engine.computation import Column
 from dictum.engine.result import ExecutedQuery, Result
+from dictum.schema import Query
 
 
 def _date_mapper(v):
@@ -195,14 +196,24 @@ class InnerJoinOperator(Operator, MaterializeMixin):
 class MergeOperator(Operator, MaterializeMixin):
     def __init__(
         self,
-        inputs: List[QueryOperator],
+        query: Query,
+        inputs: Optional[List[Union[QueryOperator, "MergeOperator"]]] = None,
     ):
         super().__init__()
-        self.inputs = inputs
-        self.dimensions = []
-        self.metrics = []
-        self.limit: Optional[int] = None
-        self.order: Optional[List[engine.LiteralOrderItem]] = None
+        self.query = query
+        self.inputs = inputs if inputs is not None else []
+        self.dimensions: List[Column] = []
+        self.metrics: List[Column] = []
+        self.limit: Optional[int] = []
+        self.order: Optional[List[engine.LiteralOrderItem]] = []
+
+    @property
+    def digest(self) -> str:
+        return self.query.digest
+
+    @property
+    def digests(self) -> FrozenSet[str]:
+        return frozenset(i.digest for i in self.inputs if isinstance(i, MergeOperator))
 
     @property
     def columns(self):
@@ -238,6 +249,13 @@ class MergeOperator(Operator, MaterializeMixin):
                     )
                 )
         self.inputs.append(query)
+
+    def add_merge(self, merge: "MergeOperator"):
+        """Add an input merge operator. Checks that the digest doesn't already exist
+        in the inputs.
+        """
+        if merge.digest not in self.digests:
+            self.inputs.append(merge)
 
     def calculate_pandas(self, input: List[list]) -> List[list]:
         column_transformer = PandasColumnTransformer({None: input})
@@ -300,7 +318,7 @@ class MergeOperator(Operator, MaterializeMixin):
         for input in self.inputs:
             results.append(input.get_result(backend))
 
-        if len(results) > 0:
+        if len(results) > 1:
             dfs = list(filter(lambda x: isinstance(x, DataFrame), results))
             queries = list(filter(lambda x: not isinstance(x, DataFrame), results))
 
@@ -323,6 +341,8 @@ class MergeOperator(Operator, MaterializeMixin):
         result = backend.calculate(result, self.columns)
         if self.limit:
             result = backend.limit(result, self.limit)
+
+        # TODO: support order in the query
         if self.order:
             result = backend.order(result, self.order)
 
@@ -383,7 +403,7 @@ class FilterOperator(Operator):
         return self.input.types
 
 
-class TuplesFilterOperator(Operator):
+class RecordsFilterOperator(Operator):
     def __init__(
         self,
         query: Operator,
@@ -398,9 +418,12 @@ class TuplesFilterOperator(Operator):
     def filter_pandas(self, df: DataFrame, filters: List[DataFrame]):
         result = df
         for f in filters:
-            result = result.join(f, how="inner", left_on=f.columns, right_on=f.columns)[
-                result.columns
-            ]
+            columns = list(set(f.columns) & set(result.columns))
+            # in case where are duplicate tuples in columns subset
+            _f = f[columns].drop_duplicates()
+            result = merge(
+                result, _f, how="inner", on=columns, suffixes=["", "___drop"]
+            )[df.columns]
         return result
 
     def execute(self, backend: Backend):
@@ -413,8 +436,8 @@ class TuplesFilterOperator(Operator):
         if isinstance(result, DataFrame):
             return self.filter_pandas(result, filters)
 
-        tuples = [list(df.itertuples(index=False)) for df in filters]
-        return backend.filter_with_tuples(result, tuples)
+        records = [df.to_dict(orient="records") for df in filters]
+        return backend.filter_with_records(result, records)
 
     @property
     def level_of_detail(self) -> List[str]:

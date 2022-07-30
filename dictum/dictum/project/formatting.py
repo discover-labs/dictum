@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from babel.dates import format_date, format_datetime
+from babel.dates import format_date, format_datetime, format_skeleton
 from babel.numbers import format_currency, format_decimal, format_percent
 
 from dictum import schema
@@ -15,6 +15,8 @@ class Formatter:
         "percent": format_percent,
         "date": format_date,
         "datetime": format_datetime,
+        "skeleton_date": format_skeleton,
+        "skeleton_datetime": format_skeleton,
     }
 
     def __init__(
@@ -41,5 +43,10 @@ class Formatter:
             return format_currency(
                 value, format.currency, format=format.pattern, locale=self.locale
             )
-        formatter = self.formatters[format.kind]
-        return formatter(value, format=format.pattern, locale=self.locale)
+        if format.skeleton is not None:
+            return self.formatters[f"skeleton_{format.kind}"](
+                skeleton=format.skeleton, datetime=value, locale=self.locale
+            )
+        return self.formatters[format.kind](
+            value, format=format.pattern, locale=self.locale
+        )

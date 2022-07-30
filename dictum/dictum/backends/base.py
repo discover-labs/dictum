@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, Optional
 
 import pkg_resources
 from lark import Token, Transformer
@@ -337,7 +337,7 @@ class Compiler(ABC):
         """cast as int"""
 
     @abstractmethod
-    def tonumber(self, args: list):
+    def tofloat(self, args: list):
         """cast as float"""
 
     @abstractmethod
@@ -395,8 +395,8 @@ class Compiler(ABC):
         """Filter a query on a list of conditions"""
 
     @abstractmethod
-    def filter_with_tuples(self, query, tuples):
-        """Use a list of NamedTuples as a filter for a query. Each tuple is a
+    def filter_with_records(self, query, records: List[List[Dict[str, Any]]]):
+        """Use a list of dicts as a filter for a query. Each dict is a
         combination of valid field values, the rest are filtered out.
         """
 
@@ -462,8 +462,8 @@ class Backend(ABC):
     def filter(self, query, conditions: Dict[str, Any]):
         return self.compiler.filter(query, conditions)
 
-    def filter_with_tuples(self, query, tuples: List[NamedTuple]):
-        return self.compiler.filter_with_tuples(query, tuples)
+    def filter_with_records(self, query, records: List[List[Dict[str, Any]]]):
+        return self.compiler.filter_with_records(query, records)
 
     def inner_join(self, query, to_join, join_on: List[str]):
         return self.compiler.inner_join(query, to_join, join_on)

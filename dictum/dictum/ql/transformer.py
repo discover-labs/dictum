@@ -3,6 +3,7 @@ from lark import Transformer, Tree
 from dictum.ql.parser import (
     parse_dimension,
     parse_dimension_request,
+    parse_metric,
     parse_metric_request,
     parse_ql,
 )
@@ -93,6 +94,10 @@ def compile_dimension(expr: str) -> QueryDimension:
 
 def compile_dimension_request(expr: str) -> QueryDimensionRequest:
     return ql_transformer.transform(parse_dimension_request(expr))
+
+
+def compile_metric(expr: str) -> QueryMetric:
+    return ql_transformer.transform(parse_metric(expr))
 
 
 def compile_metric_request(expr: str) -> QueryMetricRequest:

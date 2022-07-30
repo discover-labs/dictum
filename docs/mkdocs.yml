@@ -1,14 +1,21 @@
 site_name: Dictum
 theme:
   name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
   icon:
     repo: fontawesome/brands/github
-repo_url: https://github.com/rad-data-labs/dictum
-repo_name: Source code
+  features:
+    # - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+repo_url: https://github.com/discover-labs/dictum
+repo_name: discover-labs/dictum
+extra_css: [assets/extra.css]
 plugins:
   - mkdocs-jupyter:
       execute: True
-      # include: ["*.ipynb"]
+      include: ["*.ipynb"]
       # kernel_name: python
 markdown_extensions:
   - admonition
@@ -22,23 +29,42 @@ markdown_extensions:
   - pymdownx.tabbed
 nav:
   - Introduction: index.md
-  - Python Query Guide: python.ipynb
-  - Visualization Guide: visualization.ipynb
-  - Query Language Guide: ql.ipynb
-  - Data Model Guide:
-    - Getting Started: model/getting_started.md
-    # - Query Intro: model/query_intro.md
-    - Tables and Measures: model/tables.md
-    - Dimensions: model/dimensions.md
-    - Table Relationships: model/table_relationships.md
-    - Reusable Expressions: model/reusable_expressions.md
-    - Union Dimensions: model/union_dimensions.md
-    - Metrics and Measures: model/metrics_and_measures.md
-    - Aggregate Dimensions: model/aggregate_dimensions.md
-    - Types and Formatting: model/types_formatting.md
-    - Organizing a Larger Project with Multiple Files: model/multiple_files.md
-    - Default Transforms and Filters: model/dimension_transforms.md
-    - Transforms: model/transforms.md
+  - Installation: installation.md
+  - 5-minute Guide: short_guide.md
+  - Concepts:
+    - Project: concepts/project.md
+    - Model:
+      - Table: concepts/model/table.md
+      - Measure: concepts/model/measure.md
+      - Dimension: concepts/model/dimension.md
+      - Metric: concepts/model/metric.md
+      - Formatting: concepts/model/formatting.md
+    - Query:
+      - Query Language: concepts/query/ql.ipynb
+      - Visualization with Altair: concepts/query/altair.ipynb
+      - Python API: concepts/query/python.ipynb
+    - Backend: concepts/backend.md
+  - Reference:
+    - Expression Language: reference/expression_language.md
+    - Query Language: reference/query_language.md
+
+  # - Python Query Guide: python.ipynb
+  # - Visualization Guide: visualization.ipynb
+  # - Query Language Guide: ql.ipynb
+  # - Data Model Guide:
+  #   - Getting Started: model/getting_started.md
+  #   # - Query Intro: model/query_intro.md
+  #   - Tables and Measures: model/tables.md
+  #   - Dimensions: model/dimensions.md
+  #   - Table Relationships: model/table_relationships.md
+  #   - Reusable Expressions: model/reusable_expressions.md
+  #   - Union Dimensions: model/union_dimensions.md
+  #   - Metrics and Measures: model/metrics_and_measures.md
+  #   - Aggregate Dimensions: model/aggregate_dimensions.md
+  #   - Types and Formatting: model/types_formatting.md
+  #   - Organizing a Larger Project with Multiple Files: model/multiple_files.md
+  #   - Default Transforms and Filters: model/dimension_transforms.md
+  #   - Transforms: model/transforms.md
   # - Interactive Analytics Guide:
   #   - Selecting and Grouping Metrics: analysis/metrics.md
   #   - Pivot Tables: analysis/pivot.md
@@ -56,8 +82,3 @@ nav:
   #   - Tutorial Example: index.md
   #   - Chinook Database: index.md
   #   - AdventureWorks Data Warehouse: index.md
-  - Reference:
-    - Expression Language: reference/expression_language.md
-    - Query Language: reference/query_language.md
-    # - Python API: reference/python_api.md
-    - Backends: reference/backends.md
