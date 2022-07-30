@@ -9,7 +9,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    working-directory: dictum
+    defaults:
+      run:
+        working-directory: dictum
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
