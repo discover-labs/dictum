@@ -1,8 +1,8 @@
 site_name: Dictum
 theme:
   name: material
-  logo: assets/logo.png
-  favicon: assets/logo.png
+  logo: assets/dictum-logo-circle.png
+  favicon: assets/dictum-logo-circle.png
   icon:
     repo: fontawesome/brands/github
   features:
