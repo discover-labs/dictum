@@ -21,4 +21,5 @@ jobs:
       - run: poetry install -n
       - run: poetry run mkdocs build --config-file=../docs/mkdocs.yml
       - uses: actions/upload-pages-artifact@v1
-        path: docs/site/
+        with:
+          path: docs/site/
