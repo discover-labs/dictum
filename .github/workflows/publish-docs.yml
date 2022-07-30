@@ -6,14 +6,11 @@ on:
       - master
   workflow_dispatch:
 
-permissions: read-all
+permissions: write-all
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     defaults:
       run:
         working-directory: dictum
