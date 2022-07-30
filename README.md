@@ -4,7 +4,7 @@
 
 <p align="center">
 <img src="https://github.com/discover-labs/dictum/actions/workflows/test.yml/badge.svg?branch=master" alt="Tests" />
-<img src="https://img.shields.io/codecov/c/github/discover-labs/dictum" alt="Coverage />
+<img src="https://img.shields.io/codecov/c/github/discover-labs/dictum" alt="Coverage" />
 </p>
 
 Dictum is a general-purpose __metrics engine__ written in Python.
