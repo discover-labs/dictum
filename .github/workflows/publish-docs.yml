@@ -20,3 +20,5 @@ jobs:
       - run: pip install poetry
       - run: poetry install -n
       - run: poetry run mkdocs build --config-file=../docs/mkdocs.yml
+      - uses: upload-pages-artifact
+        path: docs/site/
