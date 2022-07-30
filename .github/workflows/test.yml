@@ -1,0 +1,16 @@
+name: Run Dictum Tests
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dictum
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - run: pip install poetry
+      - run: poetry install
+      - run: poetry run pytest
