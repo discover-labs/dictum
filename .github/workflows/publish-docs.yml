@@ -3,7 +3,7 @@ name: Build and publish the docs to Github Pages
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -15,5 +15,5 @@ jobs:
         with:
           python-version: 3.9
       - run: pip install poetry
-      - run: poetry install
-      - run: cd docs && mkdocs build
+      - run: cd dictum && poetry install -n
+      - run: cd ../docs && mkdocs build
