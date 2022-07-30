@@ -6,10 +6,8 @@ on:
       - master
   workflow_dispatch:
 
-permissions: write-all
-
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,4 +23,16 @@ jobs:
       - uses: actions/upload-pages-artifact@v1
         with:
           path: docs/site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - uses: actions/deploy-pages@v1
+        id: deployment
