@@ -3,7 +3,7 @@
 !!! quote ""
     In general usage, a __dictum__ (plural dicta) is an authoritative or dogmatic statement.
 
-![Dictum logo](assets/logo.png){ align=left width=100 }
+![Dictum logo](assets/dictum-logo-circle.png){ align=left width=100 }
 Dictum is a general-purpose __metrics engine__ written in Python.
 It allows your organization to have a __shared__, __version-controlled__ and
 __well-documented__ understanding of what the important metrics are and
