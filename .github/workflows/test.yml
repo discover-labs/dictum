@@ -3,7 +3,9 @@ name: Tests
 on:
   push:
     paths:
-      dictum
+      - dictum
+      - .github/workflows/test.yml
+  workflow_dispatch:
 
 jobs:
   test:
