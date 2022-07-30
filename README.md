@@ -1,12 +1,12 @@
-<p align="center">
-<img src="https://github.com/discover-labs/dictum/actions/workflows/test.yml/badge.svg?branch=master" alt="Tests" />
-<img src="https://img.shields.io/codecov/c/github/discover-labs/dictum" alt="Coverage" />
-</p>
 
 <p align="center">
 <img src="docs/docs/assets/dictum-logo-text.png" width="200" style="margin: 1em">
 </p>
 
+<p align="center">
+<img src="https://github.com/discover-labs/dictum/actions/workflows/test.yml/badge.svg?branch=master" alt="Tests" />
+<img src="https://img.shields.io/codecov/c/github/discover-labs/dictum" alt="Coverage" />
+</p>
 
 __[Documentation](https://discover-labs.github.io/dictum/)__
 
@@ -17,27 +17,27 @@ It allows your organization to have a __shared__, __version-controlled__ and
 __well-documented__ understanding of what the important metrics are and
 how they are computed from the source data.
 
-
-In addition to that, it empowers your team to expore the data without
-thinking about distracting implementation details.
-
 <p align="center">
 <img src="docs/docs/assets/demo.gif" width="600">
 </p>
 
-Dictum supports a simple, __SQL-like expression language__ for defining
-metrics and __automatic multi-hop joins__ to quickly slice and dice the data
-without writing repetitive boilerplate SQL by hand. In Dictum, all calculations
-are __reusable__, meaning that if you defined a metric once, you can then use
-it to define other metrics.
+The main features are:
 
+- **A structured way to describe your metrics.** Metrics are defined in simple, readable YAML files. [👉 Learn how to get started with your own project](https://discover-labs.github.io/dictum/concepts/project/)
+- **Interactive analytics in Jupyter.** Slice and dice your metrics quickly and easily. Get the data as a Pandas DataFrame. [👉 Learn how to query Dictum](https://discover-labs.github.io/dictum/concepts/query/ql/)
+- **Dataviz powered by Altair.** Quickly build visualizations based on your metric data. [👉 Demo Jupyter notebook](https://discover-labs.github.io/dictum/concepts/query/altair/)
+- **SQL-like expression language.** Write metric expressions in the familiar SQL syntax.
+- **Reusable expressions.** Define metrics using other previously-defined metrics.
+- **Automatic multi-hop joins.** You define foreign keys for tables, Dictum writes boring boilerplate SQL for you.
 
-## A structured way to describe your metrics
+Example [Metric](https://discover-labs.github.io/dictum/concepts/model/metric/) definition:
 
 ```yaml
 # metrics/revenue.yml
 name: Revenue
-description: Sum of all order amounts excluding bonus currency spending.
+description: |
+  Sum of all order amounts excluding
+  bonus currency spending.
 table: orders
 expr: sum(amount - coalesce(bonus_spent, 0))
 format:
@@ -45,24 +45,27 @@ format:
   currency: USD
 ```
 
-Dictum __Data Model__ is a single source of truth about
-the _meaning_ and _structure_ of your data. It describes your metrics, dimensions and table relationships.
+Example [Table](https://discover-labs.github.io/dictum/concepts/model/table/) Definition:
 
-The model is a collection of YAML files that is supposed to be version-controlled and shared across your analytics team. This allows your team to govern metric definitions systematically, making your analysis consistent and repeatable.
+```yaml
+# tables/orders.yml
+source:
+  schema: marts
+  table: orders
 
-
-## Interactive analytics in Jupyter
-
-```py
-from dictum import Project
-
-project = Project("/path/to/project")
-project.select("revenue").by("date.month").where("order_amount > 100")
+related:
+  user: user_id -> users.id
+  product: project_id -> products.id
 ```
 
-After describing your existing metrics, you can query your data model in
-every analyst's favourite tool for data analysis: [Jupyter](https://jupyter.org).
+# Installation
 
-Build beautiful visualizations using [Altair](https://altair-viz.github.io/) or retrieve
-data for analysis in Pandas. The engine uses flexible and expressive query idioms and
-supports table calculations, filtering, top-K queries and more.
+Install from PyPi:
+
+```sh
+pip install dictum
+```
+
+# Basic usage
+
+[Learn how to query the example project](https://discover-labs.github.io/dictum/concepts/query/ql/)

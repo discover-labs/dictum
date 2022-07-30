@@ -12,7 +12,7 @@ from other tables when defining relationships.
 ## Schema
 
 ```yaml
-desctiption: |
+description: |
     string, optional
     Table description (for documentation purposes).
 
