@@ -9,6 +9,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     defaults:
       run:
         working-directory: dictum
