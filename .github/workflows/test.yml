@@ -23,5 +23,4 @@ jobs:
       - run: poetry run pytest
       - uses: codecov/codecov-action@v3
         with:
-          files:
-            - ./coverage.xml
+          files: ./coverage.xml
