@@ -1,16 +1,22 @@
 <p align="center">
-<img src="docs/docs/assets/dictum-logo-text.png" width="200" style="margin: 1em">
-</p>
-
-<p align="center">
 <img src="https://github.com/discover-labs/dictum/actions/workflows/test.yml/badge.svg?branch=master" alt="Tests" />
 <img src="https://img.shields.io/codecov/c/github/discover-labs/dictum" alt="Coverage" />
 </p>
+
+<p align="center">
+<img src="docs/docs/assets/dictum-logo-text.png" width="200" style="margin: 1em">
+</p>
+
+
+__[Documentation](https://discover-labs.github.io/dictum/)__
+
+__[Example Project](https://github.com/discover-labs/dictum/tree/master/dictum/dictum/examples/chinook)__
 
 Dictum is a general-purpose __metrics engine__ written in Python.
 It allows your organization to have a __shared__, __version-controlled__ and
 __well-documented__ understanding of what the important metrics are and
 how they are computed from the source data.
+
 
 In addition to that, it empowers your team to expore the data without
 thinking about distracting implementation details.
