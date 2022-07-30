@@ -1,6 +1,9 @@
 name: Run Dictum Tests
 
-on: push
+on:
+  push:
+    paths:
+      dictum
 
 jobs:
   test:
