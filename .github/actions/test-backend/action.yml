@@ -6,7 +6,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: /.github/actions/setup-dictum
+    - uses: ./.github/actions/setup-dictum
     - uses: oprypin/find-latest-tag@v1
       id: find_tag
       with:
