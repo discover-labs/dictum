@@ -1,4 +1,4 @@
-name: Tests
+name: Run Tests
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - dictum
       - .github/workflows/test.yml
       - .guthub/actions/setup-dictum/action.yml
+      - .guthub/actions/setup-dictum/test-backend.yml
   workflow_dispatch:
 
 jobs:
@@ -16,7 +17,7 @@ jobs:
         working-directory: dictum
     steps:
       - uses: actions/checkout@v3
-      - uses: /.github/actions/setup-dictum
+      - uses: ./.github/actions/setup-dictum
       - run: poetry run pytest
       - uses: codecov/codecov-action@v3
         with:
@@ -28,6 +29,6 @@ jobs:
         run:
           working-directory: dictum
       steps:
-        - uses: /.github/actions/test-backend
+        - uses: ./.github/actions/test-backend
           with:
             backend: postgres
