@@ -19,7 +19,7 @@ runs:
     - run: poetry build
       working-directory: ${{ inputs.backend }}
       shell: bash
-    - run: pip install ../${{ inputs.backend }}/dist/*.whl
+    - run: pip install --ignore-installed dictum ../${{ inputs.backend }}/dist/*.whl
       working-directory: dictum
       shell: bash
     - run: poetry run pytest ../${{ inputs.backend }}/tests/
