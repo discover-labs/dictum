@@ -15,7 +15,7 @@ runs:
       with:
         repository: discover-labs/dictum-backend-${{ inputs.backend }}
         ref: ${{ steps.find_tag.outputs.tag }}
-    - run: poetry run pip install -e dictum-backend-${{ inputs.backend }}/dictum_backend_${{ inputs.backend }}
+    - run: poetry run pip install -e ../dictum-backend-${{ inputs.backend }}/dictum_backend_${{ inputs.backend }}
       working-directory: dictum
       shell: bash
     - run: poetry run pytest -k 'backend and end_to_end'
