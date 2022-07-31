@@ -22,13 +22,13 @@ jobs:
       - uses: codecov/codecov-action@v3
         with:
           files: dictum/coverage.xml
-    test-backend-postgres:
-      runs-on: ubuntu-latest
-      needs: test
-      defaults:
-        run:
-          working-directory: dictum
-      steps:
-        - uses: ./.github/actions/test-backend
-          with:
-            backend: postgres
+  test-backend-postgres:
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: dictum
+    steps:
+      - uses: ./.github/actions/test-backend
+        with:
+          backend: postgres
