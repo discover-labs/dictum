@@ -27,6 +27,8 @@ jobs:
     # needs: test
     steps:
       - uses: actions/checkout@v3
+        with:
+          path: lib
       - uses: ./.github/actions/test-backend
         with:
           backend: postgres

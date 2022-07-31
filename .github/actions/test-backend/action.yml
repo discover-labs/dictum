@@ -15,6 +15,7 @@ runs:
       with:
         repository: discover-labs/dictum-backend-${{ inputs.backend }}
         ref: ${{ steps.find_tag.outputs.tag }}
+        path: plugin
     - run: poetry run pip install -e ../dictum-backend-${{ inputs.backend }}/dictum_backend_${{ inputs.backend }}
       working-directory: dictum
       shell: bash
