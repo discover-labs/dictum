@@ -1,7 +1,4 @@
-import pytest
-
 from dictum.schema.query import (
-    Query,
     QueryDimension,
     QueryDimensionRequest,
     QueryMetric,
@@ -120,29 +117,3 @@ def test_render_query_metric():
         ).render()
         == "test.x().gt(1)"
     )
-
-
-def test_query_absent_dimension_of_within():
-    with pytest.raises(ValueError, match="must also be present"):
-        Query.parse_obj(
-            {
-                "metrics": [
-                    {
-                        "metric": {
-                            "id": "m",
-                            "transforms": [
-                                {
-                                    "id": "t",
-                                    "of": [
-                                        {
-                                            "id": "d",
-                                            "transforms": [{"id": "dt"}],
-                                        }
-                                    ],
-                                }
-                            ],
-                        }
-                    }
-                ]
-            }
-        )

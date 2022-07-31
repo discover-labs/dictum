@@ -1,8 +1,7 @@
 from hashlib import md5
-from itertools import chain
 from typing import List, Optional
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel
 
 from dictum import utils
 
@@ -165,42 +164,6 @@ class Query(BaseModel):
     @property
     def digest(self) -> str:
         return md5(self.json(sort_keys=True).encode("UTF-8")).hexdigest()
-
-    @root_validator(skip_on_failure=True)
-    def validate_names(cls, values: dict):
-        names = set()
-        for item in values.get("metrics", []):
-            request = QueryMetricRequest.parse_obj(item)
-            if request.name in names:
-                raise ValueError(f"Duplicate column name in query: {request.name}")
-            names.add(request.name)
-        for item in values.get("dimensions", []):
-            request = QueryDimensionRequest.parse_obj(item)
-            if request.name in names:
-                raise ValueError(f"Duplicate column name in query: {request.name}")
-            names.add(request.name)
-        return values
-
-    @root_validator(skip_on_failure=True)
-    def validate_metric_transform_dimensions(cls, values: dict):
-        """Check that all the dimesions in of/within of metrics are also present in the
-        main dimensions list.
-        """
-        digests = set(
-            QueryDimensionRequest.parse_obj(d).digest for d in values["dimensions"]
-        )
-        for m in values["metrics"]:
-            request = QueryMetricRequest.parse_obj(m)
-            for transform in request.metric.transforms:
-                for item in chain(transform.of, transform.within):
-                    exc = ValueError(
-                        "All dimensions used in OF/WITHIN must also be present in the "
-                        "query's dimension list.\n"
-                        f"Metric: {request.render()}\nTransform: {transform.id}\n"
-                        f"Dimension expression: {item.render()}"
-                    )
-                    if item.digest not in digests:
-                        raise exc
 
 
 QueryTableTransform.update_forward_refs()

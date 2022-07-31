@@ -1,4 +1,5 @@
 from copy import deepcopy
+from itertools import chain
 
 from lark import Tree
 from toolz import compose_left
@@ -34,9 +35,37 @@ class Engine:
     def get_values_computation(self, dimension_id: str) -> RelationalQuery:
         ...
 
-    def get_terminal(self, query: "schema.Query") -> MergeOperator:
+    @staticmethod
+    def validate_query(query: "schema.Query"):
+        """Basic query validity checks"""
+        # at least one metric is present
         if len(query.metrics) == 0:
             raise ValueError("You must request at least one metric")
+
+        # no duplicate column names
+        names = set()
+        for request in chain(query.metrics, query.dimensions):
+            name = request.name
+            if name in names:
+                raise ValueError(f"Duplicate column name in query: {name}")
+            names.add(name)
+
+        # all OF/WITHIN dimensions are also present in query.dimensions
+        dimensions_digests = set(r.digest for r in query.dimensions)
+        for request in query.metrics:
+            for transform in request.metric.transforms:
+                for item in chain(transform.of, transform.within):
+                    exc = ValueError(
+                        "All dimensions used in OF/WITHIN must also be present in the "
+                        "query's dimension list.\n"
+                        f"Metric: {request.render()}\nTransform: {transform.id}\n"
+                        f"Dimension expression: {item.render()}"
+                    )
+                    if item.digest not in dimensions_digests:
+                        raise exc
+
+    def get_terminal(self, query: "schema.Query") -> MergeOperator:
+        self.validate_query(query)
 
         builder = AggregateQueryBuilder(
             model=self.model, dimensions=query.dimensions, filters=query.filters
