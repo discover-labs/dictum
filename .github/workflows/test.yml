@@ -14,6 +14,7 @@ jobs:
       run:
         working-directory: dictum
     steps:
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/setup-dictum
       - run: poetry run pytest
       - uses: codecov/codecov-action@v3
