@@ -22,13 +22,13 @@ metrics are and how they are computed from the source data.
 
 The main features are:
 
-- **A structured way to describe your metrics.** Metrics are defined in simple, readable YAML files. [👉 Learn how to get started with your own project](https://discover-labs.github.io/dictum/concepts/project/)
-- **Interactive analytics in Jupyter.** Slice and dice your metrics quickly and easily. Get the data as a Pandas DataFrame. [👉 Learn how to query Dictum](https://discover-labs.github.io/dictum/concepts/query/ql/)
-- **Dataviz powered by Altair.** Quickly build visualizations based on your metric data. [👉 Demo Jupyter notebook](https://discover-labs.github.io/dictum/concepts/query/altair/)
-- **SQL-like expression language.** Write metric expressions in the familiar SQL syntax.
-- **Reusable expressions.** Define metrics using other previously-defined metrics.
-- **Automatic multi-hop joins.** You define foreign keys for tables, Dictum writes boring boilerplate SQL for you.
-- **Python API**. Build data applications powered by your Dictum project.
+- 🧑‍🔧 **A structured way to describe your metrics.** Metrics are defined in simple, readable YAML files. [👉 Learn how to get started with your own project](https://discover-labs.github.io/dictum/concepts/project/)
+- 🪄 **Interactive analytics in Jupyter.** Slice and dice your metrics quickly and easily. Get the data as a Pandas DataFrame. [👉 Learn how to query Dictum](https://discover-labs.github.io/dictum/concepts/query/ql/)
+- 🤩 **Dataviz powered by Altair.** Quickly build visualizations based on your metric data. [👉 Demo Jupyter notebook](https://discover-labs.github.io/dictum/concepts/query/altair/)
+- 😎 **SQL-like expression language.** Write metric expressions in the familiar SQL syntax.
+- 🦥 **Reusable expressions.** Define metrics using other previously-defined metrics.
+- 🐇 **Automatic multi-hop joins.** You define foreign keys for tables, Dictum writes boring boilerplate SQL for you.
+- 🤖 **Python API**. Build data applications powered by your Dictum project.
 
 Example [Metric](https://discover-labs.github.io/dictum/concepts/model/metric/) definition:
 
