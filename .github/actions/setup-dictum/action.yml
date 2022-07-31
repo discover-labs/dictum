@@ -12,7 +12,7 @@ runs:
         python-version: ${{ INPUT_PYTHON_VERSION }}
     - run: pip install poetry
       shell: bash
-      working_directory: dictum
+      working-directory: dictum
     - run: poetry install
       shell: bash
-      working_directory: dictum
+      working-directory: dictum
