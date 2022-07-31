@@ -5,6 +5,7 @@ on:
     paths:
       - dictum
       - .github/workflows/test.yml
+      - .guthub/actions/setup-dictum/action.yml
   workflow_dispatch:
 
 jobs:
