@@ -352,7 +352,8 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
                 ]
                 if len(condition_list) > 0:
                     conditions.append(and_(*condition_list))
-            query = query.where(or_(*(c for c in conditions)))
+            if len(conditions) > 0:
+                query = query.where(or_(*conditions))
 
         return query
 

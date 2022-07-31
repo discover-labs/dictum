@@ -5,7 +5,7 @@ from toolz import compose_left
 
 from dictum import model, schema
 from dictum.engine.aggregate_query_builder import AggregateQueryBuilder
-from dictum.engine.computation import RelationalQuery
+from dictum.engine.computation import LiteralOrderItem, RelationalQuery
 from dictum.engine.metrics import AddMetric, limit_transforms, transforms
 from dictum.engine.operators import FinalizeOperator, MaterializeOperator, MergeOperator
 
@@ -67,6 +67,7 @@ class Engine:
 
     def get_computation(self, query: schema.Query) -> MergeOperator:
         terminal = self.get_terminal(query)
+        terminal.order = [LiteralOrderItem(r.digest, True) for r in query.dimensions]
         return FinalizeOperator(
             input=MaterializeOperator([terminal]),
             aliases={r.digest: r.name for r in query.metrics + query.dimensions},
