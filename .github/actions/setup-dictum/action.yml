@@ -1,0 +1,19 @@
+name: Setup Dictum
+runs:
+  using: composite
+  inputs:
+    python-version:
+      required: true
+      default: 3.9
+      description: Python version
+  defaults:
+    run:
+      shell: bash
+      working-directory: dictum
+  steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    - run: pip install poetry
+    - run: poetry install

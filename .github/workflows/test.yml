@@ -14,13 +14,22 @@ jobs:
       run:
         working-directory: dictum
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
-      - run: pip install poetry
-      - run: poetry install
+      - uses: ./.github/actions/setup-dictum
       - run: poetry run pytest
       - uses: codecov/codecov-action@v3
         with:
           files: dictum/coverage.xml
+    # test-supported-backends:
+    #   runs-on: ubuntu-latest
+    #   needs: test
+    #   defaults:
+    #     run:
+    #       working-directory: dictum
+    #   steps:
+    #     - uses: actions/checkout@v3
+    #     - uses: actions/setup-python@v4
+    #       with:
+    #         python-version: 3.9
+    #     - run: pip install poetry
+    #     - run: poetry install
+    #     -

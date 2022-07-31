@@ -177,12 +177,16 @@ class ProjectDimension(ProjectDimensionRequest):
 class ProjectDimensions:
     def __init__(self, project: "dictum.project.Project"):
         self.__project = project
-        for dimension in project.model.dimensions.values():
-            setattr(
-                self,
-                dimension.id,
-                ProjectDimension(dimension, locale=project.model.locale),
-            )
+        self.__dimensions: Dict[str, ProjectDimension] = {
+            d.id: ProjectDimension(d, project.model.locale)
+            for d in project.model.dimensions.values()
+        }
+
+    def __getattr__(self, attr: str) -> ProjectDimension:
+        return self.__dimensions[attr]
+
+    def __getitem__(self, key: str) -> ProjectDimension:
+        return self.__dimensions[key]
 
     def _repr_html_(self):
         template = environment.get_template("calculations.html.j2")

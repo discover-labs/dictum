@@ -30,7 +30,6 @@ markdown_extensions:
 nav:
   - Introduction: index.md
   - Installation: installation.md
-  - 5-minute Guide: short_guide.md
   - Concepts:
     - Project: concepts/project.md
     - Model:

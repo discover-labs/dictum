@@ -1,3 +1,4 @@
+import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from time import perf_counter
@@ -423,7 +424,7 @@ class Backend(ABC):
     type: str
     compiler_cls = Compiler
 
-    registry = {}
+    registry: Dict[str, "Backend"] = {}
 
     def __init__(self):
         self.compiler = self.compiler_cls(self)
@@ -441,6 +442,15 @@ class Backend(ABC):
             )
 
         return cls.registry[type](**parameters)
+
+    @classmethod
+    def parameters(cls) -> dict:
+        result = {}
+        for name, par in inspect.signature(cls.__init__).parameters.items():
+            if name == "self":
+                continue
+            result[name] = par.default if par.default != inspect._empty else None
+        return result
 
     @staticmethod
     def discover_plugins():
