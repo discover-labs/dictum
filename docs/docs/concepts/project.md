@@ -35,7 +35,7 @@ The default directory structure is as follows:
 - `unions.yml` — This file contains definitions of
     [unions](model/dimension.md#unions)
 - `profiles.yml` — This file tells Dictum how to connect to the data
-    source, which database driver to use etc (see [Backend](model/backend.md))
+    source, which database driver to use etc (see [Backend](./backend.md))
 
 
 ## project.yml
@@ -77,5 +77,4 @@ unions_path: |
 profiles_path: |
     string, defaults to "profiles.yml"
     Like tables, but for backend profiles.
-
 ```

@@ -1,4 +1,5 @@
 import os
+from getpass import getpass
 from itertools import chain
 from pathlib import Path
 from typing import Dict, Optional, Union
@@ -27,19 +28,22 @@ def _merge(target: dict, source: dict):
 
 class Env:
     def __init__(self):
-        self.data = os.environ
+        self.data = os.environ.copy()
 
     def __getattr__(self, key: str):
         try:
             return self.data[key]
         except KeyError:
-            raise KeyError(f"Environment variable {key} is not defined")
+            val = getpass(key)
+            self.data[key] = val
+            return val
+
+
+env = Env()
 
 
 def _load_yaml_template(path: Path):
-    return yaml.load(
-        Template(path.read_text()).render(env=os.environ), Loader=yaml.SafeLoader
-    )
+    return yaml.load(Template(path.read_text()).render(env=env), Loader=yaml.SafeLoader)
 
 
 def _load_dict_from_path(path: Union[str, Path]) -> dict:

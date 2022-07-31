@@ -1,4 +1,3 @@
-
 <p align="center">
 <img src="docs/docs/assets/dictum-logo-text.png" width="200" style="margin: 1em">
 </p>
@@ -12,10 +11,10 @@ __[Documentation](https://discover-labs.github.io/dictum/)__
 
 __[Example Project](https://github.com/discover-labs/dictum/tree/master/dictum/dictum/examples/chinook)__
 
-Dictum is a general-purpose __metrics engine__ written in Python.
-It allows your organization to have a __shared__, __version-controlled__ and
-__well-documented__ understanding of what the important metrics are and
-how they are computed from the source data.
+Dictum is a __Business Intelligence framework__ written in Python. It includes a
+general-purpose __metrics engine__ and allows your organization to have a __shared__,
+__version-controlled__ and __well-documented__ understanding of what the important
+metrics are and how they are computed from the source data.
 
 <p align="center">
 <img src="docs/docs/assets/demo.gif" width="600">
