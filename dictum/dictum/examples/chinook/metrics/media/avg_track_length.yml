@@ -1,3 +1,0 @@
-name: Average Track Length (Seconds)
-expr: avg(Milliseconds) / 1000
-table: tracks

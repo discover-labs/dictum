@@ -1,3 +1,0 @@
-name: Sum of Track Length (Seconds)
-expr: sum(Milliseconds) / 1000
-table: tracks

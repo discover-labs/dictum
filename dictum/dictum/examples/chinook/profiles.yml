@@ -1,6 +1,0 @@
-default_profile: chinook
-profiles:
-  chinook:
-    type: sqlite
-    parameters:
-      database: {{ env.CHINOOK_DATABASE }}

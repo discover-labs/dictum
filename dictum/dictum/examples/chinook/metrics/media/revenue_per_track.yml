@@ -1,5 +1,0 @@
-name: Revenue per Track in the Library
-expr: $revenue / $track_count
-format:
-  kind: currency
-  pattern: ¤0.00
