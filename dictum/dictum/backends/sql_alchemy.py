@@ -23,6 +23,7 @@ from sqlalchemy import (
     select,
     true,
 )
+from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.functions import coalesce
 
@@ -146,7 +147,7 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
         return func.now()
 
     def today(self, _):
-        return self.todate(func.now())
+        return self.todate(func.now())  # TODO: call self.now()
 
     def coalesce(self, args: list):
         return func.coalesce(*args)
@@ -374,7 +375,12 @@ class SQLAlchemyBackend(Backend):
 
     @property
     def url(self) -> str:
-        raise NotImplementedError
+        url_params = {
+            k: v
+            for k, v in self.parameters.items()
+            if k not in {"default_schema", "pool_size"}
+        }
+        return URL.create(**url_params)
 
     @cached_property
     def engine(self):
