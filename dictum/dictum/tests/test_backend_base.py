@@ -1,7 +1,15 @@
 from unittest import mock
 
+import pytest
+
 from dictum.backends.base import ExpressionTransformer
 from dictum.backends.sql_alchemy import SQLAlchemyBackend
+
+
+@pytest.fixture(scope="module", autouse=True)
+def patch_sqlalchemy_url():
+    with mock.patch("dictum.backends.sql_alchemy.SQLAlchemyBackend.url", "sqlite://"):
+        yield
 
 
 def test_compiler_case():

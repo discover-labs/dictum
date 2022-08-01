@@ -4,6 +4,7 @@ from typing import List
 
 from pandas import DataFrame
 from sqlalchemy import Integer, String, create_engine
+from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql import Select, case, cast, func
 
@@ -121,10 +122,15 @@ class SQLiteBackend(SQLAlchemyBackend):
     compiler_cls = SQLiteCompiler
 
     def __init__(self, database: str):
-        super().__init__(drivername="sqlite", database=database)
+        super().__init__(pool_size=None, default_schema=None, database=database)
+
+    @property
+    def url(self) -> str:
+        return URL.create(drivername="sqlite", **self.parameters)
 
     @cached_property
     def engine(self):
+        """SQLite doesn't support connection pooling, so have to redefine this"""
         return create_engine(self.url)
 
     def execute(self, query: Select) -> DataFrame:

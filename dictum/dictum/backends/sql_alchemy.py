@@ -23,7 +23,6 @@ from sqlalchemy import (
     select,
     true,
 )
-from sqlalchemy.engine.url import URL
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.functions import coalesce
 
@@ -62,8 +61,8 @@ class ColumnTransformer(Transformer):
 
 
 class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
-    def __init__(self, connection: "SQLAlchemyBackend"):
-        self.connection = connection
+    def __init__(self, backend: "SQLAlchemyBackend"):
+        self.backend = backend
         super().__init__()
 
     def column(self, _):
@@ -166,13 +165,13 @@ class SQLAlchemyCompiler(ArithmeticCompilerMixin, Compiler):
 
     def _table(self, source: Union[str, Dict]):
         if isinstance(source, str):
-            return self.connection.table(source)
+            return self.backend.table(source)
         if isinstance(source, dict):
             schema = source.get("schema")
             table = source.get("table")
             if table is None:
                 raise ValueError(f"table is required for a {self.type} backend")
-            return self.connection.table(table, schema)
+            return self.backend.table(table, schema)
         raise ValueError(f"Source must be a str or a dict for a {self.type} backend")
 
     def compile_query(self, query: RelationalQuery):
@@ -364,26 +363,18 @@ class SQLAlchemyBackend(Backend):
 
     def __init__(
         self,
-        drivername: str = "sqlite",
-        database: Optional[str] = None,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
         pool_size: Optional[int] = None,
         default_schema: Optional[str] = None,
+        **kwargs,
     ):
-        self.url = URL.create(
-            drivername=drivername,
-            database=database,
-            host=host,
-            port=port,
-            username=username,
-            password=password,
-        )
+        self.parameters = kwargs
         self.pool_size = pool_size
         self.default_schema = default_schema
         super().__init__()
+
+    @property
+    def url(self) -> str:
+        raise NotImplementedError
 
     @cached_property
     def engine(self):
