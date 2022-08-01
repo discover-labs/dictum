@@ -1,9 +1,0 @@
-source: artists
-primary_key: ArtistId
-
-dimensions:
-  artist:
-    name: Artist
-    table: artists
-    expr: Name
-    type: str

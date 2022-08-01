@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-<img src="https://github.com/discover-labs/dictum/actions/workflows/test.yml/badge.svg?branch=master" alt="Tests" />
-<img src="https://img.shields.io/codecov/c/github/discover-labs/dictum" alt="Coverage" />
+<img src="https://github.com/discover-labs/dictum-core/actions/workflows/test.yml/badge.svg?branch=master" alt="Tests" />
+<img src="https://img.shields.io/codecov/c/github/discover-labs/dictum-core" alt="Coverage" />
 </p>
 
 __[Documentation](https://discover-labs.github.io/dictum/)__

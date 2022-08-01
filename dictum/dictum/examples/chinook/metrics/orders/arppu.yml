@@ -1,4 +1,0 @@
-name: Average Revenue per Paying Customer
-expr: $revenue / $unique_paying_customers
-type: float
-format: currency

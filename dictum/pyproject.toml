@@ -1,43 +1,19 @@
 [tool.poetry]
 name = "dictum"
 version = "0.1.0"
-description = ""
-authors = ["Mikhail Akimov"]
+description = "Describe business metrics with YAML, query and visualize in Jupyter with zero SQL"
+authors = ["Mikhail Akimov <rovinj.akimov@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pydantic = "^1.8.2"
-lark = "^0.11.3"
-PyYAML = "^5.4.1"
-SQLAlchemy = "^1.4.25"
-pandas = "^1.3.3"
-Jinja2 = "^3.0.1"
-sqlparse = "^0.4.2"
-Babel = "^2.9.1"
-altair = { version = "4.2.0rc1", allow-prereleases = true }
-typer = "^0.6.1"
-rich = "^12.5.1"
-jupyter = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
-flake8 = "^3.9.2"
-isort = "^5.9.3"
-pytest = "^6.2.5"
-pytest-cov = {extras = ["toml"], version = "^3.0.0"}
-mkdocs-material = "^8.1.7"
-mkdocs-jupyter = "^0.19.0"
-black = "^22.3.0"
+pytest = "^5.2"
 jupyter = "^1.0.0"
-
-[tool.poetry.scripts]
-dictum = "dictum.cli:app"
-
-[tool.pytest.ini_options]
-addopts = "--cov-report=xml --cov=dictum"
-
-[tool.isort]
-profile = "black"
-known_first_party = ["dictum"]
+mkdocs-material = "^8.3.9"
+mkdocs-jupyter = "^0.21.0"
+black = "^22.6.0"
+flake8 = "^5.0.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

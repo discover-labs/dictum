@@ -1,6 +1,0 @@
-default: default
-profiles:
-  default:
-    type: sqlite
-    parameters:
-      database: ""

@@ -1,5 +1,0 @@
-default_profile: {{ profile }}
-{{ profile }}:
-  type: {{ backend }}
-  parameters:
-{{ backend_parameters }}
