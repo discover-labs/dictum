@@ -6,6 +6,12 @@ authors = ["Mikhail Akimov <rovinj.akimov@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+dictum-backend-postgres = {version = "^0.1", optional = true}
+dictum-backend-vertica = {version = "^0.1", optional = true}
+
+[tool.poetry.extras]
+postgres = ["dictum-backend-postgres"]
+vertica = ["dictum-backend-vertica"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
