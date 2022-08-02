@@ -30,6 +30,13 @@ The main features are:
 - 🐇 **Automatic multi-hop joins.** You define foreign keys for tables, Dictum writes boring boilerplate SQL for you.
 - 🤖 **Python API**. Build data applications powered by your Dictum project.
 
+🚂 Supported backends:
+
+- [SQLite](https://discover-labs.github.io/dictum/concepts/backend/#sqlite-built-in)
+- [Postgres](https://discover-labs.github.io/dictum/concepts/backend/#postgres)
+- [Vertica](https://discover-labs.github.io/dictum/concepts/backend/#vertica)
+- Snowflake, BigQuery, DuckDB and more coming soon.
+
 Example [Metric](https://discover-labs.github.io/dictum/concepts/model/metric/) definition:
 
 ```yaml
