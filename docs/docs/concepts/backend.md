@@ -4,6 +4,15 @@ A backend is reponsible for translating abstract Dictum computations into actual
 Before you can use Dictum, you have to set up at least one backend in the `profiles.yml`
 file.
 
+## Installing backends
+
+Backends are installed together with Dictum by installing `dictum` package's extras.
+
+| Backend                                        | Installation command           | Configuration              |
+| ---------------------------------------------- | ------------------------------ | -------------------------- |
+| [Postgres](https://www.postgresql.org/)        | `pip install dictum[postgres]` | [postgres](#postgres)      |
+| [Vertica](https://www.vertica.com/)            | `pip install dictum[vertica]`  | [vertica](#vertica)        |
+
 ## Profiles
 
 Each backend specification is called a "profile". There's one default profile, the one
@@ -89,7 +98,7 @@ Type: `postgres`
 
 Parameters:
 
-- `host` — Postgresql host
+- `host` — Postgresql host, defaults to `localhost`
 - `port` - defaults to `5432`, must be `int`
   If you want to get the port from `env`, use `int` Jinja filter:
   `port: {{ env.POSTGRES_PORT | int }}`
@@ -115,3 +124,22 @@ Postgresql table sources can be defined in two ways:
   ```
   In this case, Dictum will use the schema specified in the table source config.
   `
+
+### Vertica
+
+Type: `vertica`
+
+Parameters:
+
+- `host` — Vertica host address, defaults to `localhost`
+- `port` - Port to connect to, defaults to `5433`
+  If you want to get the port from `env`, use `int` Jinja filter:
+  `port: {{ env.POSTGRES_PORT | int }}`
+- `database` — cluster database name
+- `user` — user name for authenticaion
+- `password` password for authentication
+- `pool_size` — defaults to `5`. SQLAlchemy pool size for executing concurrent queries,
+  which is required when Dictum can't resolve a query to a single SQL query.
+- `default_schema` — default schema to use when no schema is specified.
+  When defining Dictum tables, you can specify the source as `source: my_table`. If
+  `default_schema` is present, Dictum will look for the table in that schema.
