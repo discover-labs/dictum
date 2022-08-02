@@ -2,7 +2,7 @@
 
 Dictum query language allows human programmers to request information from the data
 model. Text queries are compiled into the same `Query` object as described in the
-[Query](../concepts/query/intro.md) section of the documentation.
+[Query](../concepts/query/ql.ipynb) section of the documentation.
 
 !!! info
     This query language officially doesn't have a name, because we have enough

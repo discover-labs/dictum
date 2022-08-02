@@ -1,5 +1,5 @@
 <p align="center">
-<img src="../assets/dictum-logo-text.png" width="200" style="margin: 1em">
+<img src="./assets/dictum-logo-text.png" width="200" style="margin: 1em">
 </p>
 
 !!! quote ""
