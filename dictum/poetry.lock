@@ -3,11 +3,7 @@ name = "altair"
 version = "4.2.0rc1"
 description = "Altair: A declarative statistical visualization library for Python."
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.7"
 
 [package.dependencies]
@@ -101,11 +97,7 @@ name = "babel"
 version = "2.10.3"
 description = "Internationalization utilities"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -207,11 +199,7 @@ name = "commonmark"
 version = "0.9.1"
 description = "Python parser for the CommonMark Markdown spec"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = "*"
 
 [package.extras]
@@ -242,7 +230,6 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
-<<<<<<< Updated upstream
 name = "dictum-backend-postgres"
 version = "0.1.1"
 description = "Postgres backend for Dictum"
@@ -266,17 +253,11 @@ python-versions = ">=3.9,<4.0"
 sqlalchemy-vertica-python = ">=0.5.10,<0.6.0"
 
 [[package]]
-=======
->>>>>>> Stashed changes
 name = "dictum-core"
 version = "0.1.1"
 description = "Core library for Dictum"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.9,<4.0"
 
 [package.dependencies]
@@ -352,11 +333,7 @@ name = "greenlet"
 version = "1.1.2"
 description = "Lightweight in-process concurrent programming"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*"
 
 [package.extras]
@@ -620,11 +597,7 @@ name = "lark"
 version = "0.11.3"
 description = "a modern parsing library"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = "*"
 
 [package.extras]
@@ -923,11 +896,7 @@ name = "numpy"
 version = "1.23.1"
 description = "NumPy is the fundamental package for array computing with Python."
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.8"
 
 [[package]]
@@ -946,11 +915,7 @@ name = "pandas"
 version = "1.4.3"
 description = "Powerful data structures for data analysis, time series, and statistics"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.8"
 
 [package.dependencies]
@@ -1125,11 +1090,7 @@ name = "pydantic"
 version = "1.9.1"
 description = "Data validation and settings management using python type hints"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.6.1"
 
 [package.dependencies]
@@ -1223,11 +1184,7 @@ name = "pytz"
 version = "2022.1"
 description = "World timezone definitions, modern and historical"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = "*"
 
 [[package]]
@@ -1318,11 +1275,7 @@ name = "rich"
 version = "12.5.1"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.6.3,<4.0.0"
 
 [package.dependencies]
@@ -1366,11 +1319,7 @@ name = "sqlalchemy"
 version = "1.4.39"
 description = "Database Abstraction Library"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
 
 [package.dependencies]
@@ -1398,7 +1347,6 @@ pymysql = ["pymysql (<1)", "pymysql"]
 sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
-<<<<<<< Updated upstream
 name = "sqlalchemy-vertica-python"
 version = "0.5.10"
 description = "Vertica dialect for sqlalchemy using vertica_python"
@@ -1410,17 +1358,11 @@ python-versions = "*"
 vertica-python = "*"
 
 [[package]]
-=======
->>>>>>> Stashed changes
 name = "sqlparse"
 version = "0.4.2"
 description = "A non-validating SQL parser."
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.5"
 
 [[package]]
@@ -1491,11 +1433,7 @@ name = "toolz"
 version = "0.12.0"
 description = "List processing tools and functional utilities"
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.5"
 
 [[package]]
@@ -1522,11 +1460,7 @@ name = "typer"
 version = "0.6.1"
 description = "Typer, build great CLIs. Easy to code. Based on Python type hints."
 category = "main"
-<<<<<<< Updated upstream
-optional = true
-=======
 optional = false
->>>>>>> Stashed changes
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -1615,11 +1549,7 @@ vertica = ["dictum-backend-vertica"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-<<<<<<< Updated upstream
-content-hash = "63e1ac7b2a2a5406bca1b94fa471e283726a45a5b970ba42c0ecb3199f377f24"
-=======
-content-hash = "db8002d1f115e34788bfd65433ae8a9d0b6e5a6813a6ee8f7b23b583d23dce49"
->>>>>>> Stashed changes
+content-hash = "63f5f8aaf654d0f1ba48fcbc929b4969bbcc3ec24a21b2df52ff5bd40ee9d392"
 
 [metadata.files]
 altair = [
@@ -1662,7 +1592,6 @@ defusedxml = [
     {file = "defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61"},
     {file = "defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69"},
 ]
-<<<<<<< Updated upstream
 dictum-backend-postgres = [
     {file = "dictum-backend-postgres-0.1.1.tar.gz", hash = "sha256:0a2e9ebdeb616561475b49133ab88e9ec5c32822032e13c904dc8c183fca40ec"},
     {file = "dictum_backend_postgres-0.1.1-py3-none-any.whl", hash = "sha256:c335bb78acf225d057c64999bce7880ef08687bf17ef5c15a71dd22b9a595e25"},
@@ -1671,8 +1600,6 @@ dictum-backend-vertica = [
     {file = "dictum-backend-vertica-0.1.1.tar.gz", hash = "sha256:727f31cfd51009b6e32222386fd482404241ed5bd1523b5f1102c1e32ccc3a59"},
     {file = "dictum_backend_vertica-0.1.1-py3-none-any.whl", hash = "sha256:0d482043e52067ac65cde30cc5c4ef27a74c7ed645b93ada0a65ba74c9bd2a77"},
 ]
-=======
->>>>>>> Stashed changes
 dictum-core = [
     {file = "dictum-core-0.1.1.tar.gz", hash = "sha256:b023b3bee0a1a74a8348074d030b29dda7f3e61ab18df27d724e0e766140fb56"},
     {file = "dictum_core-0.1.1-py3-none-any.whl", hash = "sha256:a3eef14e5534fdec01360b785e16a3bb38bcccad76f9d82616e9568d150581e5"},
@@ -2053,13 +1980,10 @@ six = [
 ]
 soupsieve = []
 sqlalchemy = []
-<<<<<<< Updated upstream
 sqlalchemy-vertica-python = [
     {file = "sqlalchemy-vertica-python-0.5.10.tar.gz", hash = "sha256:993c5fa3ed7ac0c8475de73ddb751271ba1515a402ede523cc58ee12ea47cf83"},
     {file = "sqlalchemy_vertica_python-0.5.10-py3-none-any.whl", hash = "sha256:9a72e8f88cc96cdb2eff10c37fc4192d036db7909b3ad934f829c7509f012d73"},
 ]
-=======
->>>>>>> Stashed changes
 sqlparse = [
     {file = "sqlparse-0.4.2-py3-none-any.whl", hash = "sha256:48719e356bb8b42991bdbb1e8b83223757b93789c00910a616a071910ca4a64d"},
     {file = "sqlparse-0.4.2.tar.gz", hash = "sha256:0c00730c74263a94e5a9919ade150dfc3b19c574389985446148402998287dae"},
