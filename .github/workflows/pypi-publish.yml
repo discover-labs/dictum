@@ -1,0 +1,21 @@
+name: Publish package to PyPi
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dictum
+    env:
+      POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-dictum
+        with:
+          python-version: 3.9
+      - run: poetry publish --build
