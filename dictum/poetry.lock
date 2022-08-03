@@ -231,7 +231,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "dictum-backend-postgres"
-version = "0.1.2"
+version = "0.1.3"
 description = "Postgres backend for Dictum"
 category = "main"
 optional = true
@@ -255,7 +255,7 @@ sqlalchemy-vertica-python = ">=0.5.10,<0.6.0"
 
 [[package]]
 name = "dictum-core"
-version = "0.1.3"
+version = "0.1.4"
 description = "Core library for Dictum"
 category = "main"
 optional = false
@@ -1748,16 +1748,16 @@ defusedxml = [
     {file = "defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69"},
 ]
 dictum-backend-postgres = [
-    {file = "dictum-backend-postgres-0.1.2.tar.gz", hash = "sha256:d2c97c4001cfd474dc19f9a5dc79aace04fea4cf06835c34ca5bf849b209e46d"},
-    {file = "dictum_backend_postgres-0.1.2-py3-none-any.whl", hash = "sha256:cf3e0699972ae0a7c81ae4479d8de8b9285b19d1178558d8980ef078eacc41d1"},
+    {file = "dictum-backend-postgres-0.1.3.tar.gz", hash = "sha256:ffad86993dd74efe17649ee894e5f6fa87f11d66217ef909403b6748f5aeb6f4"},
+    {file = "dictum_backend_postgres-0.1.3-py3-none-any.whl", hash = "sha256:10f6df79eae8627e07538c68e98e6431d1c0dbbc6c6fd7c7733f4a61c251c317"},
 ]
 dictum-backend-vertica = [
     {file = "dictum-backend-vertica-0.1.2.tar.gz", hash = "sha256:13f5cf1e881a9396eb3ee6428d13cc0d6bafceb6f2e9863857964af564ba77a4"},
     {file = "dictum_backend_vertica-0.1.2-py3-none-any.whl", hash = "sha256:ab47cdbebfd93478ffd72856fcdbea6440c261d1b8e2974cfefb2db5a70c1f44"},
 ]
 dictum-core = [
-    {file = "dictum-core-0.1.3.tar.gz", hash = "sha256:a0234a47aa9867362a50621f78f757dfb6f292a377bbf0a0c3fd5bb1f3afd8fb"},
-    {file = "dictum_core-0.1.3-py3-none-any.whl", hash = "sha256:0e3cf0bb4dbec1b7d88135f62d8e19dec3b529ad8e1c21303d016f903cc54323"},
+    {file = "dictum-core-0.1.4.tar.gz", hash = "sha256:a91110972f4b2cfc94601dcde6888cb993c352f00f04262492d94b346adf5c48"},
+    {file = "dictum_core-0.1.4-py3-none-any.whl", hash = "sha256:c7e71a0840ae4d25415975660612d3621008baf11892ebdd1eb8a2c6871101c1"},
 ]
 entrypoints = [
     {file = "entrypoints-0.4-py3-none-any.whl", hash = "sha256:f174b5ff827504fd3cd97cc3f8649f3693f51538c7e4bdf3ef002c8429d42f9f"},
