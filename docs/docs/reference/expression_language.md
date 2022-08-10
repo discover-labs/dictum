@@ -45,12 +45,18 @@ Dimension references are prepended by `:` — `:sale_date`, `:channel`.
 
 ## Operators
 
-
-
 ### Arithmetic
 
 Standard arithmetic operators are supported: `+`, `-`, `*`, `/`, `%` (division remainder),
 `//` (floor division, or integer division), `**` (exponentiation, or power).
+
+!!! important
+    Division in Dictum works the same way as in Python 3: when you divide a value by an
+    integer, the denominator is converted into float, e.g. `1 / 2 == 0.5`.
+
+    Some database engines, like SQLite and Postgres have different semantics. For them,
+    division works like this: `1 / 2 == 0`. Dictum overrides database engine semantics
+    for consistency.
 
 ### Comparison
 

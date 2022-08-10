@@ -255,7 +255,7 @@ sqlalchemy-vertica-python = ">=0.5.10,<0.6.0"
 
 [[package]]
 name = "dictum-core"
-version = "0.1.4"
+version = "0.1.6"
 description = "Core library for Dictum"
 category = "main"
 optional = false
@@ -1756,8 +1756,8 @@ dictum-backend-vertica = [
     {file = "dictum_backend_vertica-0.1.2-py3-none-any.whl", hash = "sha256:ab47cdbebfd93478ffd72856fcdbea6440c261d1b8e2974cfefb2db5a70c1f44"},
 ]
 dictum-core = [
-    {file = "dictum-core-0.1.4.tar.gz", hash = "sha256:a91110972f4b2cfc94601dcde6888cb993c352f00f04262492d94b346adf5c48"},
-    {file = "dictum_core-0.1.4-py3-none-any.whl", hash = "sha256:c7e71a0840ae4d25415975660612d3621008baf11892ebdd1eb8a2c6871101c1"},
+    {file = "dictum-core-0.1.6.tar.gz", hash = "sha256:28ff489d075bc052894a840e208c69b56078a50aa6bb336e77e65325c5d2813d"},
+    {file = "dictum_core-0.1.6-py3-none-any.whl", hash = "sha256:51720f020a53538c6d272faf8d31c10e098ac1f0bc4ab22984aa365e929b1060"},
 ]
 entrypoints = [
     {file = "entrypoints-0.4-py3-none-any.whl", hash = "sha256:f174b5ff827504fd3cd97cc3f8649f3693f51538c7e4bdf3ef002c8429d42f9f"},
