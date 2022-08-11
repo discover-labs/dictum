@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dictum"
-version = "0.1.5"
+version = "0.1.6"
 description = "Describe business metrics with YAML, query and visualize in Jupyter with zero SQL"
 authors = ["Mikhail Akimov <rovinj.akimov@gmail.com>"]
 
