@@ -81,3 +81,9 @@ nav:
   #   - Tutorial Example: index.md
   #   - Chinook Database: index.md
   #   - AdventureWorks Data Warehouse: index.md
+
+
+extra:
+  analytics:
+    provider: google
+    property: G-RN9CQJ7DXV
