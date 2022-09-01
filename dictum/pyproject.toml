@@ -1,14 +1,14 @@
 [tool.poetry]
 name = "dictum"
-version = "0.1.6"
+version = "0.1.7"
 description = "Describe business metrics with YAML, query and visualize in Jupyter with zero SQL"
 authors = ["Mikhail Akimov <rovinj.akimov@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4"
-dictum-core = "^0.1"
-dictum-backend-postgres = {version = "^0.1", optional = true}
-dictum-backend-vertica = {version = "^0.1", optional = true}
+dictum-core = "0.1.8"
+dictum-backend-postgres = {version = "0.1.4", optional = true}
+dictum-backend-vertica = {version = "0.1.3", optional = true}
 
 [tool.poetry.extras]
 postgres = ["dictum-backend-postgres"]
